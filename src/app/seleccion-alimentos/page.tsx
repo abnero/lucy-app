@@ -33,10 +33,21 @@ export default function SeleccionAlimentosPage() {
   const [loadingAlimentos, setLoadingAlimentos] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [hasCalendario, setHasCalendario] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
+      return
+    }
+    if (!loading && user) {
+      supabase
+        .from('calendario')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .then(({ count }) => {
+          if (count && count > 0) setHasCalendario(true)
+        })
     }
   }, [user, loading, router])
 
@@ -133,6 +144,16 @@ export default function SeleccionAlimentosPage() {
   return (
     <div className="min-h-screen px-4 py-6">
       <div className="max-w-lg mx-auto">
+        {/* Back button */}
+        {hasCalendario && (
+          <button
+            onClick={() => router.push('/mi-calendario')}
+            className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors mb-3"
+          >
+            ← Volver a mi calendario
+          </button>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>

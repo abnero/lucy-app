@@ -14,7 +14,13 @@ interface CalendarioItem {
   alimento: {
     nombre: string
     foto_url: string | null
+    categoria_comida: string
   }
+}
+
+const ORDEN_CATEGORIA: Record<string, number> = {
+  proteina: 1, carbohidrato: 2, vegetal: 3, grasa: 4,
+  fruta: 5, lacteo: 5, bebida: 5, condimento: 5, otro: 6,
 }
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -42,7 +48,7 @@ export default function MiCalendarioPage() {
     if (!user) return
     supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -66,7 +72,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url)')
+          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -207,7 +213,9 @@ export default function MiCalendarioPage() {
           className={`max-w-lg mx-auto space-y-4 transition-all duration-150 ease-in-out ${slideClass}`}
         >
           {COMIDAS.map(({ key, label }) => {
-            const comidaItems = itemsDelDia.filter(i => i.comida === key)
+            const comidaItems = itemsDelDia
+              .filter(i => i.comida === key)
+              .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
             if (comidaItems.length === 0) return null
             return (
               <div key={key} className="bg-lucy-white rounded-card border border-lucy-border p-4">

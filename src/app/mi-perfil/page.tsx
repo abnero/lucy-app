@@ -64,6 +64,7 @@ export default function MiPerfilPage() {
   const [nivelActividad, setNivelActividad] = useState('')
   const [meta, setMeta] = useState('')
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function MiPerfilPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccessMsg('')
     if (!nombre.trim() || !peso || !edad || !nivelActividad || !meta) {
       setError('Por favor completa todos los campos')
       return
@@ -120,36 +122,59 @@ export default function MiPerfilPage() {
       altPies = altCm / 30.48
     }
 
-    const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
-    const metaObj = METAS.find(m => m.value === meta)!
-    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust)
+    // Detect if metric data changed
+    const metricChanged =
+      pesoKg !== (userData?.peso_kg || 0) ||
+      altCm !== (userData?.altura_cm || 0) ||
+      edadNum !== (userData?.edad || 0) ||
+      nivelActividad !== (userData?.nivel_actividad || '') ||
+      meta !== (userData?.meta || '')
 
     setSaving(true)
 
-    const { error: dbError } = await supabase
-      .from('usuarios')
-      .update({
-        nombre: nombre.trim(),
-        peso_lbs: pesoLbs, peso_kg: pesoKg,
-        altura_pies: altPies, altura_cm: altCm,
-        edad: edadNum, nivel_actividad: nivelActividad, meta,
-        calorias_objetivo: macros.calorias,
-        proteina_objetivo: macros.proteina,
-        carbs_objetivo: macros.carbs,
-        grasas_objetivo: macros.grasas,
-      })
-      .eq('id', user!.id)
+    if (metricChanged) {
+      // Recalculate macros
+      const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
+      const metaObj = METAS.find(m => m.value === meta)!
+      const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust)
 
-    if (dbError) { setError('Error al guardar: ' + dbError.message); setSaving(false); return }
+      const { error: dbError } = await supabase
+        .from('usuarios')
+        .update({
+          nombre: nombre.trim(),
+          peso_lbs: pesoLbs, peso_kg: pesoKg,
+          altura_pies: altPies, altura_cm: altCm,
+          edad: edadNum, nivel_actividad: nivelActividad, meta,
+          calorias_objetivo: macros.calorias,
+          proteina_objetivo: macros.proteina,
+          carbs_objetivo: macros.carbs,
+          grasas_objetivo: macros.grasas,
+        })
+        .eq('id', user!.id)
 
-    // Clear calendar and shopping list so user re-generates
-    await Promise.all([
-      supabase.from('calendario').delete().eq('user_id', user!.id).select(),
-      supabase.from('lista_compras').delete().eq('user_id', user!.id).select(),
-      supabase.from('preferencias_usuario').delete().eq('user_id', user!.id).select(),
-    ])
+      if (dbError) { setError('Error al guardar: ' + dbError.message); setSaving(false); return }
 
-    router.push('/seleccion-alimentos')
+      // Clear calendar and shopping list — keep preferencias to reuse same foods
+      await Promise.all([
+        supabase.from('calendario').delete().eq('user_id', user!.id).select(),
+        supabase.from('lista_compras').delete().eq('user_id', user!.id).select(),
+      ])
+
+      router.push('/generando')
+    } else {
+      // Only name changed — simple update, stay on page
+      const { error: dbError } = await supabase
+        .from('usuarios')
+        .update({ nombre: nombre.trim() })
+        .eq('id', user!.id)
+
+      if (dbError) { setError('Error al guardar: ' + dbError.message); setSaving(false); return }
+
+      setUserData(prev => prev ? { ...prev, nombre: nombre.trim() } : prev)
+      setSuccessMsg('Tu perfil está actualizado.')
+      setSaving(false)
+      setTimeout(() => setSuccessMsg(''), 3000)
+    }
   }
 
   const handleSignOut = async () => {
@@ -317,6 +342,7 @@ export default function MiPerfilPage() {
             </div>
 
             {error && <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>}
+            {successMsg && <p className="text-lucy-accent text-xs bg-lucy-accent/5 border border-lucy-accent/20 rounded-btn p-3">{successMsg}</p>}
 
             <button type="submit" disabled={saving}
               className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
@@ -324,9 +350,17 @@ export default function MiPerfilPage() {
             </button>
           </form>
 
+          {/* Change foods */}
+          <button
+            onClick={() => router.push('/seleccion-alimentos')}
+            className="w-full mt-3 border border-lucy-accent text-lucy-accent font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-lucy-accent/5 transition-colors"
+          >
+            Cambiar mis alimentos
+          </button>
+
           {/* Sign out */}
           <button onClick={handleSignOut}
-            className="w-full mt-4 mb-8 border border-red-200 text-red-400 font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-red-50 transition-colors">
+            className="w-full mt-3 mb-8 border border-red-200 text-red-400 font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-red-50 transition-colors">
             Cerrar sesión
           </button>
         </div>
