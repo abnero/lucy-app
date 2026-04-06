@@ -90,13 +90,17 @@ export default function SeleccionAlimentosPage() {
 
     if (isLastStep) {
       setSaving(true)
-      // Build all preferences
+      // Build all preferences (deduplicate by alimento_id to respect UNIQUE constraint)
+      const seen = new Set<string>()
       const preferences: { user_id: string; alimento_id: string; categoria_comida: string }[] = []
       for (let i = 0; i < PASOS.length; i++) {
         const ids = selecciones[i]
         const cat = PASOS[i].categoria
         ids.forEach(id => {
-          preferences.push({ user_id: user!.id, alimento_id: id, categoria_comida: cat })
+          if (!seen.has(id)) {
+            seen.add(id)
+            preferences.push({ user_id: user!.id, alimento_id: id, categoria_comida: cat })
+          }
         })
       }
 
@@ -117,6 +121,7 @@ export default function SeleccionAlimentosPage() {
       const { error: dbError } = await supabase.from('preferencias_usuario').insert(preferences)
 
       if (dbError) {
+        console.error('Insert error:', dbError, 'Preferences count:', preferences.length)
         setError('Error al guardar: ' + dbError.message)
         setSaving(false)
         return
