@@ -137,6 +137,18 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Forgot password */}
+          {!isRegister && (
+            <p className="text-center mt-3">
+              <button
+                onClick={() => router.push('/recuperar-contrasena')}
+                className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </p>
+          )}
+
           {/* Toggle */}
           <p className="text-center text-xs text-lucy-muted mt-5">
             {isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
