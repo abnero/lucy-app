@@ -33,7 +33,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
       const timer = setTimeout(() => {
         setShowHint(false)
         localStorage.setItem('lucy_chat_hint_shown', '1')
-      }, 3000)
+      }, 5000)
       return () => clearTimeout(timer)
     }
   }, [])
@@ -109,11 +109,11 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
     <>
       {/* Floating button */}
       <div className="fixed bottom-24 right-5 z-20">
-        {/* Tooltip — positioned left of button */}
+        {/* Tooltip */}
         {showHint && (
-          <div className="absolute top-1/2 -translate-y-1/2 right-14 whitespace-nowrap bg-lucy-white border border-lucy-border rounded-lg px-3 py-1.5 text-xs text-lucy-text shadow-sm animate-hintFade">
+          <div className="absolute -top-11 right-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs text-white shadow-sm animate-hintFade" style={{ backgroundColor: '#2D2B45' }}>
             ¡Pregúntame algo!
-            <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-2 bg-lucy-white border-r border-b border-lucy-border -rotate-45" />
+            <div className="absolute -bottom-1 right-4 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: '#2D2B45' }} />
           </div>
         )}
 
@@ -138,7 +138,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
           100% { background: conic-gradient(from 360deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 0; }
         }
         .animate-siriGlow {
-          animation: siriGlow 3s ease-in-out forwards;
+          animation: siriGlow 5s ease-in-out forwards;
           border-radius: 9999px;
         }
         @keyframes hintFade {
@@ -148,7 +148,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
           100% { opacity: 0; transform: translateX(-50%) translateY(4px); }
         }
         .animate-hintFade {
-          animation: hintFade 3s ease-in-out forwards;
+          animation: hintFade 5s ease-in-out forwards;
         }
       `}</style>
 
