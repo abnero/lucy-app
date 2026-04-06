@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/lib/supabase/client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -14,9 +15,7 @@ const GREETING = '¡Hola! Soy Lucy. ¿En qué te puedo ayudar hoy? Puedo cambiar
 export default function ChatPanel({ onDataChange }: { onDataChange?: () => void }) {
   const { user, session } = useAuth()
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: GREETING },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,6 +23,30 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [showHint, setShowHint] = useState(false)
+  const historyLoaded = useRef(false)
+
+  // Load chat history when panel opens for the first time
+  const loadHistory = useCallback(async () => {
+    if (historyLoaded.current || !user) return
+    historyLoaded.current = true
+
+    const { data } = await supabase
+      .from('conversaciones')
+      .select('role, content')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(20)
+
+    if (data && data.length > 0) {
+      setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+    } else {
+      setMessages([{ role: 'assistant', content: GREETING }])
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (open) loadHistory()
+  }, [open, loadHistory])
 
   // Show hint animation once
   useEffect(() => {

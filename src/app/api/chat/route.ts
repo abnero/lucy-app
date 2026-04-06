@@ -598,13 +598,44 @@ Responde siempre en español. Sé concisa y práctica.`
       content: m.content,
     }))
 
-    // Tool use loop
+    // Tool use loop — handles multiple tool calls per response
     let currentRevertData: RevertData | null = lastRevertData || null
     let finalResponse = ''
     let loopMessages = [...apiMessages]
     let iterations = 0
 
-    while (iterations < 5) {
+    const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
+      if (name === 'cambiar_alimento') {
+        const { result, revertData } = await executeCambiarAlimento(supabase, userId, {
+          dia: input.dia as number,
+          comida: input.comida as string,
+          alimento_actual: input.alimento_actual as string,
+          alimento_nuevo: input.alimento_nuevo as string,
+        })
+        if (revertData) currentRevertData = revertData
+        return result
+      } else if (name === 'agregar_snack') {
+        const { result, revertData } = await executeAgregarSnack(supabase, userId, {
+          dia: input.dia as string,
+          alimento: input.alimento as string,
+          cantidad: input.cantidad as number,
+        })
+        if (revertData) currentRevertData = revertData
+        return result
+      } else if (name === 'calcular_macros_dia') {
+        return await executeCalcularMacrosDia(supabase, userId, {
+          dia: input.dia as number,
+          comidas_consumidas: input.comidas_consumidas as string[],
+        })
+      } else if (name === 'revertir_cambio') {
+        const result = await executeRevertir(supabase, currentRevertData)
+        currentRevertData = null
+        return result
+      }
+      return 'Herramienta no reconocida.'
+    }
+
+    while (iterations < 8) {
       iterations++
 
       const response = await anthropic.messages.create({
@@ -615,62 +646,33 @@ Responde siempre en español. Sé concisa y práctica.`
         messages: loopMessages,
       })
 
-      // Check if there's a tool use
-      const toolUseBlock = response.content.find(b => b.type === 'tool_use')
+      // Collect all tool_use blocks
+      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
       const textBlock = response.content.find(b => b.type === 'text')
 
-      if (!toolUseBlock) {
-        // No tool use, just text response
+      if (toolUseBlocks.length === 0) {
         finalResponse = textBlock?.type === 'text' ? textBlock.text : ''
         break
       }
 
-      // Execute the tool
-      let toolResult = ''
-
-      if (toolUseBlock.type === 'tool_use') {
-        const toolInput = toolUseBlock.input as Record<string, unknown>
-
-        if (toolUseBlock.name === 'cambiar_alimento') {
-          const { result, revertData } = await executeCambiarAlimento(supabase, userId, {
-            dia: toolInput.dia as number,
-            comida: toolInput.comida as string,
-            alimento_actual: toolInput.alimento_actual as string,
-            alimento_nuevo: toolInput.alimento_nuevo as string,
+      // Execute ALL tool calls and build results
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const toolResults: any[] = []
+      for (const block of toolUseBlocks) {
+        if (block.type === 'tool_use') {
+          const result = await executeTool(block.name, block.input as Record<string, unknown>)
+          toolResults.push({
+            type: 'tool_result' as const,
+            tool_use_id: block.id,
+            content: result,
           })
-          toolResult = result
-          if (revertData) currentRevertData = revertData
-        } else if (toolUseBlock.name === 'agregar_snack') {
-          const { result, revertData } = await executeAgregarSnack(supabase, userId, {
-            dia: toolInput.dia as string,
-            alimento: toolInput.alimento as string,
-            cantidad: toolInput.cantidad as number,
-          })
-          toolResult = result
-          if (revertData) currentRevertData = revertData
-        } else if (toolUseBlock.name === 'calcular_macros_dia') {
-          toolResult = await executeCalcularMacrosDia(supabase, userId, {
-            dia: toolInput.dia as number,
-            comidas_consumidas: toolInput.comidas_consumidas as string[],
-          })
-        } else if (toolUseBlock.name === 'revertir_cambio') {
-          toolResult = await executeRevertir(supabase, currentRevertData)
-          currentRevertData = null
         }
       }
 
-      // Add assistant response and tool result to messages for next iteration
       loopMessages = [
         ...loopMessages,
         { role: 'assistant' as const, content: response.content },
-        {
-          role: 'user' as const,
-          content: [{
-            type: 'tool_result' as const,
-            tool_use_id: toolUseBlock.type === 'tool_use' ? toolUseBlock.id : '',
-            content: toolResult,
-          }],
-        },
+        { role: 'user' as const, content: toolResults },
       ]
     }
 
