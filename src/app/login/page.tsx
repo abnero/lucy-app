@@ -1,12 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import { getDestination } from '@/lib/routeUser'
 
 export default function LoginPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      getDestination(user.id).then(dest => router.push(dest))
+    }
+  }, [user, authLoading, router])
+
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +26,6 @@ export default function LoginPage() {
   const [confirmationSent, setConfirmationSent] = useState(false)
 
   const { signInWithEmail, signUpWithEmail } = useAuth()
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
