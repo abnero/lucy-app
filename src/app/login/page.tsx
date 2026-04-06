@@ -166,6 +166,7 @@ export default function LoginPage() {
             alt="Caribeño Fit Labs"
             className="h-6"
           />
+          <span className="text-[11px] text-lucy-muted">Caribeño Fit Labs</span>
         </div>
 
         <style jsx>{`
