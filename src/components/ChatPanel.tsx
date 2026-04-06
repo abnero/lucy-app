@@ -48,17 +48,11 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
     if (open) loadHistory()
   }, [open, loadHistory])
 
-  // Show hint animation once
+  // Show badge every time component mounts
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!localStorage.getItem('lucy_chat_hint_shown')) {
-      setShowHint(true)
-      const timer = setTimeout(() => {
-        setShowHint(false)
-        localStorage.setItem('lucy_chat_hint_shown', '1')
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
+    setShowHint(true)
+    const timer = setTimeout(() => setShowHint(false), 5000)
+    return () => clearTimeout(timer)
   }, [])
 
   // Scroll to bottom on new messages
@@ -133,47 +127,43 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   return (
     <>
       {/* Floating button */}
-      <div className="fixed bottom-24 right-5 z-20">
-        {/* Tooltip */}
+      <div className="fixed bottom-24 right-4 z-20">
+        {/* Badge */}
         {showHint && (
-          <div className="absolute -top-11 right-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs text-white shadow-sm animate-hintFade" style={{ backgroundColor: '#2D2B45' }}>
-            ¡Pregúntame algo!
-            <div className="absolute -bottom-1 right-4 w-2.5 h-2.5 rotate-45" style={{ backgroundColor: '#2D2B45' }} />
+          <div className="absolute -top-9 right-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] text-white animate-badgeFade" style={{ backgroundColor: '#2D2B45' }}>
+            ¡Pregúntame!
+            <div className="absolute -bottom-1 right-5 w-2 h-2 rotate-45" style={{ backgroundColor: '#2D2B45' }} />
           </div>
         )}
 
-        {/* Glow ring */}
-        {showHint && (
-          <div className="absolute inset-[-3px] rounded-full animate-siriGlow" />
-        )}
+        {/* Pulse ring */}
+        <div className="absolute inset-0 rounded-full animate-lucyPulse" style={{ backgroundColor: '#B8B5E0' }} />
 
         <button
           onClick={() => { setOpen(true); setShowHint(false) }}
-          className="relative w-12 h-12 rounded-full bg-lucy-accent flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity"
+          className="relative w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center hover:opacity-90 transition-opacity"
         >
-          <span className="font-logo text-white text-lg">L</span>
+          <span className="font-logo text-white text-xl">L</span>
         </button>
       </div>
 
       <style jsx>{`
-        @keyframes siriGlow {
-          0% { background: conic-gradient(from 0deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
-          33% { background: conic-gradient(from 120deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
-          66% { background: conic-gradient(from 240deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
-          100% { background: conic-gradient(from 360deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 0; }
+        @keyframes lucyPulse {
+          0% { transform: scale(1); opacity: 0.4; }
+          50% { transform: scale(1.4); opacity: 0; }
+          100% { transform: scale(1); opacity: 0; }
         }
-        .animate-siriGlow {
-          animation: siriGlow 5s ease-in-out forwards;
-          border-radius: 9999px;
+        .animate-lucyPulse {
+          animation: lucyPulse 3s ease-out infinite;
         }
-        @keyframes hintFade {
-          0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
-          15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-          80% { opacity: 1; transform: translateX(-50%) translateY(0); }
-          100% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+        @keyframes badgeFade {
+          0% { opacity: 0; transform: translateY(4px); }
+          10% { opacity: 1; transform: translateY(0); }
+          80% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(4px); }
         }
-        .animate-hintFade {
-          animation: hintFade 5s ease-in-out forwards;
+        .animate-badgeFade {
+          animation: badgeFade 5s ease-in-out forwards;
         }
       `}</style>
 
