@@ -15,7 +15,7 @@ INSERT INTO alimentos (nombre, categoria_comida, calorias_por_unidad, proteina_p
 ('Pollo', 'proteina', 165, 31, 0, 3.6, 0, 'gramos', 100, 80, 220, ARRAY['Proteina'], 'https://images.pexels.com/photos/5847876/pexels-photo-5847876.jpeg?w=300', 'carnes'),
 ('Muslos de Pollo', 'proteina', 209, 24, 0, 13, 0, 'gramos', 150, 120, 200, ARRAY['Proteina'], 'https://images.pexels.com/photos/1907227/pexels-photo-1907227.jpeg?w=300', 'carnes'),
 ('Caderas de Pollo', 'proteina', 209, 25, 0, 12, 0, 'gramos', 150, 120, 200, ARRAY['Proteina'], 'https://images.pexels.com/photos/7140316/pexels-photo-7140316.jpeg?w=300', 'carnes'),
-('Huevo', 'proteina', 70, 6, 0.5, 5, 0, 'gramos', 50, 50, 200, ARRAY['Proteina','Grasa'], 'https://images.pexels.com/photos/162712/egg-white-food-protein-162712.jpeg?w=300', 'lacteos'),
+('Huevo', 'proteina', 70, 6, 0.5, 5, 0, 'gramos', 50, 50, 200, ARRAY['Proteina','Grasa','Desayuno_1','Desayuno_2'], 'https://images.pexels.com/photos/162712/egg-white-food-protein-162712.jpeg?w=300', 'lacteos'),
 ('Salmon', 'proteina', 208, 25, 0, 13, 0, 'gramos', 100, 80, 200, ARRAY['Proteina'], 'https://images.pexels.com/photos/3296279/pexels-photo-3296279.jpeg?w=300', 'carnes'),
 ('Atun enlatado', 'proteina', 130, 29, 0, 1, 0, 'gramos', 100, 80, 180, ARRAY['Proteina'], 'https://images.pexels.com/photos/1640771/pexels-photo-1640771.jpeg?w=300', 'enlatados'),
 ('Atun Fresco', 'proteina', 144, 30, 0, 1.3, 0, 'gramos', 150, 120, 200, ARRAY['Proteina'], 'https://images.pexels.com/photos/3763847/pexels-photo-3763847.jpeg?w=300', 'carnes'),

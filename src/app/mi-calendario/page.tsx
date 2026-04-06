@@ -15,6 +15,11 @@ interface CalendarioItem {
     nombre: string
     foto_url: string | null
     categoria_comida: string
+    calorias_por_unidad: number
+    proteina_por_unidad: number
+    carbs_por_unidad: number
+    grasas_por_unidad: number
+    porcion_base: number
   }
 }
 
@@ -28,6 +33,7 @@ const COMIDAS = [
   { key: 'desayuno', label: 'Desayuno' },
   { key: 'almuerzo', label: 'Almuerzo' },
   { key: 'cena', label: 'Cena' },
+  { key: 'snack', label: 'Snack' },
 ]
 
 export default function MiCalendarioPage() {
@@ -38,6 +44,7 @@ export default function MiCalendarioPage() {
   const [loadingData, setLoadingData] = useState(true)
   const [nombre, setNombre] = useState('')
   const [showHint, setShowHint] = useState(true)
+  const [macroPopup, setMacroPopup] = useState<string | null>(null)
   const [slideClass, setSlideClass] = useState('')
   const animating = useRef(false)
   const touchStartX = useRef(0)
@@ -48,7 +55,7 @@ export default function MiCalendarioPage() {
     if (!user) return
     supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -72,7 +79,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida)')
+          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -110,6 +117,7 @@ export default function MiCalendarioPage() {
     setTimeout(() => {
       // Swap day, position new content on opposite side instantly
       setDiaActivo(newDia)
+      setMacroPopup(null)
       setSlideClass(
         (direction === 'left' ? 'translate-x-full' : '-translate-x-full') + ' opacity-0 !duration-0'
       )
@@ -217,9 +225,51 @@ export default function MiCalendarioPage() {
               .filter(i => i.comida === key)
               .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
             if (comidaItems.length === 0) return null
+            // Calculate macros for this meal
+            const mealMacros = comidaItems.reduce((acc, item) => {
+              const a = item.alimento
+              if (!a) return acc
+              const ratio = item.cantidad / (a.porcion_base || 100)
+              return {
+                cal: acc.cal + a.calorias_por_unidad * ratio,
+                prot: acc.prot + a.proteina_por_unidad * ratio,
+                carbs: acc.carbs + a.carbs_por_unidad * ratio,
+                grasas: acc.grasas + a.grasas_por_unidad * ratio,
+              }
+            }, { cal: 0, prot: 0, carbs: 0, grasas: 0 })
+
+            const popupKey = `${diaActivo}-${key}`
+            const isPopupOpen = macroPopup === popupKey
+
             return (
               <div key={key} className="bg-lucy-white rounded-card border border-lucy-border p-4">
-                <p className="text-xs text-lucy-muted mb-3 uppercase tracking-wider">{label}</p>
+                <button
+                  onClick={() => setMacroPopup(isPopupOpen ? null : popupKey)}
+                  className="text-xs text-lucy-muted mb-3 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  {label}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${isPopupOpen ? 'rotate-180' : ''}`}>
+                    <path d="M2 4l3 3 3-3" stroke="#9896B0" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {/* Macro popup */}
+                {isPopupOpen && (
+                  <div className="mb-3 grid grid-cols-4 gap-1.5 animate-macroIn">
+                    {[
+                      { label: 'Cal', value: Math.round(mealMacros.cal), unit: 'kcal' },
+                      { label: 'Prot', value: Math.round(mealMacros.prot), unit: 'g' },
+                      { label: 'Carbs', value: Math.round(mealMacros.carbs), unit: 'g' },
+                      { label: 'Grasas', value: Math.round(mealMacros.grasas), unit: 'g' },
+                    ].map(m => (
+                      <div key={m.label} className="border border-lucy-border rounded-btn p-2 text-center">
+                        <p className="text-sm font-medium text-lucy-text leading-tight">{m.value}</p>
+                        <p className="text-[9px] text-lucy-muted">{m.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {comidaItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3">

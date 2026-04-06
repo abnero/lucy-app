@@ -49,6 +49,22 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'calcular_macros_dia',
+    description: 'Calcula los macros consumidos y restantes de un día específico. Usa esto cuando la usuaria pida un snack para saber cuántos macros le quedan. Puedes filtrar por comidas ya consumidas (solo desayuno, desayuno+almuerzo, o todas).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
+        comidas_consumidas: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Lista de comidas ya consumidas: ["desayuno"], ["desayuno","almuerzo"], o ["desayuno","almuerzo","cena"]',
+        },
+      },
+      required: ['dia', 'comidas_consumidas'],
+    },
+  },
+  {
     name: 'revertir_cambio',
     description: 'Revierte el último cambio realizado en el calendario. Solo funciona si hay un cambio previo guardado en esta conversación.',
     input_schema: {
@@ -279,13 +295,126 @@ async function executeAgregarSnack(
     userId,
   }
 
+  // If adding to all days, update lista_compras
+  if (dia === 'todos') {
+    const totalCantidad = cantidad * 7
+    // Try upsert - if alimento already in lista, add to it
+    const { data: existing } = await supabase
+      .from('lista_compras')
+      .select('id, cantidad_total')
+      .eq('user_id', userId)
+      .eq('alimento_id', found.id)
+      .single()
+
+    if (existing) {
+      await supabase
+        .from('lista_compras')
+        .update({ cantidad_total: existing.cantidad_total + totalCantidad })
+        .eq('id', existing.id)
+    } else {
+      await supabase
+        .from('lista_compras')
+        .insert({
+          user_id: userId,
+          alimento_id: found.id,
+          cantidad_total: totalCantidad,
+          unidad: found.unidad_medida,
+          comprado: false,
+        })
+    }
+  }
+
   const diasText = dia === 'todos' ? 'todos los días' : DIAS_NOMBRES[parseInt(dia) - 1]
   const cals = Math.round(found.calorias_por_unidad * (cantidad / (found.porcion_base || 100)))
+  const listaMsg = dia === 'todos' ? ' Tu lista de compras también se actualizó.' : ''
 
   return {
-    result: `Añadí ${cantidad}${found.unidad_medida} de ${found.nombre} como snack el ${diasText}. Son ~${cals} kcal extra.`,
+    result: `Añadí ${cantidad}${found.unidad_medida} de ${found.nombre} como snack el ${diasText}. Son ~${cals} kcal extra por día.${listaMsg}`,
     revertData,
   }
+}
+
+async function executeCalcularMacrosDia(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { dia: number; comidas_consumidas: string[] }
+): Promise<string> {
+  const { dia, comidas_consumidas } = input
+
+  // Get user macros
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+    .eq('id', userId)
+    .single()
+
+  if (!usuario) return 'No pude encontrar el perfil de la usuaria.'
+
+  // Get calendar items for that day with nutrition info
+  const { data: items } = await supabase
+    .from('calendario')
+    .select('comida, cantidad, alimento:alimentos(nombre, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+
+  if (!items || items.length === 0) {
+    return `No hay comidas programadas para el ${DIAS_NOMBRES[dia - 1]}. Macros restantes: ${usuario.calorias_objetivo} kcal, P:${usuario.proteina_objetivo}g, C:${usuario.carbs_objetivo}g, G:${usuario.grasas_objetivo}g.`
+  }
+
+  // Calculate consumed macros
+  let calConsumed = 0, protConsumed = 0, carbsConsumed = 0, grasasConsumed = 0
+
+  for (const item of items) {
+    if (!comidas_consumidas.includes(item.comida)) continue
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const a = (Array.isArray(item.alimento) ? (item.alimento as any)[0] : item.alimento) as any
+    if (!a) continue
+    const ratio = item.cantidad / (a.porcion_base || 100)
+    calConsumed += a.calorias_por_unidad * ratio
+    protConsumed += a.proteina_por_unidad * ratio
+    carbsConsumed += a.carbs_por_unidad * ratio
+    grasasConsumed += a.grasas_por_unidad * ratio
+  }
+
+  const calRemaining = Math.round(usuario.calorias_objetivo - calConsumed)
+  const protRemaining = Math.round(usuario.proteina_objetivo - protConsumed)
+  const carbsRemaining = Math.round(usuario.carbs_objetivo - carbsConsumed)
+  const grasasRemaining = Math.round(usuario.grasas_objetivo - grasasConsumed)
+
+  // Get snack-appropriate foods: fruits, nuts, yogurt, cottage cheese, nut butters
+  const { data: allFoods } = await supabase
+    .from('alimentos')
+    .select('nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, rol_permitido')
+    .order('nombre')
+
+  const isSnackAppropriate = (f: { categoria_comida: string; rol_permitido: string[] | null }) => {
+    const roles = f.rol_permitido || []
+    const hasBreakfastRole = roles.includes('Desayuno_1') || roles.includes('Desayuno_2')
+    // Fruits, oats, bananas, berries (carbs with breakfast role)
+    if (f.categoria_comida === 'carbohidrato' && hasBreakfastRole) return true
+    // Nuts, nut butters, avocado, cheese (all grasas)
+    if (f.categoria_comida === 'grasa') return true
+    // Yogurt, cottage cheese, etc (proteins with breakfast role)
+    if (f.categoria_comida === 'proteina' && hasBreakfastRole) return true
+    return false
+  }
+
+  const suggestions: string[] = []
+  if (allFoods) {
+    for (const f of allFoods) {
+      if (!isSnackAppropriate(f)) continue
+      const cal = f.calorias_por_unidad
+      if (cal <= calRemaining && cal > 0 && cal <= 300) {
+        suggestions.push(`${f.nombre} (${Math.round(cal)} kcal, P:${f.proteina_por_unidad}g, C:${f.carbs_por_unidad}g, G:${f.grasas_por_unidad}g por ${f.porcion_base}${f.unidad_medida})`)
+      }
+    }
+  }
+
+  const comidasText = comidas_consumidas.join(', ')
+  return `${DIAS_NOMBRES[dia - 1]} — Ya consumió: ${comidasText}.
+Macros consumidos: ${Math.round(calConsumed)} kcal, P:${Math.round(protConsumed)}g, C:${Math.round(carbsConsumed)}g, G:${Math.round(grasasConsumed)}g.
+Macros restantes: ${calRemaining} kcal, P:${protRemaining}g, C:${carbsRemaining}g, G:${grasasRemaining}g.
+Alimentos que caben como snack: ${suggestions.slice(0, 8).join(' | ')}`
 }
 
 async function executeRevertir(
@@ -346,9 +475,32 @@ function buildCalendarioTexto(
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessToken, messages, lastRevertData } = await req.json()
+    const { userId, accessToken, messages, lastRevertData, clientTime, clientTimezone } = await req.json()
     if (!userId || !accessToken || !messages) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Parse client time context
+    const now = clientTime ? new Date(clientTime) : new Date()
+    const tz = clientTimezone || 'America/New_York'
+    const localTime = now.toLocaleString('es-ES', { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const localHour = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }))
+    const dayOfWeek = now.toLocaleString('en-US', { timeZone: tz, weekday: 'long' })
+
+    const DAY_MAP: Record<string, number> = {
+      Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7,
+    }
+    const todayNum = DAY_MAP[dayOfWeek] || 1
+
+    let mealContext: string
+    if (localHour < 10) {
+      mealContext = 'Probablemente aún no ha comido o está por desayunar.'
+    } else if (localHour < 14) {
+      mealContext = 'Probablemente ya desayunó. Si pide snack, pregunta si ya desayunó.'
+    } else if (localHour < 19) {
+      mealContext = 'Probablemente ya desayunó y almorzó. Si pide snack, pregunta si ya almorzó también.'
+    } else {
+      mealContext = 'Probablemente ya desayunó, almorzó y cenó. Si pide snack nocturno, calcúlalo con las 3 comidas consumidas.'
     }
 
     const supabase = createAuthenticatedClient(accessToken)
@@ -406,21 +558,37 @@ Perfil de la usuaria:
 - Grasas objetivo: ${usuario.grasas_objetivo}g
 - Meta: ${META_LABELS[usuario.meta] || usuario.meta}
 
+Fecha y hora actual: ${localTime} (${tz})
+Hoy es el día ${todayNum} del calendario (${DIAS_NOMBRES[todayNum - 1]}).
+${mealContext}
+Cuando la usuaria diga "hoy", usa día ${todayNum}. Para "mañana" usa día ${todayNum < 7 ? todayNum + 1 : 1}.
+
 Calendario actual:${calendarioTexto}
 
 Alimentos seleccionados:
 ${alimentosTexto || '(No tiene alimentos seleccionados aún)'}
 
-Tienes 3 herramientas disponibles:
+Tienes 4 herramientas disponibles:
 - cambiar_alimento: Para cambiar un alimento por otro en el calendario. Usa los nombres EXACTOS como aparecen en el calendario.
-- agregar_snack: Para añadir un snack al calendario.
+- calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
+- agregar_snack: Para añadir un snack al calendario. Usa dia "todos" para snack diario, o un número 1-7 para un día específico.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
+
+PROTOCOLO PARA SNACKS:
+Cuando la usuaria pida un snack, sigue estos pasos EN ORDEN:
+1. Pregúntale qué ya se comió hoy: "¿Qué ya te comiste hoy? ¿Solo el desayuno, desayuno y almuerzo, o todas las comidas?"
+2. Cuando responda, usa calcular_macros_dia para ver cuántos macros le quedan
+3. Con base en los macros restantes, sugiere 2-3 opciones de snack del catálogo que quepan. Indica calorías y cantidad de cada opción.
+4. Pregunta: "¿Cuál te gusta? ¿Lo añado a tu plan?"
+5. Si confirma, usa agregar_snack con la cantidad correcta
+6. Si pide snack para TODOS los días, calcula los macros promedio disponibles después de las 3 comidas principales y sugiere opciones que quepan diariamente. Cuando lo añadas con dia="todos", la lista de compras se actualiza automáticamente.
 
 REGLAS IMPORTANTES:
 - Solo usa alimentos que existan en el catálogo. Si la usuaria pide algo que no existe, sugiere alternativas.
 - Después de cada cambio, confirma qué cambiaste con cantidades específicas.
 - Si cambias la cena, recuerda que el almuerzo del día siguiente debe ser igual (Regla 2).
 - Si la usuaria dice "reviértelo", "deshaz", "quítalo", o similar, usa revertir_cambio.
+- NO agregues un snack sin antes calcular los macros restantes.
 
 Responde siempre en español. Sé concisa y práctica.`
 
@@ -436,7 +604,7 @@ Responde siempre en español. Sé concisa y práctica.`
     let loopMessages = [...apiMessages]
     let iterations = 0
 
-    while (iterations < 3) {
+    while (iterations < 5) {
       iterations++
 
       const response = await anthropic.messages.create({
@@ -480,6 +648,11 @@ Responde siempre en español. Sé concisa y práctica.`
           })
           toolResult = result
           if (revertData) currentRevertData = revertData
+        } else if (toolUseBlock.name === 'calcular_macros_dia') {
+          toolResult = await executeCalcularMacrosDia(supabase, userId, {
+            dia: toolInput.dia as number,
+            comidas_consumidas: toolInput.comidas_consumidas as string[],
+          })
         } else if (toolUseBlock.name === 'revertir_cambio') {
           toolResult = await executeRevertir(supabase, currentRevertData)
           currentRevertData = null

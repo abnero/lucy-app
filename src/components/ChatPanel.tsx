@@ -77,6 +77,8 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
           accessToken: session.access_token,
           messages: toSend,
           lastRevertData: revertDataRef.current,
+          clientTime: new Date().toISOString(),
+          clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       })
 
