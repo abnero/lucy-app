@@ -21,20 +21,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Ensure user profile exists in usuarios table (fallback if trigger fails)
+  const ensureProfile = async (user: User) => {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (!data) {
+      await supabase.from('usuarios').insert({
+        id: user.id,
+        nombre: user.user_metadata?.nombre || 'Usuaria',
+        email: user.email,
+      })
+    }
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (session?.user) ensureProfile(session.user)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (event === 'SIGNED_IN' && session?.user) {
+        ensureProfile(session.user)
+      }
       setLoading(false)
     })
 
     return () => subscription.unsubscribe()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const signInWithEmail = async (email: string, password: string) => {
