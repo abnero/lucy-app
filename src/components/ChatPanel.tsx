@@ -23,6 +23,20 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   const revertDataRef = useRef<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [showHint, setShowHint] = useState(false)
+
+  // Show hint animation once
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!localStorage.getItem('lucy_chat_hint_shown')) {
+      setShowHint(true)
+      const timer = setTimeout(() => {
+        setShowHint(false)
+        localStorage.setItem('lucy_chat_hint_shown', '1')
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -94,12 +108,49 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   return (
     <>
       {/* Floating button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-5 w-12 h-12 rounded-full bg-lucy-accent flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity z-20"
-      >
-        <span className="font-logo text-white text-lg">L</span>
-      </button>
+      <div className="fixed bottom-24 right-5 z-20">
+        {/* Tooltip — positioned left of button */}
+        {showHint && (
+          <div className="absolute top-1/2 -translate-y-1/2 right-14 whitespace-nowrap bg-lucy-white border border-lucy-border rounded-lg px-3 py-1.5 text-xs text-lucy-text shadow-sm animate-hintFade">
+            ¡Pregúntame algo!
+            <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-2 bg-lucy-white border-r border-b border-lucy-border -rotate-45" />
+          </div>
+        )}
+
+        {/* Glow ring */}
+        {showHint && (
+          <div className="absolute inset-[-3px] rounded-full animate-siriGlow" />
+        )}
+
+        <button
+          onClick={() => { setOpen(true); setShowHint(false) }}
+          className="relative w-12 h-12 rounded-full bg-lucy-accent flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity"
+        >
+          <span className="font-logo text-white text-lg">L</span>
+        </button>
+      </div>
+
+      <style jsx>{`
+        @keyframes siriGlow {
+          0% { background: conic-gradient(from 0deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
+          33% { background: conic-gradient(from 120deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
+          66% { background: conic-gradient(from 240deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 1; }
+          100% { background: conic-gradient(from 360deg, #7B7FC4, #ffffff, #B8B5E0, #7B7FC4); opacity: 0; }
+        }
+        .animate-siriGlow {
+          animation: siriGlow 3s ease-in-out forwards;
+          border-radius: 9999px;
+        }
+        @keyframes hintFade {
+          0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+          15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+        }
+        .animate-hintFade {
+          animation: hintFade 3s ease-in-out forwards;
+        }
+      `}</style>
 
       {/* Overlay */}
       {open && (
