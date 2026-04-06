@@ -157,6 +157,27 @@ export default function LoginPage() {
             </button>
           </p>
         </div>
+
+        {/* Powered by */}
+        <div className="mt-10 pb-safe animate-poweredIn flex items-center justify-center gap-1.5">
+          <span className="text-[11px] text-lucy-muted">Powered by</span>
+          <img
+            src="/caribeno transparente.PNG"
+            alt="Caribeño Fit Labs"
+            className="h-6"
+          />
+        </div>
+
+        <style jsx>{`
+          @keyframes poweredIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+          }
+          .animate-poweredIn {
+            opacity: 0;
+            animation: poweredIn 1s ease-out 0.5s forwards;
+          }
+        `}</style>
       </div>
     </div>
   )
