@@ -7,6 +7,16 @@ import type { Viewport } from "next";
 export const metadata: Metadata = {
   title: "Lucy - Calendario metabólico",
   description: "Nutrición personalizada con IA para mujeres latinas",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Lucy",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
