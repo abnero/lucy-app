@@ -1,19 +1,37 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 
-const MENSAJES = [
+const MENSAJES_ONBOARDING = [
   'Lucy está preparando tu plan...',
   'Calculando tus porciones perfectas...',
   'Organizando tu semana deliciosa...',
   '¡Casi listo!',
 ]
 
+const MENSAJES_ACTUALIZACION = [
+  'Estoy actualizando tu plan...',
+  'Como ajustaste tus datos, tus macros cambiaron.',
+  'Estoy recalculando las cantidades de tus alimentos para que sigas dentro de tu meta.',
+  '¡Ya casi está listo!',
+]
+
 export default function GenerandoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-lucy-muted text-sm">Cargando...</p></div>}>
+      <GenerandoContent />
+    </Suspense>
+  )
+}
+
+function GenerandoContent() {
   const { user, session, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const modo = searchParams.get('modo')
+  const mensajes = modo === 'actualizacion' ? MENSAJES_ACTUALIZACION : MENSAJES_ONBOARDING
   const [msgIndex, setMsgIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
@@ -22,7 +40,7 @@ export default function GenerandoPage() {
   // Rotate messages
   useEffect(() => {
     const interval = setInterval(() => {
-      setMsgIndex(prev => (prev + 1) % MENSAJES.length)
+      setMsgIndex(prev => (prev + 1) % mensajes.length)
     }, 3000)
     return () => clearInterval(interval)
   }, [])
@@ -146,7 +164,7 @@ export default function GenerandoPage() {
             key={msgIndex}
             className="text-sm text-lucy-text text-center animate-fadeIn"
           >
-            {MENSAJES[msgIndex]}
+            {mensajes[msgIndex]}
           </p>
         )}
       </div>

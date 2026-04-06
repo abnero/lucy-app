@@ -122,10 +122,11 @@ export default function MiPerfilPage() {
       altPies = altCm / 30.48
     }
 
-    // Detect if metric data changed
+    // Detect if metric data changed (round to avoid float precision issues)
+    const round1 = (n: number) => Math.round(n * 10) / 10
     const metricChanged =
-      pesoKg !== (userData?.peso_kg || 0) ||
-      altCm !== (userData?.altura_cm || 0) ||
+      round1(pesoKg) !== round1(userData?.peso_kg || 0) ||
+      round1(altCm) !== round1(userData?.altura_cm || 0) ||
       edadNum !== (userData?.edad || 0) ||
       nivelActividad !== (userData?.nivel_actividad || '') ||
       meta !== (userData?.meta || '')
@@ -160,7 +161,7 @@ export default function MiPerfilPage() {
         supabase.from('lista_compras').delete().eq('user_id', user!.id).select(),
       ])
 
-      router.push('/generando')
+      router.push('/generando?modo=actualizacion')
     } else {
       // Only name changed — simple update, stay on page
       const { error: dbError } = await supabase
