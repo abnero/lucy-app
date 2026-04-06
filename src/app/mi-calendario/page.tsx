@@ -20,6 +20,7 @@ interface CalendarioItem {
     carbs_por_unidad: number
     grasas_por_unidad: number
     porcion_base: number
+    unidad_medida: string
   }
 }
 
@@ -45,6 +46,7 @@ export default function MiCalendarioPage() {
   const [nombre, setNombre] = useState('')
   const [showHint, setShowHint] = useState(true)
   const [macroPopup, setMacroPopup] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<CalendarioItem | null>(null)
   const [slideClass, setSlideClass] = useState('')
   const animating = useRef(false)
   const touchStartX = useRef(0)
@@ -55,7 +57,7 @@ export default function MiCalendarioPage() {
     if (!user) return
     supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -79,7 +81,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
+          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -229,7 +231,7 @@ export default function MiCalendarioPage() {
             const mealMacros = comidaItems.reduce((acc, item) => {
               const a = item.alimento
               if (!a) return acc
-              const ratio = item.cantidad / (a.porcion_base || 100)
+              const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
               return {
                 cal: acc.cal + a.calorias_por_unidad * ratio,
                 prot: acc.prot + a.proteina_por_unidad * ratio,
@@ -272,7 +274,7 @@ export default function MiCalendarioPage() {
 
                 <div className="space-y-3">
                   {comidaItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
+                    <button key={idx} className="flex items-center gap-3 w-full text-left" onClick={() => setSelectedItem(item)}>
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-lucy-bg shrink-0">
                         {item.alimento?.foto_url ? (
                           <img
@@ -288,7 +290,7 @@ export default function MiCalendarioPage() {
                         <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
                         <p className="text-xs text-lucy-muted">{item.cantidad} {item.unidad}</p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -304,6 +306,53 @@ export default function MiCalendarioPage() {
       </div>
 
       {/* Chat */}
+      {/* Food detail modal */}
+      {selectedItem && selectedItem.alimento && (() => {
+        const a = selectedItem.alimento
+        const ratio = a.unidad_medida === 'unidad' ? selectedItem.cantidad : selectedItem.cantidad / (a.porcion_base || 100)
+        const r1 = (n: number) => Math.round(n * ratio * 10) / 10
+        return (
+          <>
+            <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setSelectedItem(null)} />
+            <div className="fixed inset-0 z-40 flex items-center justify-center px-6 pointer-events-none">
+              <div className="bg-lucy-white rounded-card border border-lucy-border p-6 w-full max-w-xs pointer-events-auto animate-macroIn">
+                <div className="flex flex-col items-center mb-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-lucy-bg mb-2">
+                    {a.foto_url ? (
+                      <img src={a.foto_url} alt={a.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lucy-soft">?</div>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-lucy-text">{a.nombre}</p>
+                  <p className="text-lg text-lucy-accent font-medium">{selectedItem.cantidad} {selectedItem.unidad}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { label: 'Calorías', value: r1(a.calorias_por_unidad), unit: 'kcal' },
+                    { label: 'Proteína', value: r1(a.proteina_por_unidad), unit: 'g' },
+                    { label: 'Carbs', value: r1(a.carbs_por_unidad), unit: 'g' },
+                    { label: 'Grasas', value: r1(a.grasas_por_unidad), unit: 'g' },
+                  ].map(m => (
+                    <div key={m.label} className="border border-lucy-border rounded-btn p-3 text-center">
+                      <p className="text-xl font-medium text-lucy-text leading-tight">{m.value}</p>
+                      <p className="text-[10px] text-lucy-muted">{m.unit}</p>
+                      <p className="text-[10px] text-lucy-muted">{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </>
+        )
+      })()}
+
       <ChatPanel onDataChange={fetchCalendar} />
 
       {/* Bottom navigation */}
