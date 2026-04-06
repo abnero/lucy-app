@@ -2,9 +2,18 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
+import type { Viewport } from "next";
+
 export const metadata: Metadata = {
   title: "Lucy - Calendario metabólico",
   description: "Nutrición personalizada con IA para mujeres latinas",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

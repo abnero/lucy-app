@@ -371,7 +371,7 @@ export default function MiPerfilPage() {
       <ChatPanel />
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border">
+      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border pb-safe">
         <div className="max-w-lg mx-auto flex">
           <button onClick={() => router.push('/mi-calendario')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

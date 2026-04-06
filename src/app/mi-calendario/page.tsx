@@ -257,7 +257,7 @@ export default function MiCalendarioPage() {
       <ChatPanel onDataChange={fetchCalendar} />
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border">
+      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border pb-safe">
         <div className="max-w-lg mx-auto flex">
           <button
             className="flex-1 py-3 flex flex-col items-center gap-0.5"

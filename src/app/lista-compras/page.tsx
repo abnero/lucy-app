@@ -181,7 +181,7 @@ export default function ListaComprasPage() {
       <ChatPanel />
 
       {/* Bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border">
+      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border pb-safe">
         <div className="max-w-lg mx-auto flex">
           <button
             onClick={() => router.push('/mi-calendario')}
