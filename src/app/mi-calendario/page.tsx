@@ -38,6 +38,25 @@ export default function MiCalendarioPage() {
   const touchStartY = useRef(0)
   const mealsRef = useRef<HTMLDivElement>(null)
 
+  const fetchCalendar = useCallback(() => {
+    if (!user) return
+    supabase
+      .from('calendario')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url)')
+      .eq('user_id', user.id)
+      .order('dia')
+      .order('comida')
+      .then(({ data }) => {
+        if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setItems(data.map((r: any) => ({
+            ...r,
+            alimento: Array.isArray(r.alimento) ? r.alimento[0] : r.alimento,
+          })))
+        }
+      })
+  }, [user])
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
@@ -227,7 +246,7 @@ export default function MiCalendarioPage() {
       </div>
 
       {/* Chat */}
-      <ChatPanel />
+      <ChatPanel onDataChange={fetchCalendar} />
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border">

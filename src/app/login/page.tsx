@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
+import { getDestination } from '@/lib/routeUser'
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false)
@@ -43,12 +44,8 @@ export default function LoginPage() {
       } else {
         const { data: { user: loggedUser } } = await supabase.auth.getUser()
         if (loggedUser) {
-          const { data } = await supabase
-            .from('usuarios')
-            .select('onboarding_completado')
-            .eq('id', loggedUser.id)
-            .single()
-          router.push(data?.onboarding_completado ? '/dashboard' : '/onboarding')
+          const dest = await getDestination(loggedUser.id)
+          router.push(dest)
         }
       }
     }

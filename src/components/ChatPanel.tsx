@@ -11,7 +11,7 @@ interface Message {
 
 const GREETING = '¡Hola! Soy Lucy. ¿En qué te puedo ayudar hoy? Puedo cambiar alimentos de tu plan, sugerirte snacks, darte recetas, o responder cualquier pregunta sobre tu alimentación.'
 
-export default function ChatPanel() {
+export default function ChatPanel({ onDataChange }: { onDataChange?: () => void }) {
   const { user, session } = useAuth()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -19,6 +19,8 @@ export default function ChatPanel() {
   ])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const revertDataRef = useRef<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -60,6 +62,7 @@ export default function ChatPanel() {
           userId: user.id,
           accessToken: session.access_token,
           messages: toSend,
+          lastRevertData: revertDataRef.current,
         }),
       })
 
@@ -69,6 +72,10 @@ export default function ChatPanel() {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error. Intenta de nuevo.' }])
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+        if (data.revertData !== undefined) {
+          revertDataRef.current = data.revertData
+          onDataChange?.()
+        }
       }
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Error de conexión. Verifica tu internet.' }])
