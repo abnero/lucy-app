@@ -484,24 +484,30 @@ async function executeBuscarOCrearAlimento(
   // Search existing
   const existing = await findAlimento(supabase, nombre)
   if (existing) {
-    return `Alimento encontrado: "${existing.nombre}" (ID: ${existing.id}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack.`
+    return `Alimento encontrado: "${existing.nombre}" (ID: ${existing.id}, calorias: ${existing.calorias_por_unidad} kcal, porcion_base: ${existing.porcion_base}${existing.unidad_medida}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack usando el nombre exacto "${existing.nombre}".`
   }
 
-  // Create new
+  // Determine category based on macros
+  const categoria_comida = proteina_por_100g > carbohidratos_por_100g ? 'proteina' : 'carbohidrato'
+  const rol = proteina_por_100g > carbohidratos_por_100g ? 'Proteina' : 'Carbohidrato'
+
+  // Create new — use service-level insert via RPC or direct insert
   const { data: created, error } = await supabase
     .from('alimentos')
     .insert({
       nombre,
-      categoria_comida: 'otro',
+      categoria_comida,
       calorias_por_unidad: calorias_por_100g,
       proteina_por_unidad: proteina_por_100g,
       carbs_por_unidad: carbohidratos_por_100g,
       grasas_por_unidad: grasa_por_100g,
       fibra_por_unidad: 0,
-      unidad_medida,
+      unidad_medida: unidad_medida || 'gramos',
       porcion_base: unidad_medida === 'unidad' ? 1 : 100,
       porcion_min: unidad_medida === 'unidad' ? 1 : 50,
-      porcion_max: unidad_medida === 'unidad' ? 10 : 300,
+      porcion_max: unidad_medida === 'unidad' ? 10 : 200,
+      rol_permitido: [rol],
+      categoria_supermercado: 'otro',
       es_personalizado: true,
       creado_por: userId,
       fuente,
@@ -510,10 +516,10 @@ async function executeBuscarOCrearAlimento(
     .single()
 
   if (error) {
-    return `Error creando alimento: ${error.message}`
+    return `Error creando alimento: ${error.message}. Puede ser un problema de permisos — pídele al admin que ejecute: CREATE POLICY "Authenticated users can insert alimentos" ON alimentos FOR INSERT WITH CHECK (auth.role() = 'authenticated');`
   }
 
-  return `Alimento "${nombre}" creado exitosamente (ID: ${created.id}, fuente: ${fuente}). Ahora puedes usarlo con cambiar_alimento o agregar_snack.`
+  return `Alimento "${nombre}" creado exitosamente (ID: ${created.id}, ${calorias_por_100g} kcal/${unidad_medida === 'unidad' ? 'unidad' : '100g'}, categoría: ${categoria_comida}, fuente: ${fuente}). Ahora puedes usarlo con cambiar_alimento o agregar_snack usando el nombre exacto "${nombre}".`
 }
 
 async function executeRevertir(
