@@ -83,10 +83,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <h1 className="font-logo text-4xl text-lucy-text">Lucy</h1>
           <p className="text-lucy-soft text-[11px] tracking-[0.25em] uppercase mt-1">calendario metabólico</p>
         </div>
@@ -96,8 +96,16 @@ export default function LoginPage() {
           <button
             onClick={async () => {
               setError('')
-              const { error } = await signInWithGoogle()
-              if (error) setError(error.message)
+              try {
+                const { error } = await signInWithGoogle()
+                if (error) {
+                  console.error('Google Sign-In error:', error)
+                  setError(error.message)
+                }
+              } catch (err) {
+                console.error('Google Sign-In exception:', err)
+                setError('Error conectando con Google. Intenta de nuevo.')
+              }
             }}
             className="w-full flex items-center justify-center gap-2.5 border border-lucy-border rounded-btn py-2.5 px-4 text-sm text-lucy-text hover:border-lucy-soft transition-colors mb-5"
           >
@@ -205,6 +213,10 @@ export default function LoginPage() {
           />
           <span className="text-[11px] text-lucy-muted">Caribeño Fit Labs</span>
         </div>
+
+        <p className="text-[10px] text-lucy-muted text-center mt-3 leading-relaxed animate-poweredIn mx-auto max-w-[280px]">
+          Al usar Lucy aceptas que esta app es solo orientación general. Consulta a un profesional de la salud si tienes condiciones médicas.
+        </p>
 
         <style jsx>{`
           @keyframes poweredIn {

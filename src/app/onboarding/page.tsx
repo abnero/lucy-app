@@ -336,6 +336,10 @@ export default function OnboardingPage() {
               <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>
             )}
 
+            <p className="text-[11px] text-lucy-muted text-center leading-relaxed mb-3">
+              &#9432; Lucy es una herramienta de orientación nutricional general. Si tienes alguna condición de salud, estás embarazada, o tomas medicamentos, consulta con tu médico o nutricionista antes de seguir este plan.
+            </p>
+
             <button
               type="submit"
               disabled={saving}
