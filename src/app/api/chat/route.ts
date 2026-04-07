@@ -77,7 +77,7 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: 'buscar_o_crear_alimento',
-    description: 'Busca un alimento en el catálogo por nombre. Si no existe, lo crea con los macros provistos. Úsalo ANTES de cambiar_alimento o agregar_snack cuando el alimento pueda no estar en el catálogo.',
+    description: 'Busca un alimento en el catálogo por nombre. Si no existe, lo crea con los macros provistos. Úsalo ANTES de cambiar_alimento o agregar_snack cuando el alimento pueda no estar en el catálogo. Para alimentos contables (huevos, tortillas), usa unidad_medida "unidad" y pon los macros POR 1 UNIDAD.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -700,11 +700,12 @@ ALIMENTOS NO RECONOCIDOS:
 Cuando la usuaria mencione un alimento que no está en el catálogo:
 1. NUNCA uses un alimento similar como sustituto silencioso
 2. Busca el alimento en USDA con buscar_macros_usda
-3. SI USDA lo encuentra: presenta los valores y pregunta "Encontré [nombre] con estos valores por 100g: X kcal, Xg proteína, Xg carbos, Xg grasa. ¿Son correctos o tienes los valores del empaque?"
+3. SI USDA lo encuentra: presenta los valores y pregunta "Encontré [nombre] con estos valores por 100g: X kcal, Xg proteína, Xg carbos, Xg grasa. ¿Son correctos o tienes los valores del empaque? Y dime: ¿la porción es en gramos, mililitros, o por unidad/pieza?"
    - Si confirma → usa buscar_o_crear_alimento con fuente "usda"
    - Si da valores distintos → usa buscar_o_crear_alimento con fuente "usuario"
-4. SI USDA NO lo encuentra: dile a la usuaria "No encontré [nombre] en mi base de datos. ¿Me puedes dar la información nutricional del empaque? Necesito: calorías, proteína, carbs y grasas por porción, y el tamaño de la porción."
+4. SI USDA NO lo encuentra: dile a la usuaria "No encontré [nombre] en mi base de datos. ¿Me puedes dar la información nutricional del empaque? Necesito: calorías, proteína, carbs y grasas por porción, el tamaño de la porción, y si la porción es en gramos, mililitros, o por unidad/pieza."
    - Cuando la usuaria dé los datos → usa buscar_o_crear_alimento con fuente "usuario"
+   - Si dice "por unidad", "por pieza", "por tortilla", etc. → usa unidad_medida "unidad" y pon los macros POR 1 UNIDAD (no por 100g)
 5. Después de crear el alimento, asígnalo al calendario con cambiar_alimento o agregar_snack normalmente
 IMPORTANTE: Siempre aclara si los valores vienen de USDA (producto genérico) o del empaque (más preciso para esa marca).
 
