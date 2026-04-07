@@ -618,30 +618,30 @@ Responde siempre en español. Sé concisa y práctica.`
     let iterations = 0
 
     const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
-      if (name === 'cambiar_alimento') {
-        const { result, revertData } = await executeCambiarAlimento(supabase, userId, {
-          dia: input.dia as number,
-          comida: input.comida as string,
-          alimento_actual: input.alimento_actual as string,
-          alimento_nuevo: input.alimento_nuevo as string,
-        })
-        if (revertData) currentRevertData = revertData
-        return result
-      } else if (name === 'agregar_snack') {
-        const { result, revertData } = await executeAgregarSnack(supabase, userId, {
-          dia: input.dia as string,
-          alimento: input.alimento as string,
-          cantidad: input.cantidad as number,
-        })
-        if (revertData) currentRevertData = revertData
-        return result
-      } else if (name === 'calcular_macros_dia') {
-        return await executeCalcularMacrosDia(supabase, userId, {
-          dia: input.dia as number,
-          comidas_consumidas: input.comidas_consumidas as string[],
-        })
-      } else if (name === 'buscar_macros_usda') {
-        try {
+      try {
+        if (name === 'cambiar_alimento') {
+          const { result, revertData } = await executeCambiarAlimento(supabase, userId, {
+            dia: input.dia as number,
+            comida: input.comida as string,
+            alimento_actual: input.alimento_actual as string,
+            alimento_nuevo: input.alimento_nuevo as string,
+          })
+          if (revertData) currentRevertData = revertData
+          return result
+        } else if (name === 'agregar_snack') {
+          const { result, revertData } = await executeAgregarSnack(supabase, userId, {
+            dia: input.dia as string,
+            alimento: input.alimento as string,
+            cantidad: input.cantidad as number,
+          })
+          if (revertData) currentRevertData = revertData
+          return result
+        } else if (name === 'calcular_macros_dia') {
+          return await executeCalcularMacrosDia(supabase, userId, {
+            dia: input.dia as number,
+            comidas_consumidas: input.comidas_consumidas as string[],
+          })
+        } else if (name === 'buscar_macros_usda') {
           const usdaRes = await fetch(new URL('/api/usda-search', req.url).toString(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -651,15 +651,17 @@ Responde siempre en español. Sé concisa y práctica.`
           if (usdaData.error) return `USDA: ${usdaData.error}`
           const m = usdaData.por_100g
           return `${usdaData.nombre} (por 100g): ${m.calorias} kcal, Proteína: ${m.proteina}g, Carbs: ${m.carbs}g, Grasas: ${m.grasas}g, Fibra: ${m.fibra}g`
-        } catch {
-          return 'Error consultando la base de datos USDA.'
+        } else if (name === 'revertir_cambio') {
+          const result = await executeRevertir(supabase, currentRevertData)
+          currentRevertData = null
+          return result
         }
-      } else if (name === 'revertir_cambio') {
-        const result = await executeRevertir(supabase, currentRevertData)
-        currentRevertData = null
-        return result
+        return 'Herramienta no reconocida.'
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido'
+        console.error(`Tool "${name}" failed:`, msg)
+        return `ERROR: No pude ejecutar esta acción (${msg}). Dile a la usuaria que hubo un problema y pregúntale si quiere intentar de nuevo.`
       }
-      return 'Herramienta no reconocida.'
     }
 
     while (iterations < 8) {

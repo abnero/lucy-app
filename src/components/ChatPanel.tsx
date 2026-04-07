@@ -30,16 +30,30 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
     if (historyLoaded.current || !user) return
     historyLoaded.current = true
 
-    const { data } = await supabase
-      .from('conversaciones')
-      .select('role, content')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(20)
+    try {
+      // Get the last 20 messages (order desc to get newest, then reverse for display)
+      const { data, error } = await supabase
+        .from('conversaciones')
+        .select('role, content')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
 
-    if (data && data.length > 0) {
-      setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
-    } else {
+      if (error) {
+        console.error('Error loading chat history:', error.message)
+        setMessages([{ role: 'assistant', content: GREETING }])
+        return
+      }
+
+      if (data && data.length > 0) {
+        // Reverse to get chronological order (oldest first)
+        setMessages(data.reverse().map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+      } else {
+        setMessages([{ role: 'assistant', content: GREETING }])
+      }
+    } catch (err) {
+      console.error('Chat history fetch failed:', err)
+      historyLoaded.current = false // Allow retry
       setMessages([{ role: 'assistant', content: GREETING }])
     }
   }, [user])
