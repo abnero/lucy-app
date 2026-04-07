@@ -65,6 +65,17 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'buscar_macros_usda',
+    description: 'Busca los macros nutricionales de cualquier alimento en la base de datos USDA. Úsala cuando la usuaria menciona un alimento que no está en el catálogo de Lucy para obtener sus valores nutricionales reales.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        alimento: { type: 'string', description: 'Nombre del alimento a buscar (en inglés o español)' },
+      },
+      required: ['alimento'],
+    },
+  },
+  {
     name: 'revertir_cambio',
     description: 'Revierte el último cambio realizado en el calendario. Solo funciona si hay un cambio previo guardado en esta conversación.',
     input_schema: {
@@ -568,10 +579,11 @@ Calendario actual:${calendarioTexto}
 Alimentos seleccionados:
 ${alimentosTexto || '(No tiene alimentos seleccionados aún)'}
 
-Tienes 4 herramientas disponibles:
+Tienes 5 herramientas disponibles:
 - cambiar_alimento: Para cambiar un alimento por otro en el calendario. Usa los nombres EXACTOS como aparecen en el calendario.
 - calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
 - agregar_snack: Para añadir un snack al calendario. Usa dia "todos" para snack diario, o un número 1-7 para un día específico.
+- buscar_macros_usda: Para buscar macros de cualquier alimento en la base de datos USDA. Úsala cuando la usuaria menciona un alimento que NO está en el catálogo de Lucy.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
 
 PROTOCOLO PARA SNACKS:
@@ -589,6 +601,7 @@ REGLAS IMPORTANTES:
 - Si cambias la cena, recuerda que el almuerzo del día siguiente debe ser igual (Regla 2).
 - Si la usuaria dice "reviértelo", "deshaz", "quítalo", o similar, usa revertir_cambio.
 - NO agregues un snack sin antes calcular los macros restantes.
+- Si la usuaria menciona un alimento que no está en su catálogo, usa buscar_macros_usda para obtener sus valores nutricionales y calcular la cantidad correcta para que se mantenga en sus macros objetivo.
 
 Responde siempre en español. Sé concisa y práctica.`
 
@@ -627,6 +640,20 @@ Responde siempre en español. Sé concisa y práctica.`
           dia: input.dia as number,
           comidas_consumidas: input.comidas_consumidas as string[],
         })
+      } else if (name === 'buscar_macros_usda') {
+        try {
+          const usdaRes = await fetch(new URL('/api/usda-search', req.url).toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: input.alimento }),
+          })
+          const usdaData = await usdaRes.json()
+          if (usdaData.error) return `USDA: ${usdaData.error}`
+          const m = usdaData.por_100g
+          return `${usdaData.nombre} (por 100g): ${m.calorias} kcal, Proteína: ${m.proteina}g, Carbs: ${m.carbs}g, Grasas: ${m.grasas}g, Fibra: ${m.fibra}g`
+        } catch {
+          return 'Error consultando la base de datos USDA.'
+        }
       } else if (name === 'revertir_cambio') {
         const result = await executeRevertir(supabase, currentRevertData)
         currentRevertData = null
