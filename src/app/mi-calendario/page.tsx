@@ -95,6 +95,7 @@ export default function MiCalendarioPage() {
           .eq('id', user.id)
           .single(),
       ]).then(([calRes, userRes]) => {
+        if (calRes.error) console.error('Calendar fetch error:', calRes.error.message)
         if (calRes.data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setItems(calRes.data.map((r: any) => ({
@@ -103,6 +104,9 @@ export default function MiCalendarioPage() {
           })))
         }
         if (userRes.data) setNombre(userRes.data.nombre)
+        setLoadingData(false)
+      }).catch(err => {
+        console.error('Calendar load failed:', err)
         setLoadingData(false)
       })
     }
@@ -154,7 +158,7 @@ export default function MiCalendarioPage() {
 
   const itemsDelDia = items.filter(i => i.dia === diaActivo)
 
-  if (loading || loadingData) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lucy-muted text-sm">Cargando...</p>
@@ -162,7 +166,18 @@ export default function MiCalendarioPage() {
     )
   }
 
-  if (!user) return null
+  if (!user) {
+    router.push('/login')
+    return null
+  }
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lucy-muted text-sm">Cargando calendario...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen pb-24">

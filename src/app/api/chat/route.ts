@@ -93,6 +93,35 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'agregar_ingrediente_a_comida',
+    description: 'Añade un ingrediente nuevo a una comida existente (desayuno/almuerzo/cena) y compensa reduciendo las cantidades de alimentos de la misma categoría nutricional para mantener el presupuesto calórico.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
+        comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
+        alimento: { type: 'string', description: 'Nombre del alimento a añadir (debe existir en el catálogo)' },
+        cantidad: { type: 'number', description: 'Cantidad del ingrediente nuevo' },
+      },
+      required: ['dia', 'comida', 'alimento', 'cantidad'],
+    },
+  },
+  {
+    name: 'eliminar_ingrediente_de_comida',
+    description: 'Elimina un ingrediente de una comida del calendario. Si retorna "NO EJECUTAR", DEBES preguntar a la usuaria antes de llamar de nuevo.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
+        comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena', 'snack'], description: 'Tipo de comida' },
+        alimento: { type: 'string', description: 'Nombre del alimento a eliminar' },
+        row_id: { type: 'string', description: 'ID específico de la fila a eliminar (para cuando hay múltiples del mismo alimento)' },
+        forzar: { type: 'boolean', description: 'true para eliminar sin advertencias (cuando la usuaria ya confirmó)' },
+      },
+      required: ['dia', 'comida', 'alimento'],
+    },
+  },
+  {
     name: 'revertir_cambio',
     description: 'Revierte el último cambio realizado en el calendario. Solo funciona si hay un cambio previo guardado en esta conversación.',
     input_schema: {
@@ -466,6 +495,213 @@ Macros restantes: ${calRemaining} kcal, P:${protRemaining}g, C:${carbsRemaining}
 Alimentos que caben como snack: ${suggestions.slice(0, 8).join(' | ')}`
 }
 
+async function executeAgregarIngredienteAComida(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { dia: number; comida: string; alimento: string; cantidad: number }
+): Promise<{ result: string; revertData?: RevertData }> {
+  const { dia, comida, alimento, cantidad } = input
+
+  // Find the ingredient in catalog
+  const newFood = await findAlimento(supabase, alimento)
+  if (!newFood) {
+    const suggestions = await getSimilarAlimentos(supabase, alimento)
+    const sugText = suggestions.length > 0 ? ` Similares: ${suggestions.join(', ')}.` : ''
+    return { result: `"${alimento}" no está en el catálogo.${sugText} Usa buscar_o_crear_alimento para crearlo primero.` }
+  }
+
+  // Get existing items in that meal
+  const { data: existingItems } = await supabase
+    .from('calendario')
+    .select('id, alimento_id, cantidad, unidad, alimento:alimentos(nombre, categoria_comida, calorias_por_unidad, porcion_base, unidad_medida)')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+    .eq('comida', comida)
+
+  if (!existingItems || existingItems.length === 0) {
+    return { result: `No hay alimentos en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.` }
+  }
+
+  // Check if alimento already exists in this meal
+  const duplicate = existingItems.find(item => item.alimento_id === newFood.id)
+  if (duplicate) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const a = (Array.isArray(duplicate.alimento) ? (duplicate.alimento as any)[0] : duplicate.alimento) as any
+    return {
+      result: `DUPLICADO: Ya tiene ${a?.nombre || alimento} en el ${comida} del ${DIAS_NOMBRES[dia - 1]} (${duplicate.cantidad} ${duplicate.unidad}). Pregúntale a la usuaria: "Ya tienes ${a?.nombre} en tu ${comida} (${duplicate.cantidad} ${duplicate.unidad}). ¿Quieres que aumente la cantidad?" Si dice sí, pregúntale cuánto más quiere y luego llama este tool de nuevo con cantidad = la cantidad TOTAL deseada (actual + adicional) y el ingrediente se actualizará en vez de duplicarse. ID de fila existente: ${duplicate.id}`,
+    }
+  }
+
+  // Calculate calories of the new ingredient
+  const newIsCountable = newFood.unidad_medida === 'unidad'
+  const newRatio = newIsCountable ? cantidad : cantidad / (newFood.porcion_base || 100)
+  const newCalories = newFood.calorias_por_unidad * newRatio
+
+  // Determine category
+  const { data: catData } = await supabase.from('alimentos').select('categoria_comida').eq('id', newFood.id).single()
+  const newCategory = catData?.categoria_comida || 'otro'
+
+  // Save state for revert
+  const revertData: RevertData = {
+    type: 'cambiar',
+    originalRows: existingItems.map(item => ({
+      rowId: item.id,
+      alimento_id: item.alimento_id,
+      cantidad: item.cantidad,
+      unidad: item.unidad,
+    })),
+    userId,
+  }
+
+  // Find items to reduce — priority: same category (excluding proteina), then carbs, then extra
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getCategory = (item: any) => {
+    const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+    return a?.categoria_comida || 'otro'
+  }
+
+  let toReduce = existingItems.filter(item => getCategory(item) === newCategory && getCategory(item) !== 'proteina')
+
+  if (toReduce.length === 0 && newCategory !== 'carbohidrato') {
+    // Fallback: reduce carbs (never proteins)
+    toReduce = existingItems.filter(item => getCategory(item) === 'carbohidrato')
+  }
+
+  let compensationMsg = ''
+
+  if (toReduce.length > 0) {
+    const calPerItem = newCalories / toReduce.length
+
+    for (const item of toReduce) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const a = (Array.isArray(item.alimento) ? (item.alimento as any)[0] : item.alimento) as any
+      if (!a) continue
+
+      const isCountable = a.unidad_medida === 'unidad'
+      const currentRatio = isCountable ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+      const currentCal = a.calorias_por_unidad * currentRatio
+      const targetCal = Math.max(0, currentCal - calPerItem)
+
+      let newQty: number
+      if (isCountable) {
+        newQty = Math.max(1, Math.round(targetCal / a.calorias_por_unidad))
+      } else {
+        newQty = Math.max(10, Math.round((targetCal / a.calorias_por_unidad) * (a.porcion_base || 100)))
+      }
+
+      await supabase.from('calendario').update({ cantidad: newQty }).eq('id', item.id)
+      compensationMsg += ` ${a.nombre}: ${item.cantidad}→${newQty}${item.unidad}.`
+    }
+  } else {
+    compensationMsg = ` No hay alimentos que reducir sin tocar proteínas. Se añadió como extra (+${Math.round(newCalories)} kcal).`
+  }
+
+  // Insert the new ingredient
+  const { error: insertErr } = await supabase
+    .from('calendario')
+    .insert({ user_id: userId, dia, comida, alimento_id: newFood.id, cantidad, unidad: newFood.unidad_medida })
+
+  if (insertErr) {
+    return { result: `Error añadiendo ingrediente: ${insertErr.message}` }
+  }
+
+  return {
+    result: `Añadí ${cantidad}${newFood.unidad_medida} de ${newFood.nombre} al ${comida} del ${DIAS_NOMBRES[dia - 1]} (~${Math.round(newCalories)} kcal). Compensación:${compensationMsg}`,
+    revertData,
+  }
+}
+
+async function executeEliminarIngredienteDeComida(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { dia: number; comida: string; alimento: string; forzar?: boolean; row_id?: string }
+): Promise<{ result: string; revertData?: RevertData }> {
+  const { dia, comida, alimento } = input
+
+  // Get all items in that meal
+  const { data: items } = await supabase
+    .from('calendario')
+    .select('id, alimento_id, cantidad, unidad, alimento:alimentos(nombre, categoria_comida)')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+    .eq('comida', comida)
+
+  if (!items || items.length === 0) {
+    return { result: `No hay alimentos en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.` }
+  }
+
+  // If a specific row_id was provided, target that directly
+  let target: typeof items[0] | undefined
+  if (input.row_id) {
+    target = items.find(item => item.id === input.row_id)
+  }
+
+  if (!target) {
+    // Find matching items
+    const normalizedSearch = removeAccents(alimento.toLowerCase())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const matches = items.filter((item: any) => {
+      const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+      return a?.nombre && removeAccents(a.nombre.toLowerCase()).includes(normalizedSearch)
+    })
+
+    if (matches.length === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const available = items.map((item: any) => {
+        const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+        return a?.nombre
+      }).filter(Boolean).join(', ')
+      return { result: `No encontré "${alimento}" en el ${comida} del ${DIAS_NOMBRES[dia - 1]}. Alimentos: ${available}.` }
+    }
+
+    if (matches.length > 1) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list = matches.map((m: any) => `${m.cantidad}${m.unidad} (row_id: ${m.id})`).join(', ')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nombre = (Array.isArray(matches[0].alimento) ? (matches[0].alimento as any)[0] : matches[0].alimento as any)?.nombre
+      return { result: `NO EJECUTAR — HAY MÚLTIPLES: ${matches.length} registros de ${nombre}: ${list}. DEBES preguntarle a la usuaria cuál quiere eliminar. Cuando responda, llama este tool con el row_id específico.` }
+    }
+
+    target = matches[0]
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const targetFood = (Array.isArray(target.alimento) ? (target.alimento as any)[0] : target.alimento) as any
+
+  // Check if it's the only protein (skip if forzar=true)
+  if (!input.forzar && targetFood?.categoria_comida === 'proteina') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const proteinCount = items.filter((item: any) => {
+      const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+      return a?.categoria_comida === 'proteina'
+    }).length
+
+    if (proteinCount <= 1) {
+      return { result: `NO EJECUTAR — ADVERTENCIA: ${targetFood.nombre} es la única proteína en el ${comida}. DEBES preguntarle: "Si elimino ${targetFood.nombre}, tu ${comida} se queda sin proteína. ¿Estás segura?" Si confirma, llama este tool de nuevo con forzar=true.` }
+    }
+  }
+
+  // Save for revert
+  const revertData: RevertData = {
+    type: 'cambiar',
+    originalRows: [{
+      rowId: target.id,
+      alimento_id: target.alimento_id,
+      cantidad: target.cantidad,
+      unidad: target.unidad,
+    }],
+    userId,
+  }
+
+  // Delete the item
+  await supabase.from('calendario').delete().eq('id', target.id)
+
+  return {
+    result: `Eliminé ${target.cantidad}${target.unidad} de ${targetFood?.nombre || alimento} del ${comida} del ${DIAS_NOMBRES[dia - 1]}.`,
+    revertData,
+  }
+}
+
 async function executeBuscarOCrearAlimento(
   supabase: SupabaseClient,
   userId: string,
@@ -673,13 +909,21 @@ Calendario actual:${calendarioTexto}
 Alimentos seleccionados:
 ${alimentosTexto || '(No tiene alimentos seleccionados aún)'}
 
-Tienes 6 herramientas disponibles:
-- cambiar_alimento: Para cambiar un alimento por otro en el calendario. Usa los nombres EXACTOS como aparecen en el calendario.
+Tienes 8 herramientas disponibles:
+- cambiar_alimento: Para REEMPLAZAR un alimento por otro en el calendario.
+- agregar_ingrediente_a_comida: Para AÑADIR un ingrediente nuevo a una comida existente, compensando reduciendo alimentos de la misma categoría.
+- eliminar_ingrediente_de_comida: Para ELIMINAR un ingrediente de una comida. Úsalo cuando la usuaria diga "elimina", "quita", "remueve" o "saca".
 - calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
 - agregar_snack: Para añadir un snack al calendario. Usa dia "todos" para snack diario, o un número 1-7 para un día específico.
 - buscar_macros_usda: Para buscar macros de cualquier alimento en la base de datos USDA.
 - buscar_o_crear_alimento: Para registrar un alimento nuevo que no está en el catálogo. SIEMPRE pide confirmación de macros a la usuaria antes de crear.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
+
+AÑADIR vs CAMBIAR:
+- Si la usuaria dice "añade X a mi almuerzo" o "quiero agregar X" → usa agregar_ingrediente_a_comida
+- Si la usuaria dice "cambia X por Y" o "reemplaza X" → usa cambiar_alimento
+- Si la usuaria dice "elimina X", "quita X", "remueve X", "saca X" → usa eliminar_ingrediente_de_comida
+- NUNCA elimines la única proteína de una comida sin advertir primero
 
 PROTOCOLO PARA SNACKS:
 Cuando la usuaria pida un snack, sigue estos pasos EN ORDEN:
@@ -775,6 +1019,25 @@ Responde siempre en español. Sé concisa y práctica.`
             dia: input.dia as number,
             comidas_consumidas: input.comidas_consumidas as string[],
           })
+        } else if (name === 'agregar_ingrediente_a_comida') {
+          const { result, revertData } = await executeAgregarIngredienteAComida(supabase, userId, {
+            dia: input.dia as number,
+            comida: input.comida as string,
+            alimento: input.alimento as string,
+            cantidad: input.cantidad as number,
+          })
+          if (revertData) currentRevertData = revertData
+          return result
+        } else if (name === 'eliminar_ingrediente_de_comida') {
+          const { result, revertData } = await executeEliminarIngredienteDeComida(supabase, userId, {
+            dia: input.dia as number,
+            comida: input.comida as string,
+            alimento: input.alimento as string,
+            row_id: input.row_id as string | undefined,
+            forzar: input.forzar as boolean | undefined,
+          })
+          if (revertData) currentRevertData = revertData
+          return result
         } else if (name === 'buscar_o_crear_alimento') {
           return await executeBuscarOCrearAlimento(supabase, userId, {
             nombre: input.nombre as string,
