@@ -694,7 +694,21 @@ async function executeEliminarIngredienteDeComida(
   }
 
   // Delete the item
-  await supabase.from('calendario').delete().eq('id', target.id)
+  const { error: delError, count } = await supabase
+    .from('calendario')
+    .delete({ count: 'exact' })
+    .eq('id', target.id)
+    .eq('user_id', userId)
+
+  if (delError) {
+    console.error('Delete failed:', delError.message)
+    return { result: `Error eliminando: ${delError.message}` }
+  }
+
+  if (count === 0) {
+    console.error('Delete matched 0 rows. ID:', target.id, 'userId:', userId)
+    return { result: `No se pudo eliminar — el registro no se encontró o no tienes permiso. Verifica que la política DELETE existe en la tabla calendario.` }
+  }
 
   return {
     result: `Eliminé ${target.cantidad}${target.unidad} de ${targetFood?.nombre || alimento} del ${comida} del ${DIAS_NOMBRES[dia - 1]}.`,
