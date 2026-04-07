@@ -42,7 +42,10 @@ export default function MiCalendarioPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [items, setItems] = useState<CalendarioItem[]>([])
-  const [diaActivo, setDiaActivo] = useState(1)
+  const [diaActivo, setDiaActivo] = useState(() => {
+    const jsDay = new Date().getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+    return jsDay === 0 ? 7 : jsDay // 1=Mon, ..., 7=Sun
+  })
   const [loadingData, setLoadingData] = useState(true)
   const [nombre, setNombre] = useState('')
   const [showHint, setShowHint] = useState(true)
