@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
+import { APP_VERSION } from '@/lib/version'
 import ChatPanel from '@/components/ChatPanel'
 
 type UnidadPeso = 'lbs' | 'kg'
@@ -364,6 +365,11 @@ export default function MiPerfilPage() {
             className="w-full mt-3 mb-8 border border-red-200 text-red-400 font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-red-50 transition-colors">
             Cerrar sesión
           </button>
+
+          <div className="text-center mt-8 mb-8">
+            <p className="text-[11px] text-lucy-muted">Lucy v{APP_VERSION}</p>
+            <p className="text-[10px] text-lucy-muted mt-0.5">&copy; 2026 Caribeño Fit Labs</p>
+          </div>
         </div>
       </div>
 

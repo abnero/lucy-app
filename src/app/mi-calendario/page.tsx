@@ -51,6 +51,8 @@ export default function MiCalendarioPage() {
   const [showHint, setShowHint] = useState(true)
   const [macroPopup, setMacroPopup] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<CalendarioItem | null>(null)
+  const [showDayMacros, setShowDayMacros] = useState(false)
+  const [objetivos, setObjetivos] = useState({ cal: 0, prot: 0, carbs: 0, grasas: 0 })
   const [slideClass, setSlideClass] = useState('')
   const animating = useRef(false)
   const touchStartX = useRef(0)
@@ -91,7 +93,7 @@ export default function MiCalendarioPage() {
           .order('comida'),
         supabase
           .from('usuarios')
-          .select('nombre')
+          .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
           .eq('id', user.id)
           .single(),
       ]).then(([calRes, userRes]) => {
@@ -103,7 +105,15 @@ export default function MiCalendarioPage() {
             alimento: Array.isArray(r.alimento) ? r.alimento[0] : r.alimento,
           })))
         }
-        if (userRes.data) setNombre(userRes.data.nombre)
+        if (userRes.data) {
+          setNombre(userRes.data.nombre)
+          setObjetivos({
+            cal: userRes.data.calorias_objetivo || 0,
+            prot: userRes.data.proteina_objetivo || 0,
+            carbs: userRes.data.carbs_objetivo || 0,
+            grasas: userRes.data.grasas_objetivo || 0,
+          })
+        }
         setLoadingData(false)
       }).catch(err => {
         console.error('Calendar load failed:', err)
@@ -128,6 +138,7 @@ export default function MiCalendarioPage() {
       // Swap day, position new content on opposite side instantly
       setDiaActivo(newDia)
       setMacroPopup(null)
+      setShowDayMacros(false)
       setSlideClass(
         (direction === 'left' ? 'translate-x-full' : '-translate-x-full') + ' opacity-0 !duration-0'
       )
@@ -220,9 +231,62 @@ export default function MiCalendarioPage() {
       {/* Day title */}
       <div className="px-4 mb-4">
         <div className="max-w-lg mx-auto">
-          <h2 className="text-base text-lucy-text">{DIAS[diaActivo - 1]}</h2>
+          <button onClick={() => setShowDayMacros(true)}>
+            <h2 className="text-base text-lucy-text">{DIAS[diaActivo - 1]}</h2>
+          </button>
         </div>
       </div>
+
+      {/* Day macros modal */}
+      {showDayMacros && (() => {
+        const dayMacros = itemsDelDia.reduce((acc, item) => {
+          const a = item.alimento
+          if (!a) return acc
+          const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+          return {
+            cal: acc.cal + a.calorias_por_unidad * ratio,
+            prot: acc.prot + a.proteina_por_unidad * ratio,
+            carbs: acc.carbs + a.carbs_por_unidad * ratio,
+            grasas: acc.grasas + a.grasas_por_unidad * ratio,
+          }
+        }, { cal: 0, prot: 0, carbs: 0, grasas: 0 })
+
+        return (
+          <>
+            <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setShowDayMacros(false)} />
+            <div className="fixed inset-0 z-40 flex items-center justify-center px-6 pointer-events-none">
+              <div className="bg-lucy-white rounded-card border border-lucy-border p-6 w-full max-w-xs pointer-events-auto animate-macroIn">
+                <div className="text-center mb-4">
+                  <p className="text-2xl mb-1">📅</p>
+                  <p className="text-sm font-medium text-lucy-text">Macros del día</p>
+                  <p className="text-xs text-lucy-muted">{DIAS[diaActivo - 1]}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { label: 'Calorías', value: Math.round(dayMacros.cal), target: objetivos.cal, unit: 'kcal' },
+                    { label: 'Proteína', value: Math.round(dayMacros.prot), target: objetivos.prot, unit: 'g' },
+                    { label: 'Carbs', value: Math.round(dayMacros.carbs), target: objetivos.carbs, unit: 'g' },
+                    { label: 'Grasas', value: Math.round(dayMacros.grasas), target: objetivos.grasas, unit: 'g' },
+                  ].map(m => (
+                    <div key={m.label} className="border border-lucy-border rounded-btn p-3 text-center">
+                      <p className="text-[11px] text-lucy-muted mb-1">{m.label}</p>
+                      <p className="text-[32px] font-semibold text-lucy-text leading-none">{m.value.toLocaleString()}</p>
+                      <p className="text-[11px] text-lucy-muted mt-0.5">{m.unit}</p>
+                      <p className="text-[13px] text-lucy-soft">/ {m.target.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowDayMacros(false)}
+                  className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Swipe hint */}
       {showHint && (
