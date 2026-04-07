@@ -36,8 +36,8 @@ export default function FoodAvatar({ nombre, foto_url, size = 'md' }: FoodAvatar
   }
 
   return (
-    <div className={`${sizeClasses[size]} rounded-full bg-lucy-accent flex items-center justify-center shrink-0`}>
-      <span className="text-white font-semibold">{initial}</span>
+    <div className={`${sizeClasses[size]} rounded-full bg-lucy-soft flex items-center justify-center shrink-0`}>
+      <span className="text-lucy-text font-semibold">{initial}</span>
     </div>
   )
 }
