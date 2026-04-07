@@ -76,6 +76,23 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'buscar_o_crear_alimento',
+    description: 'Busca un alimento en el catálogo por nombre. Si no existe, lo crea con los macros provistos. Úsalo ANTES de cambiar_alimento o agregar_snack cuando el alimento pueda no estar en el catálogo.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        nombre: { type: 'string', description: 'Nombre del alimento' },
+        calorias_por_100g: { type: 'number', description: 'Calorías por 100g' },
+        proteina_por_100g: { type: 'number', description: 'Proteína en gramos por 100g' },
+        carbohidratos_por_100g: { type: 'number', description: 'Carbohidratos en gramos por 100g' },
+        grasa_por_100g: { type: 'number', description: 'Grasa en gramos por 100g' },
+        unidad_medida: { type: 'string', enum: ['gramos', 'ml', 'unidad'], description: 'Unidad de medida' },
+        fuente: { type: 'string', enum: ['usda', 'usuario'], description: 'Origen de los macros: usda o usuario (empaque)' },
+      },
+      required: ['nombre', 'calorias_por_100g', 'proteina_por_100g', 'carbohidratos_por_100g', 'grasa_por_100g', 'unidad_medida', 'fuente'],
+    },
+  },
+  {
     name: 'revertir_cambio',
     description: 'Revierte el último cambio realizado en el calendario. Solo funciona si hay un cambio previo guardado en esta conversación.',
     input_schema: {
@@ -198,8 +215,22 @@ async function executeCambiarAlimento(
   // Calculate new quantity to match calories of the original
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const oldAlimento = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)
-  const oldCalories = (oldAlimento?.calorias_por_unidad || 100) * (targetEntry.cantidad / (newAlimento.porcion_base || 100))
-  const newCantidad = Math.round((oldCalories / newAlimento.calorias_por_unidad) * (newAlimento.porcion_base || 100))
+
+  // Calculate total calories of the old item
+  const oldIsCountable = targetEntry.unidad === 'unidad'
+  const oldRatio = oldIsCountable ? targetEntry.cantidad : targetEntry.cantidad / (oldAlimento?.porcion_base || 100)
+  const oldCalories = (oldAlimento?.calorias_por_unidad || 100) * oldRatio
+
+  // Calculate quantity of new item to match those calories
+  const newIsCountable = newAlimento.unidad_medida === 'unidad'
+  let newCantidad: number
+  if (newIsCountable) {
+    // For countable items: round to whole units, minimum 1
+    newCantidad = Math.max(1, Math.round(oldCalories / newAlimento.calorias_por_unidad))
+  } else {
+    // For weight/volume items: calculate grams/ml
+    newCantidad = Math.round((oldCalories / newAlimento.calorias_por_unidad) * (newAlimento.porcion_base || 100))
+  }
 
   // Save original for revert (using row ID for precise targeting)
   const revertData: RevertData = {
@@ -281,13 +312,20 @@ async function executeAgregarSnack(
     return { result: `"${alimento}" no está en el catálogo.${sugText}` }
   }
 
+  // Sanity check for countable units
+  let finalCantidad = cantidad
+  if (found.unidad_medida === 'unidad' && finalCantidad > 20) {
+    finalCantidad = Math.round(finalCantidad / (found.porcion_base || 100))
+    if (finalCantidad < 1) finalCantidad = 1
+  }
+
   const dias = dia === 'todos' ? [1, 2, 3, 4, 5, 6, 7] : [parseInt(dia)]
   const rows = dias.map(d => ({
     user_id: userId,
     dia: d,
     comida: 'snack',
     alimento_id: found.id,
-    cantidad,
+    cantidad: finalCantidad,
     unidad: found.unidad_medida,
   }))
 
@@ -426,6 +464,56 @@ async function executeCalcularMacrosDia(
 Macros consumidos: ${Math.round(calConsumed)} kcal, P:${Math.round(protConsumed)}g, C:${Math.round(carbsConsumed)}g, G:${Math.round(grasasConsumed)}g.
 Macros restantes: ${calRemaining} kcal, P:${protRemaining}g, C:${carbsRemaining}g, G:${grasasRemaining}g.
 Alimentos que caben como snack: ${suggestions.slice(0, 8).join(' | ')}`
+}
+
+async function executeBuscarOCrearAlimento(
+  supabase: SupabaseClient,
+  userId: string,
+  input: {
+    nombre: string
+    calorias_por_100g: number
+    proteina_por_100g: number
+    carbohidratos_por_100g: number
+    grasa_por_100g: number
+    unidad_medida: string
+    fuente: string
+  }
+): Promise<string> {
+  const { nombre, calorias_por_100g, proteina_por_100g, carbohidratos_por_100g, grasa_por_100g, unidad_medida, fuente } = input
+
+  // Search existing
+  const existing = await findAlimento(supabase, nombre)
+  if (existing) {
+    return `Alimento encontrado: "${existing.nombre}" (ID: ${existing.id}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack.`
+  }
+
+  // Create new
+  const { data: created, error } = await supabase
+    .from('alimentos')
+    .insert({
+      nombre,
+      categoria_comida: 'otro',
+      calorias_por_unidad: calorias_por_100g,
+      proteina_por_unidad: proteina_por_100g,
+      carbs_por_unidad: carbohidratos_por_100g,
+      grasas_por_unidad: grasa_por_100g,
+      fibra_por_unidad: 0,
+      unidad_medida,
+      porcion_base: unidad_medida === 'unidad' ? 1 : 100,
+      porcion_min: unidad_medida === 'unidad' ? 1 : 50,
+      porcion_max: unidad_medida === 'unidad' ? 10 : 300,
+      es_personalizado: true,
+      creado_por: userId,
+      fuente,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    return `Error creando alimento: ${error.message}`
+  }
+
+  return `Alimento "${nombre}" creado exitosamente (ID: ${created.id}, fuente: ${fuente}). Ahora puedes usarlo con cambiar_alimento o agregar_snack.`
 }
 
 async function executeRevertir(
@@ -579,11 +667,12 @@ Calendario actual:${calendarioTexto}
 Alimentos seleccionados:
 ${alimentosTexto || '(No tiene alimentos seleccionados aún)'}
 
-Tienes 5 herramientas disponibles:
+Tienes 6 herramientas disponibles:
 - cambiar_alimento: Para cambiar un alimento por otro en el calendario. Usa los nombres EXACTOS como aparecen en el calendario.
 - calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
 - agregar_snack: Para añadir un snack al calendario. Usa dia "todos" para snack diario, o un número 1-7 para un día específico.
-- buscar_macros_usda: Para buscar macros de cualquier alimento en la base de datos USDA. Úsala cuando la usuaria menciona un alimento que NO está en el catálogo de Lucy.
+- buscar_macros_usda: Para buscar macros de cualquier alimento en la base de datos USDA.
+- buscar_o_crear_alimento: Para registrar un alimento nuevo que no está en el catálogo. SIEMPRE pide confirmación de macros a la usuaria antes de crear.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
 
 PROTOCOLO PARA SNACKS:
@@ -596,25 +685,63 @@ Cuando la usuaria pida un snack, sigue estos pasos EN ORDEN:
 6. Si pide snack para TODOS los días, calcula los macros promedio disponibles después de las 3 comidas principales y sugiere opciones que quepan diariamente. Cuando lo añadas con dia="todos", la lista de compras se actualiza automáticamente.
 
 REGLAS IMPORTANTES:
-- Solo usa alimentos que existan en el catálogo. Si la usuaria pide algo que no existe, sugiere alternativas.
+- Si la usuaria pide un alimento que no está en el catálogo, sigue el protocolo de ALIMENTOS NO RECONOCIDOS (buscar USDA → pedir datos → crear → asignar).
 - Después de cada cambio, confirma qué cambiaste con cantidades específicas.
 - Si cambias la cena, recuerda que el almuerzo del día siguiente debe ser igual (Regla 2).
 - Si la usuaria dice "reviértelo", "deshaz", "quítalo", o similar, usa revertir_cambio.
 - NO agregues un snack sin antes calcular los macros restantes.
-- Si la usuaria menciona un alimento que no está en su catálogo, usa buscar_macros_usda para obtener sus valores nutricionales y calcular la cantidad correcta para que se mantenga en sus macros objetivo.
+ALIMENTOS NO RECONOCIDOS:
+Cuando la usuaria mencione un alimento que no está en el catálogo:
+1. NUNCA uses un alimento similar como sustituto silencioso
+2. Busca el alimento en USDA con buscar_macros_usda
+3. SI USDA lo encuentra: presenta los valores y pregunta "Encontré [nombre] con estos valores por 100g: X kcal, Xg proteína, Xg carbos, Xg grasa. ¿Son correctos o tienes los valores del empaque?"
+   - Si confirma → usa buscar_o_crear_alimento con fuente "usda"
+   - Si da valores distintos → usa buscar_o_crear_alimento con fuente "usuario"
+4. SI USDA NO lo encuentra: dile a la usuaria "No encontré [nombre] en mi base de datos. ¿Me puedes dar la información nutricional del empaque? Necesito: calorías, proteína, carbs y grasas por porción, y el tamaño de la porción."
+   - Cuando la usuaria dé los datos → usa buscar_o_crear_alimento con fuente "usuario"
+5. Después de crear el alimento, asígnalo al calendario con cambiar_alimento o agregar_snack normalmente
+IMPORTANTE: Siempre aclara si los valores vienen de USDA (producto genérico) o del empaque (más preciso para esa marca).
 
 Responde siempre en español. Sé concisa y práctica.`
 
-    // Build API messages
-    const apiMessages = messages.map((m: { role: string; content: string }) => ({
+    // Load conversation history from Supabase (last 30 messages)
+    const { data: history } = await supabase
+      .from('conversaciones')
+      .select('role, content')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    const historyMessages = (history || []).reverse().map((m: { role: string; content: string }) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }))
+
+    // Build API messages: history + current session messages
+    // Deduplicate: only add current messages that aren't already in history
+    const currentMessages = messages.map((m: { role: string; content: string }) => ({
       role: m.role,
       content: m.content,
     }))
 
+    // Use history as base, then append only the latest user message
+    const lastUserMsg = currentMessages[currentMessages.length - 1]
+    const apiMessages = [...historyMessages]
+    if (lastUserMsg && lastUserMsg.role === 'user') {
+      // Check if this message is already in history (avoid duplicates)
+      const isDuplicate = historyMessages.length > 0 &&
+        historyMessages[historyMessages.length - 1]?.content === lastUserMsg.content &&
+        historyMessages[historyMessages.length - 1]?.role === 'user'
+      if (!isDuplicate) {
+        apiMessages.push(lastUserMsg)
+      }
+    }
+
     // Tool use loop — handles multiple tool calls per response
     let currentRevertData: RevertData | null = lastRevertData || null
     let finalResponse = ''
-    let loopMessages = [...apiMessages]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let loopMessages: any[] = [...apiMessages]
     let iterations = 0
 
     const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
@@ -640,6 +767,16 @@ Responde siempre en español. Sé concisa y práctica.`
           return await executeCalcularMacrosDia(supabase, userId, {
             dia: input.dia as number,
             comidas_consumidas: input.comidas_consumidas as string[],
+          })
+        } else if (name === 'buscar_o_crear_alimento') {
+          return await executeBuscarOCrearAlimento(supabase, userId, {
+            nombre: input.nombre as string,
+            calorias_por_100g: input.calorias_por_100g as number,
+            proteina_por_100g: input.proteina_por_100g as number,
+            carbohidratos_por_100g: input.carbohidratos_por_100g as number,
+            grasa_por_100g: input.grasa_por_100g as number,
+            unidad_medida: input.unidad_medida as string,
+            fuente: input.fuente as string,
           })
         } else if (name === 'buscar_macros_usda') {
           const usdaRes = await fetch(new URL('/api/usda-search', req.url).toString(), {
@@ -718,10 +855,10 @@ Responde siempre en español. Sé concisa y práctica.`
     }
 
     // Save messages to conversaciones
-    const lastUserMsg = messages[messages.length - 1]
-    if (lastUserMsg && finalResponse) {
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg && finalResponse) {
       await supabase.from('conversaciones').insert([
-        { user_id: userId, role: 'user', content: lastUserMsg.content },
+        { user_id: userId, role: 'user', content: lastMsg.content },
         { user_id: userId, role: 'assistant', content: finalResponse },
       ])
     }

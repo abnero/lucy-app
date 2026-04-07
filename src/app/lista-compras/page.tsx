@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import ChatPanel from '@/components/ChatPanel'
+import FoodAvatar from '@/components/FoodAvatar'
 
 interface CompraItem {
   id: string
@@ -140,18 +141,8 @@ export default function ListaComprasPage() {
                         )}
                       </div>
 
-                      {/* Photo */}
-                      <div className="w-9 h-9 rounded-full overflow-hidden bg-lucy-bg shrink-0">
-                        {item.alimento?.foto_url ? (
-                          <img
-                            src={item.alimento.foto_url}
-                            alt={item.alimento.nombre}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-lucy-soft text-xs">?</div>
-                        )}
-                      </div>
+                      {/* Avatar */}
+                      <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">

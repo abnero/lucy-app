@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
+import FoodAvatar from '@/components/FoodAvatar'
 
 interface Alimento {
   id: string
@@ -221,19 +222,7 @@ export default function SeleccionAlimentosPage() {
                       : 'border-lucy-border bg-lucy-white hover:border-lucy-soft'
                   }`}
                 >
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-lucy-bg shrink-0">
-                    {alimento.foto_url ? (
-                      <img
-                        src={alimento.foto_url}
-                        alt={alimento.nombre}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-lucy-soft text-lg">
-                        ?
-                      </div>
-                    )}
-                  </div>
+                  <FoodAvatar nombre={alimento.nombre} foto_url={alimento.foto_url} size="lg" />
                   <span className={`text-xs text-center leading-tight ${
                     isSelected ? 'text-lucy-accent font-medium' : 'text-lucy-text'
                   }`}>
