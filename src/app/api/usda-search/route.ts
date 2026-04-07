@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (!query) return NextResponse.json({ error: 'query required' }, { status: 400 })
     if (!USDA_API_KEY) return NextResponse.json({ error: 'USDA API key not configured' }, { status: 500 })
 
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&api_key=${USDA_API_KEY}&pageSize=3&dataType=Survey%20%28FNDDS%29`
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&api_key=${USDA_API_KEY}&pageSize=5`
 
     const res = await fetch(url)
     if (!res.ok) {
