@@ -211,7 +211,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
               </div>
               <div>
                 <p className="text-sm font-medium text-lucy-text">Lucy</p>
-                <p className="text-[10px] text-lucy-muted">Tu nutricionista personal</p>
+                <p className="text-[10px] text-lucy-muted">Tu asistente nutricional personal</p>
               </div>
             </div>
             <button

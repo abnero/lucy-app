@@ -75,7 +75,7 @@ function WaitlistContent() {
             ¿No sabes qué comer ni en qué cantidades para bajar de peso?
           </h2>
           <p className="text-sm text-lucy-muted">
-            Lucy lo resuelve. Tu nutricionista personal con IA.
+            Lucy lo resuelve. Tu asistente nutricional personal con IA.
           </p>
         </div>
 
@@ -94,7 +94,7 @@ function WaitlistContent() {
             </div>
             <div>
               <p className="text-xs font-medium text-lucy-text">Lucy</p>
-              <p className="text-[10px] text-lucy-muted">Tu nutricionista personal</p>
+              <p className="text-[10px] text-lucy-muted">Tu asistente nutricional personal</p>
             </div>
           </div>
           <div className="rounded-xl p-3 text-xs text-lucy-text leading-relaxed" style={{ backgroundColor: '#F0EFFA' }}>
