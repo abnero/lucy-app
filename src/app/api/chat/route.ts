@@ -997,12 +997,9 @@ export async function POST(req: NextRequest) {
     const tz = clientTimezone || 'America/New_York'
     const localTime = now.toLocaleString('es-ES', { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const localHour = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }))
-    const dayOfWeek = now.toLocaleString('en-US', { timeZone: tz, weekday: 'long' })
-
-    const DAY_MAP: Record<string, number> = {
-      Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7,
-    }
-    const todayNum = DAY_MAP[dayOfWeek] || 1
+    // Get day of week in client's timezone using Intl
+    const dayIndex = new Date(now.toLocaleString('en-US', { timeZone: tz })).getDay()
+    const todayNum = dayIndex === 0 ? 7 : dayIndex // 1=Mon, 7=Sun
 
     let mealContext: string
     if (localHour < 10) {

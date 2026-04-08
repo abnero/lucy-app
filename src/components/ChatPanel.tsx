@@ -121,8 +121,10 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
         if (data.revertData !== undefined) {
           revertDataRef.current = data.revertData
-          onDataChange?.()
         }
+        // Always refresh calendar after any successful chat response
+        // (tool may have modified data)
+        onDataChange?.()
       }
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Error de conexión. Verifica tu internet.' }])
