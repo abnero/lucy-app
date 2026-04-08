@@ -179,19 +179,25 @@ async function findAlimento(supabase: SupabaseClient, nombre: string) {
   const exact = all.find(a => removeAccents(a.nombre.toLowerCase()) === normalized)
   if (exact) return exact
 
-  // 2. Partial match — input is contained in name
-  const partial = all.find(a => removeAccents(a.nombre.toLowerCase()).includes(normalized))
-  if (partial) return partial
+  // 2. Partial match — input is contained in name (prefer shortest/most specific name)
+  const partials = all
+    .filter(a => removeAccents(a.nombre.toLowerCase()).includes(normalized))
+    .sort((a, b) => a.nombre.length - b.nombre.length)
+  if (partials.length > 0) return partials[0]
 
-  // 3. Partial match — name is contained in input
-  const reverse = all.find(a => normalized.includes(removeAccents(a.nombre.toLowerCase())))
-  if (reverse) return reverse
+  // 3. Partial match — name is contained in input (prefer longest match)
+  const reverses = all
+    .filter(a => normalized.includes(removeAccents(a.nombre.toLowerCase())))
+    .sort((a, b) => b.nombre.length - a.nombre.length)
+  if (reverses.length > 0) return reverses[0]
 
-  // 4. First-word match
+  // 4. First-word match (prefer shortest name)
   const firstWord = normalized.split(' ')[0]
   if (firstWord.length >= 3) {
-    const wordMatch = all.find(a => removeAccents(a.nombre.toLowerCase()).includes(firstWord))
-    if (wordMatch) return wordMatch
+    const wordMatches = all
+      .filter(a => removeAccents(a.nombre.toLowerCase()).includes(firstWord))
+      .sort((a, b) => a.nombre.length - b.nombre.length)
+    if (wordMatches.length > 0) return wordMatches[0]
   }
 
   return null
@@ -1156,7 +1162,29 @@ IMPORTANTE: Siempre aclara si los valores vienen de USDA (producto genérico) o 
 
 Responde siempre en español. Sé concisa y práctica.
 
-REGLA CRÍTICA: Cuando la usuaria pida un cambio en el calendario (cambiar, añadir, eliminar, reemplazar), SIEMPRE usa el tool correspondiente. NUNCA describas un cambio sin ejecutar el tool. Si no puedes ejecutar el tool, explica por qué.`
+REGLA CRÍTICA: Cuando la usuaria pida un cambio en el calendario (cambiar, añadir, eliminar, reemplazar), SIEMPRE usa el tool correspondiente. NUNCA describas un cambio sin ejecutar el tool. Si no puedes ejecutar el tool, explica por qué.
+
+RECETAS vs ALIMENTOS INDIVIDUALES:
+Cuando la usuaria pide un platillo/receta (sopa, tacos, pasta, curry, estofado, guiso, bowl, wrap, revuelto, salteado, arroz con, pollo con, ensalada de, crema de), NO busques en USDA como alimento procesado. En cambio:
+1. Desglosa la receta en ingredientes TÍPICOS y apropiados para ese platillo
+2. Sugiere los ingredientes con cantidades y espera confirmación
+3. Ejecuta reemplazar_comida_completa con los ingredientes confirmados
+
+Guía de ingredientes por tipo de platillo:
+- Sopas: vegetal principal + cebolla + aceite. Solo añade leche/crema si la usuaria pide "crema de..."
+- Tacos: proteína + tortillas + vegetal/fibra
+- Pasta: pasta + proteína + vegetal + aceite
+- Bowl: base (arroz/quinoa) + proteína + vegetal + grasa (aguacate)
+- Ensalada: vegetales + proteína + grasa (aceite/aguacate)
+- Revuelto/salteado: proteína + vegetales + aceite
+
+Reglas para sugerir ingredientes:
+- Usa solo ingredientes típicos del platillo. No inventes combinaciones raras.
+- Siempre incluye una proteína a menos que la usuaria pida algo vegetariano.
+- Prioriza ingredientes del catálogo de Lucy sobre ingredientes nuevos.
+- Máximo 4-5 ingredientes por receta para mantenerlo simple.
+
+Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busca en catálogo/USDA normalmente.`
 
     // Load conversation history from Supabase (last 30 messages)
     const { data: history } = await supabase

@@ -61,6 +61,7 @@ export default function MiCalendarioPage() {
 
   const fetchCalendar = useCallback(() => {
     if (!user) return
+    console.log('[Calendar] fetchCalendar triggered')
     supabase
       .from('calendario')
       .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
