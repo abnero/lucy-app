@@ -107,6 +107,23 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'reemplazar_comida_completa',
+    description: 'Reemplaza TODOS los alimentos de una comida con una lista nueva de ingredientes. Úsalo cuando la usuaria quiera cambiar una comida entera por una receta o combinación diferente. Calcula cantidades para que los macros quepan en el presupuesto de esa comida.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
+        comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
+        ingredientes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Lista de nombres de ingredientes nuevos',
+        },
+      },
+      required: ['dia', 'comida', 'ingredientes'],
+    },
+  },
+  {
     name: 'eliminar_ingrediente_de_comida',
     description: 'Elimina un ingrediente de una comida del calendario. Si retorna "NO EJECUTAR", DEBES preguntar a la usuaria antes de llamar de nuevo.',
     input_schema: {
@@ -493,6 +510,116 @@ async function executeCalcularMacrosDia(
 Macros consumidos: ${Math.round(calConsumed)} kcal, P:${Math.round(protConsumed)}g, C:${Math.round(carbsConsumed)}g, G:${Math.round(grasasConsumed)}g.
 Macros restantes: ${calRemaining} kcal, P:${protRemaining}g, C:${carbsRemaining}g, G:${grasasRemaining}g.
 Alimentos que caben como snack: ${suggestions.slice(0, 8).join(' | ')}`
+}
+
+async function executeReemplazarComidaCompleta(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { dia: number; comida: string; ingredientes: string[] }
+): Promise<{ result: string; revertData?: RevertData }> {
+  const { dia, comida, ingredientes } = input
+
+  // Get user's macro targets and meal distribution
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+    .eq('id', userId)
+    .single()
+
+  if (!usuario) return { result: 'No se encontró el perfil de la usuaria.' }
+
+  // Meal calorie distribution: desayuno 30%, almuerzo 40%, cena 30%
+  const mealPct: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, cena: 0.30 }
+  const pct = mealPct[comida] || 0.33
+  const mealCalTarget = usuario.calorias_objetivo * pct
+
+  // Get current items for revert
+  const { data: currentItems } = await supabase
+    .from('calendario')
+    .select('id, alimento_id, cantidad, unidad')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+    .eq('comida', comida)
+
+  const revertData: RevertData = {
+    type: 'cambiar',
+    originalRows: (currentItems || []).map(item => ({
+      rowId: item.id,
+      alimento_id: item.alimento_id,
+      cantidad: item.cantidad,
+      unidad: item.unidad,
+    })),
+    userId,
+  }
+
+  // Resolve all ingredients from catalog
+  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; unidad_medida: string }[] = []
+  const notFound: string[] = []
+
+  for (const name of ingredientes) {
+    const found = await findAlimento(supabase, name)
+    if (found) {
+      resolved.push({
+        id: found.id,
+        nombre: found.nombre,
+        cal: found.calorias_por_unidad,
+        porcion_base: found.porcion_base || 100,
+        unidad_medida: found.unidad_medida,
+      })
+    } else {
+      notFound.push(name)
+    }
+  }
+
+  if (notFound.length > 0) {
+    return { result: `No encontré estos ingredientes en el catálogo: ${notFound.join(', ')}. Usa buscar_o_crear_alimento para registrarlos primero, luego llama reemplazar_comida_completa de nuevo.` }
+  }
+
+  if (resolved.length === 0) {
+    return { result: 'No se resolvió ningún ingrediente.' }
+  }
+
+  // Calculate proportional calories per ingredient
+  const calPerIngredient = mealCalTarget / resolved.length
+
+  // Delete current items
+  if (currentItems && currentItems.length > 0) {
+    await supabase
+      .from('calendario')
+      .delete()
+      .eq('user_id', userId)
+      .eq('dia', dia)
+      .eq('comida', comida)
+  }
+
+  // Insert new ingredients with calculated quantities
+  const insertedDetails: string[] = []
+
+  for (const ing of resolved) {
+    let cantidad: number
+    if (ing.unidad_medida === 'unidad') {
+      cantidad = Math.max(1, Math.round(calPerIngredient / ing.cal))
+    } else {
+      cantidad = Math.max(10, Math.round((calPerIngredient / ing.cal) * ing.porcion_base))
+    }
+
+    await supabase.from('calendario').insert({
+      user_id: userId,
+      dia,
+      comida,
+      alimento_id: ing.id,
+      cantidad,
+      unidad: ing.unidad_medida,
+    })
+
+    insertedDetails.push(`${cantidad}${ing.unidad_medida} de ${ing.nombre}`)
+  }
+
+  const totalCal = Math.round(mealCalTarget)
+  return {
+    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Presupuesto: ~${totalCal} kcal.`,
+    revertData,
+  }
 }
 
 async function executeAgregarIngredienteAComida(
@@ -923,8 +1050,9 @@ Calendario actual:${calendarioTexto}
 Alimentos seleccionados:
 ${alimentosTexto || '(No tiene alimentos seleccionados aún)'}
 
-Tienes 8 herramientas disponibles:
+Tienes 9 herramientas disponibles:
 - cambiar_alimento: Para REEMPLAZAR un alimento por otro en el calendario.
+- reemplazar_comida_completa: Para reemplazar TODA una comida con una lista nueva de ingredientes (receta completa).
 - agregar_ingrediente_a_comida: Para AÑADIR un ingrediente nuevo a una comida existente, compensando reduciendo alimentos de la misma categoría.
 - eliminar_ingrediente_de_comida: Para ELIMINAR un ingrediente de una comida. Úsalo cuando la usuaria diga "elimina", "quita", "remueve" o "saca".
 - calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
@@ -934,6 +1062,7 @@ Tienes 8 herramientas disponibles:
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
 
 AÑADIR vs CAMBIAR:
+- Si la usuaria dice "quiero que mi cena sea X, Y y Z" o "hazme una receta con..." → usa reemplazar_comida_completa
 - Si la usuaria dice "añade X a mi almuerzo" o "quiero agregar X" → usa agregar_ingrediente_a_comida
 - Si la usuaria dice "cambia X por Y" o "reemplaza X" → usa cambiar_alimento
 - Si la usuaria dice "elimina X", "quita X", "remueve X", "saca X" → usa eliminar_ingrediente_de_comida
@@ -1049,6 +1178,14 @@ Responde siempre en español. Sé concisa y práctica.`
             dia: input.dia as number,
             comidas_consumidas: input.comidas_consumidas as string[],
           })
+        } else if (name === 'reemplazar_comida_completa') {
+          const { result, revertData } = await executeReemplazarComidaCompleta(supabase, userId, {
+            dia: input.dia as number,
+            comida: input.comida as string,
+            ingredientes: input.ingredientes as string[],
+          })
+          if (revertData) currentRevertData = revertData
+          return result
         } else if (name === 'agregar_ingrediente_a_comida') {
           const { result, revertData } = await executeAgregarIngredienteAComida(supabase, userId, {
             dia: input.dia as number,

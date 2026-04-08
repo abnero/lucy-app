@@ -179,12 +179,25 @@ export default function SeleccionAlimentosPage() {
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="w-full h-1 bg-lucy-border rounded-full mb-6">
-          <div
-            className="h-1 bg-lucy-accent rounded-full transition-all duration-300"
-            style={{ width: `${((paso + 1) / PASOS.length) * 100}%` }}
-          />
+        {/* Progress steps */}
+        <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide">
+          {PASOS.map((p, i) => {
+            const isCompleted = i < paso
+            const isCurrent = i === paso
+            return (
+              <div key={i} className="flex items-center gap-1 shrink-0">
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] transition-colors ${
+                  isCurrent ? 'bg-lucy-accent text-white' :
+                  isCompleted ? 'bg-lucy-accent/10 text-lucy-accent' :
+                  'bg-lucy-border/50 text-lucy-muted'
+                }`}>
+                  {isCompleted && <span>&#10003;</span>}
+                  <span>{p.titulo.replace('Acompañante 1 — ', '').replace('Acompañante 2 — ', '')}</span>
+                </div>
+                {i < PASOS.length - 1 && <div className="w-2 h-px bg-lucy-border shrink-0" />}
+              </div>
+            )
+          })}
         </div>
 
         {/* Title */}

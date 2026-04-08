@@ -23,8 +23,8 @@ const METAS = [
   { value: 'ganar_masa', label: 'Ganar masa muscular', calAdjust: 300 },
 ] as const
 
-function calcularMacros(pesoKg: number, alturaCm: number, edad: number, factorActividad: number, ajusteCalorias: number) {
-  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad - 161
+function calcularMacros(pesoKg: number, alturaCm: number, edad: number, factorActividad: number, ajusteCalorias: number, genero: string = 'femenino') {
+  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + (genero === 'masculino' ? 5 : -161)
   const tdee = bmr * factorActividad
   const calorias = Math.round(tdee + ajusteCalorias)
   const proteina = Math.round((calorias * 0.30) / 4)
@@ -35,6 +35,7 @@ function calcularMacros(pesoKg: number, alturaCm: number, edad: number, factorAc
 
 interface UsuarioData {
   nombre: string
+  genero: string | null
   peso_lbs: number | null
   peso_kg: number | null
   altura_pies: number | null
@@ -62,6 +63,7 @@ export default function MiPerfilPage() {
   const [alturaCm, setAlturaCm] = useState('')
   const [unidadAltura, setUnidadAltura] = useState<UnidadAltura>('ft')
   const [edad, setEdad] = useState('')
+  const [genero, setGenero] = useState('femenino')
   const [nivelActividad, setNivelActividad] = useState('')
   const [meta, setMeta] = useState('')
   const [error, setError] = useState('')
@@ -73,7 +75,7 @@ export default function MiPerfilPage() {
     if (!loading && user) {
       supabase
         .from('usuarios')
-        .select('nombre, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+        .select('nombre, genero, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -81,6 +83,7 @@ export default function MiPerfilPage() {
             const u = data as UsuarioData
             setUserData(u)
             setNombre(u.nombre || '')
+            setGenero(u.genero || 'femenino')
             setPeso(u.peso_lbs ? u.peso_lbs.toString() : '')
             setEdad(u.edad ? u.edad.toString() : '')
             setNivelActividad(u.nivel_actividad || '')
@@ -126,6 +129,7 @@ export default function MiPerfilPage() {
     // Detect if metric data changed (round to avoid float precision issues)
     const round1 = (n: number) => Math.round(n * 10) / 10
     const metricChanged =
+      genero !== (userData?.genero || 'femenino') ||
       round1(pesoKg) !== round1(userData?.peso_kg || 0) ||
       round1(altCm) !== round1(userData?.altura_cm || 0) ||
       edadNum !== (userData?.edad || 0) ||
@@ -138,12 +142,13 @@ export default function MiPerfilPage() {
       // Recalculate macros
       const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
       const metaObj = METAS.find(m => m.value === meta)!
-      const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust)
+      const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust, genero)
 
       const { error: dbError } = await supabase
         .from('usuarios')
         .update({
           nombre: nombre.trim(),
+          genero,
           peso_lbs: pesoLbs, peso_kg: pesoKg,
           altura_pies: altPies, altura_cm: altCm,
           edad: edadNum, nivel_actividad: nivelActividad, meta,
@@ -309,6 +314,24 @@ export default function MiPerfilPage() {
               <div className="relative">
                 <input type="number" value={edad} onChange={e => setEdad(e.target.value)} placeholder="30" min="15" max="80" className="w-full border border-lucy-border rounded-btn py-2.5 px-4 pr-14 text-sm text-lucy-text bg-lucy-white placeholder:text-lucy-muted/50 focus:outline-none focus:border-lucy-accent transition-colors" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lucy-muted text-xs">años</span>
+              </div>
+            </div>
+
+            {/* Género */}
+            <div>
+              <label className="block text-xs text-lucy-muted mb-2">Género</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'femenino', label: 'Mujer' },
+                  { value: 'masculino', label: 'Hombre' },
+                ].map(g => (
+                  <button key={g.value} type="button" onClick={() => setGenero(g.value)}
+                    className={`px-4 py-3 rounded-btn border transition-colors text-sm font-medium ${
+                      genero === g.value ? 'border-lucy-accent bg-lucy-accent/5 text-lucy-text' : 'border-lucy-border text-lucy-text hover:border-lucy-soft'
+                    }`}>
+                    {g.label}
+                  </button>
+                ))}
               </div>
             </div>
 

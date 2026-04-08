@@ -26,9 +26,10 @@ function calcularMacros(
   alturaCm: number,
   edad: number,
   factorActividad: number,
-  ajusteCalorias: number
+  ajusteCalorias: number,
+  genero: string = 'femenino'
 ) {
-  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad - 161
+  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + (genero === 'masculino' ? 5 : -161)
   const tdee = bmr * factorActividad
   const calorias = Math.round(tdee + ajusteCalorias)
   const proteina = Math.round((calorias * 0.30) / 4)
@@ -49,6 +50,7 @@ export default function OnboardingPage() {
   const [alturaCm, setAlturaCm] = useState('')
   const [unidadAltura, setUnidadAltura] = useState<UnidadAltura>('ft')
   const [edad, setEdad] = useState('')
+  const [genero, setGenero] = useState('femenino')
   const [nivelActividad, setNivelActividad] = useState('')
   const [meta, setMeta] = useState('')
   const [error, setError] = useState('')
@@ -101,7 +103,7 @@ export default function OnboardingPage() {
 
     const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
     const metaObj = METAS.find(m => m.value === meta)!
-    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust)
+    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust, genero)
 
     setSaving(true)
 
@@ -109,6 +111,7 @@ export default function OnboardingPage() {
       .from('usuarios')
       .update({
         nombre: nombre.trim(),
+        genero,
         peso_lbs: pesoLbs,
         peso_kg: pesoKg,
         altura_pies: altPies,
@@ -286,6 +289,30 @@ export default function OnboardingPage() {
                   className="w-full border border-lucy-border rounded-btn py-2.5 px-4 pr-14 text-sm text-lucy-text bg-lucy-white placeholder:text-lucy-muted/50 focus:outline-none focus:border-lucy-accent transition-colors"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lucy-muted text-xs">años</span>
+              </div>
+            </div>
+
+            {/* Género */}
+            <div>
+              <label className="block text-xs text-lucy-muted mb-2">Género</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'femenino', label: 'Mujer' },
+                  { value: 'masculino', label: 'Hombre' },
+                ].map(g => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() => setGenero(g.value)}
+                    className={`px-4 py-3 rounded-btn border transition-colors text-sm font-medium ${
+                      genero === g.value
+                        ? 'border-lucy-accent bg-lucy-accent/5 text-lucy-text'
+                        : 'border-lucy-border text-lucy-text hover:border-lucy-soft'
+                    }`}
+                  >
+                    {g.label}
+                  </button>
+                ))}
               </div>
             </div>
 
