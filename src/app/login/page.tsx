@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [nombre, setNombre] = useState('')
+  const [nombre] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmationSent, setConfirmationSent] = useState(false)
@@ -49,7 +49,11 @@ export default function LoginPage() {
     } else {
       const { error } = await signInWithEmail(email, password)
       if (error) {
-        setError(error.message)
+        if (error.message.includes('Invalid login credentials') || error.message.includes('Email not confirmed')) {
+          setError('NO_ACCOUNT')
+        } else {
+          setError(error.message)
+        }
       } else {
         const { data: { user: loggedUser } } = await supabase.auth.getUser()
         if (loggedUser) {
@@ -130,18 +134,6 @@ export default function LoginPage() {
 
           {/* Email Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegister && (
-              <div>
-                <label className="block text-xs text-lucy-muted mb-1.5">Nombre</label>
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="w-full border border-lucy-border rounded-btn py-2.5 px-4 text-sm text-lucy-text bg-lucy-white placeholder:text-lucy-muted/50 focus:outline-none focus:border-lucy-accent transition-colors"
-                />
-              </div>
-            )}
             <div>
               <label className="block text-xs text-lucy-muted mb-1.5">Email</label>
               <input
@@ -167,7 +159,16 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>
+              error === 'NO_ACCOUNT' ? (
+                <div className="text-xs bg-red-50 rounded-btn p-3">
+                  <p className="text-red-500 mb-1">No encontramos una cuenta con ese email.</p>
+                  <button onClick={() => router.push('/waitlist')} className="text-lucy-accent font-medium hover:opacity-80">
+                    ¿Quieres unirte a la lista de espera?
+                  </button>
+                </div>
+              ) : (
+                <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>
+              )
             )}
 
             <button
@@ -175,32 +176,30 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Cargando...' : isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
+              {loading ? 'Cargando...' : 'Iniciar sesión'}
             </button>
           </form>
 
           {/* Forgot password */}
-          {!isRegister && (
-            <p className="text-center mt-3">
-              <button
-                onClick={() => router.push('/recuperar-contrasena')}
-                className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </p>
-          )}
-
-          {/* Toggle */}
-          <p className="text-center text-xs text-lucy-muted mt-5">
-            {isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
+          <p className="text-center mt-3">
             <button
-              onClick={() => { setIsRegister(!isRegister); setError('') }}
-              className="text-lucy-accent font-medium hover:opacity-80"
+              onClick={() => router.push('/recuperar-contrasena')}
+              className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors"
             >
-              {isRegister ? 'Inicia sesión' : 'Regístrate'}
+              ¿Olvidaste tu contraseña?
             </button>
           </p>
+
+          {/* Waitlist CTA */}
+          <div className="mt-6 pt-5 border-t border-lucy-border">
+            <p className="text-center text-xs text-lucy-muted mb-3">¿No tienes cuenta?</p>
+            <button
+              onClick={() => router.push('/waitlist')}
+              className="w-full border border-lucy-accent text-lucy-accent font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-lucy-accent/5 transition-colors"
+            >
+              Únete a la lista de espera →
+            </button>
+          </div>
         </div>
 
         {/* Powered by */}
@@ -218,16 +217,6 @@ export default function LoginPage() {
           Al usar Lucy aceptas que esta app es solo orientación general. Consulta a un profesional de la salud si tienes condiciones médicas.
         </p>
 
-        <style jsx>{`
-          @keyframes poweredIn {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
-          }
-          .animate-poweredIn {
-            opacity: 0;
-            animation: poweredIn 1s ease-out 0.5s forwards;
-          }
-        `}</style>
       </div>
     </div>
   )

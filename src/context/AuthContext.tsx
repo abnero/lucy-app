@@ -21,22 +21,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Ensure user profile exists in usuarios table (fallback if trigger fails)
-  const ensureProfile = async (user: User) => {
-    const { data } = await supabase
-      .from('usuarios')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (!data) {
-      await supabase.from('usuarios').insert({
-        id: user.id,
-        nombre: user.user_metadata?.nombre || 'Usuaria',
-        email: user.email,
-      })
-    }
-  }
+  // Profile is created by Supabase trigger or during onboarding — no auto-create
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const ensureProfile = async (_u: User) => { /* noop */ }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

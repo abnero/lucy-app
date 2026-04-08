@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -9,6 +11,16 @@ const supabase = createClient(
 )
 
 export default function WaitlistPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-lucy-muted text-sm">Cargando...</p></div>}>
+      <WaitlistContent />
+    </Suspense>
+  )
+}
+
+function WaitlistContent() {
+  const searchParams = useSearchParams()
+  const fromGoogle = searchParams.get('from') === 'google'
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'exists' | 'error'>('idle')
   const [count, setCount] = useState(200)
@@ -50,6 +62,13 @@ export default function WaitlistPage() {
           <p className="text-lucy-soft text-[11px] tracking-[0.25em] uppercase mt-1">calendario metabólico</p>
         </div>
 
+        {/* Google redirect message */}
+        {fromGoogle && (
+          <div className="bg-lucy-white rounded-card border border-lucy-border p-4 mb-6 text-center">
+            <p className="text-sm text-lucy-text">Gracias por tu interés. Estamos en beta — únete a la lista de espera y te avisamos cuando tu acceso esté listo.</p>
+          </div>
+        )}
+
         {/* Headline */}
         <div className="text-center mb-8">
           <h2 className="text-xl font-medium text-lucy-text leading-snug mb-3">
@@ -61,21 +80,10 @@ export default function WaitlistPage() {
         </div>
 
         {/* Benefits */}
-        <div className="bg-lucy-white rounded-card border border-lucy-border p-6 mb-6">
-          <div className="space-y-4">
-            <div className="flex gap-3 items-start">
-              <span className="text-lg shrink-0">🧠</span>
-              <p className="text-sm text-lucy-text">Tu plan de comidas personalizado en 3 minutos</p>
-            </div>
-            <div className="flex gap-3 items-start">
-              <span className="text-lg shrink-0">🥗</span>
-              <p className="text-sm text-lucy-text">Con los alimentos que tú escoges — no dietas genéricas</p>
-            </div>
-            <div className="flex gap-3 items-start">
-              <span className="text-lg shrink-0" role="img" aria-label="chat">💬</span>
-              <p className="text-sm text-lucy-text">Cámbialo cuando quieras hablándole por chat</p>
-            </div>
-          </div>
+        <div className="bg-lucy-white rounded-card border border-lucy-border p-6 mb-6 space-y-4">
+          <p className="text-sm text-lucy-text">🧠 Tu plan de comidas personalizado en 3 minutos</p>
+          <p className="text-sm text-lucy-text">🥗 Con los alimentos que tú escoges — no dietas genéricas</p>
+          <p className="text-sm text-lucy-text">💬 Cámbialo cuando quieras hablándole por chat</p>
         </div>
 
         {/* App mockup */}

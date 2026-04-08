@@ -35,3 +35,13 @@ h1, h2, h3, h4, h5, h6 {
 .animate-macroIn {
   animation: macroIn 0.2s ease-out;
 }
+
+/* Powered by fade in */
+@keyframes poweredIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-poweredIn {
+  opacity: 0;
+  animation: poweredIn 1s ease-out 0.5s forwards;
+}
