@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
@@ -36,6 +36,7 @@ function calcularMacros(pesoKg: number, alturaCm: number, edad: number, factorAc
 interface UsuarioData {
   nombre: string
   genero: string | null
+  avatar_url: string | null
   peso_lbs: number | null
   peso_kg: number | null
   altura_pies: number | null
@@ -69,13 +70,39 @@ export default function MiPerfilPage() {
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [saving, setSaving] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `${user.id}.${ext}`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('avatares')
+      .upload(path, file, { contentType: file.type, upsert: true })
+
+    if (uploadErr) {
+      console.error('Avatar upload error:', uploadErr.message)
+      return
+    }
+
+    const { data: urlData } = supabase.storage.from('avatares').getPublicUrl(path)
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+    await supabase.from('usuarios').update({ avatar_url: newUrl }).eq('id', user.id)
+    setAvatarUrl(newUrl)
+    setUserData(prev => prev ? { ...prev, avatar_url: newUrl } : prev)
+  }
 
   useEffect(() => {
     if (!loading && !user) { router.push('/login'); return }
     if (!loading && user) {
       supabase
         .from('usuarios')
-        .select('nombre, genero, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+        .select('nombre, genero, avatar_url, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -84,6 +111,7 @@ export default function MiPerfilPage() {
             setUserData(u)
             setNombre(u.nombre || '')
             setGenero(u.genero || 'femenino')
+            setAvatarUrl(u.avatar_url || user?.user_metadata?.avatar_url || null)
             setPeso(u.peso_lbs ? u.peso_lbs.toString() : '')
             setEdad(u.edad ? u.edad.toString() : '')
             setNivelActividad(u.nivel_actividad || '')
@@ -218,8 +246,29 @@ export default function MiPerfilPage() {
         <div className="max-w-lg mx-auto">
           {/* Avatar + name */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center mb-2">
-              <span className="font-logo text-white text-2xl">{inicial}</span>
+            <div className="relative mb-2">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={userData.nombre} className="w-16 h-16 rounded-full object-cover" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center">
+                  <span className="font-logo text-white text-2xl">{inicial}</span>
+                </div>
+              )}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-lucy-white border border-lucy-border flex items-center justify-center hover:bg-lucy-bg transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M9.5 1.5l1 1-7 7H2.5v-1l7-7z" stroke="#9896B0" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
             </div>
             <p className="text-sm text-lucy-text font-medium">{userData.nombre}</p>
             <p className="text-xs text-lucy-muted">{user.email}</p>

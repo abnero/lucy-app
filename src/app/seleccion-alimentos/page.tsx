@@ -26,6 +26,7 @@ export default function SeleccionAlimentosPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
+  const [showIntro, setShowIntro] = useState(true)
   const [paso, setPaso] = useState(0)
   const [alimentos, setAlimentos] = useState<Alimento[]>([])
   const [selecciones, setSelecciones] = useState<Record<number, Set<string>>>({
@@ -143,6 +144,40 @@ export default function SeleccionAlimentosPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lucy-muted text-sm">Cargando...</p>
+      </div>
+    )
+  }
+
+  if (showIntro) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="font-logo text-2xl text-lucy-text">Lucy</h1>
+            <p className="text-lucy-soft text-[10px] tracking-[0.25em] uppercase">calendario metabólico</p>
+          </div>
+          <div className="bg-lucy-white rounded-card border border-lucy-border p-8 text-center">
+            <p className="text-4xl mb-4">🥗</p>
+            <h2 className="text-lg text-lucy-text mb-3">Escoge tus alimentos favoritos</h2>
+            <p className="text-xs text-lucy-muted leading-relaxed mb-6">
+              Vamos a personalizar tu calendario metabólico. Escoge los alimentos que más te gustan en cada categoría — no tienen que ser perfectos. Una vez generado tu calendario, podrás añadir, cambiar o quitar cualquier alimento con la ayuda de Lucy.
+            </p>
+            <button
+              onClick={() => setShowIntro(false)}
+              className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity"
+            >
+              ¡Empecemos!
+            </button>
+            {hasCalendario && (
+              <button
+                onClick={() => router.push('/mi-calendario')}
+                className="w-full mt-3 text-xs text-lucy-muted hover:text-lucy-accent transition-colors"
+              >
+                ← Volver a mi calendario
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
