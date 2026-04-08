@@ -1096,19 +1096,21 @@ Tienes 9 herramientas disponibles:
 
 CUÁNDO USAR CADA TOOL (OBLIGATORIO):
 
-reemplazar_comida_completa — cuando la usuaria define TODA la comida nueva:
-  "quiero que mi almuerzo sea pollo, habichuelas, espinaca y aceite de oliva" → reemplazar_comida_completa
-  "pon en mi cena salmón con arroz y brócoli" → reemplazar_comida_completa
-  "cambia mi desayuno por huevos con tortilla y aguacate" → reemplazar_comida_completa
-  "hazme una receta con..." → reemplazar_comida_completa
-  "quiero comer X, Y y Z el viernes" → reemplazar_comida_completa
+reemplazar_comida_completa — cuando la usuaria CONFIRMA que quiere reemplazar toda la comida:
+  PROTOCOLO OBLIGATORIO: NUNCA ejecutes reemplazar_comida_completa sin confirmación previa.
+  Paso 1: Sugiere los ingredientes: "Para tu [platillo] puedo usar: X, Y, Z. Esto reemplazaría toda tu [comida] actual. ¿Confirmas?"
+  Paso 2: ESPERA a que la usuaria diga "sí", "confirmo", "dale", "ok" u otra confirmación
+  Paso 3: SOLO entonces ejecuta reemplazar_comida_completa
+  NUNCA sugieras Y ejecutes en el mismo turno. Siempre son 2 mensajes separados.
 
 cambiar_alimento — cuando reemplaza UN solo ingrediente por otro:
   "cambia el pollo por salmón" → cambiar_alimento
   "en vez de arroz ponme quinoa" → cambiar_alimento
 
-agregar_ingrediente_a_comida — cuando AÑADE algo a lo que ya tiene:
+agregar_ingrediente_a_comida — cuando AÑADE algo o CAMBIA CANTIDAD de un ingrediente existente:
   "añade aguacate a mi almuerzo" → agregar_ingrediente_a_comida
+  "aumenta el pollo a 200g" → primero calcula la diferencia (200g - cantidad actual), luego usa agregar_ingrediente_a_comida con esa diferencia. Si el ingrediente ya existe, el tool lo detecta y te pide la cantidad TOTAL.
+  "reduce el arroz a 50g" → usa cambiar_alimento con el mismo alimento pero cantidad diferente, o elimina y re-añade con la cantidad correcta
 
 eliminar_ingrediente_de_comida — cuando QUITA algo:
   "elimina la espinaca" → eliminar_ingrediente_de_comida
@@ -1312,7 +1314,8 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
 
     // Detect if user is requesting a calendar change — force tool use
     const lastUserText = (messages[messages.length - 1]?.content || '').toLowerCase()
-    const forceToolUse = /quiero que mi|reemplaza (mi|toda)|cambia toda|pon en mi|hazme una receta|quiero comer .+ el|añade .+ a mi|cambia el .+ por|elimina |quita |remueve |saca |quiero un snack/.test(lastUserText)
+    // Force tool use for direct actions (not recipes — those need confirmation first)
+    const forceToolUse = /añade .+ a mi|cambia el .+ por|elimina |quita |remueve |saca |quiero un snack|aumenta |reduce /.test(lastUserText)
 
     while (iterations < 8) {
       iterations++
