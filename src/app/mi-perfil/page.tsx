@@ -77,24 +77,33 @@ export default function MiPerfilPage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `${user.id}.${ext}`
+    const path = `${user.id}.jpg`
 
+    // Try upload — if bucket doesn't exist, error will show
     const { error: uploadErr } = await supabase.storage
       .from('avatares')
       .upload(path, file, { contentType: file.type, upsert: true })
 
     if (uploadErr) {
       console.error('Avatar upload error:', uploadErr.message)
+      setError('Error subiendo foto: ' + uploadErr.message)
       return
     }
 
     const { data: urlData } = supabase.storage.from('avatares').getPublicUrl(path)
     const newUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-    await supabase.from('usuarios').update({ avatar_url: newUrl }).eq('id', user.id)
+    const { error: dbErr } = await supabase.from('usuarios').update({ avatar_url: newUrl }).eq('id', user.id)
+    if (dbErr) {
+      console.error('Avatar DB update error:', dbErr.message)
+      setError('Error guardando foto: ' + dbErr.message)
+      return
+    }
+
     setAvatarUrl(newUrl)
     setUserData(prev => prev ? { ...prev, avatar_url: newUrl } : prev)
+    setSuccessMsg('Foto actualizada')
+    setTimeout(() => setSuccessMsg(''), 3000)
   }
 
   useEffect(() => {
