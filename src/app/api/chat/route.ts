@@ -163,7 +163,7 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-const ALIMENTOS_FIELDS = 'id, nombre, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base'
+const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base'
 
 async function findAlimento(supabase: SupabaseClient, nombre: string) {
   const normalized = removeAccents(nombre.toLowerCase().trim())
@@ -567,7 +567,7 @@ async function executeReemplazarComidaCompleta(
   }
 
   // Resolve all ingredients from catalog or USDA
-  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; unidad_medida: string }[] = []
+  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; unidad_medida: string; categoria: string }[] = []
   const notFound: string[] = []
   const substituted: string[] = []
 
@@ -580,6 +580,7 @@ async function executeReemplazarComidaCompleta(
         cal: found.calorias_por_unidad,
         porcion_base: found.porcion_base || 100,
         unidad_medida: found.unidad_medida,
+        categoria: found.categoria_comida || 'otro',
       })
       if (removeAccents(found.nombre.toLowerCase()) !== removeAccents(name.toLowerCase())) {
         substituted.push(`"${name}" → usé "${found.nombre}"`)
@@ -597,12 +598,47 @@ async function executeReemplazarComidaCompleta(
     return { result: 'No se resolvió ningún ingrediente.' }
   }
 
-  // Calculate proportional calories per ingredient
+  // Check for protein
+  const hasProtein = resolved.some(ing => ing.categoria === 'proteina')
+  if (!hasProtein) {
+    return { result: `Esta receta no tiene proteína. Sugiere a la usuaria añadir una proteína (pollo, carne, pescado, huevo, tofu) antes de ejecutar el reemplazo.` }
+  }
+
+  // Max quantity limits by category
+  const MAX_QTY: Record<string, number> = { vegetal: 300, proteina: 250, carbohidrato: 200, grasa: 30, otro: 200 }
+
+  // Calculate quantities with limits
   const calPerIngredient = mealCalTarget / resolved.length
+  let totalActualCal = 0
+
+  const planned: { ing: typeof resolved[0]; cantidad: number }[] = []
+  for (const ing of resolved) {
+    const maxQty = MAX_QTY[ing.categoria] || 200
+    let cantidad: number
+    if (ing.unidad_medida === 'unidad') {
+      cantidad = Math.max(1, Math.round(calPerIngredient / ing.cal))
+    } else {
+      cantidad = Math.round((calPerIngredient / ing.cal) * ing.porcion_base)
+      cantidad = Math.min(cantidad, maxQty)
+      cantidad = Math.max(10, cantidad)
+    }
+    const ratio = ing.unidad_medida === 'unidad' ? cantidad : cantidad / ing.porcion_base
+    totalActualCal += ing.cal * ratio
+    planned.push({ ing, cantidad })
+  }
+
+  // Check if calories fall short
+  const calDiff = mealCalTarget - totalActualCal
+  if (calDiff > 50) {
+    const plannedList = planned.map(p => `${p.cantidad}${p.ing.unidad_medida} de ${p.ing.nombre}`).join(', ')
+    return {
+      result: `Con estos ingredientes (${plannedList}) la comida tendrá ~${Math.round(totalActualCal)} kcal en vez de las ~${Math.round(mealCalTarget)} kcal planificadas (faltan ~${Math.round(calDiff)} kcal). Pregúntale a la usuaria: "Con estos ingredientes tu ${comida} tendrá ~${Math.round(totalActualCal)} kcal en vez de ${Math.round(mealCalTarget)} kcal. ¿Quieres añadir algún ingrediente adicional o lo dejamos así?" Si confirma, llama este tool de nuevo con los mismos ingredientes — se ejecutará con las cantidades calculadas.`,
+    }
+  }
 
   // Delete current items
   if (currentItems && currentItems.length > 0) {
-    const { error: delErr, count } = await supabase
+    const { error: delErr } = await supabase
       .from('calendario')
       .delete({ count: 'exact' })
       .eq('user_id', userId)
@@ -610,35 +646,19 @@ async function executeReemplazarComidaCompleta(
       .eq('comida', comida)
 
     if (delErr) {
-      console.error('reemplazar_comida DELETE error:', delErr.message)
       return { result: `Error eliminando comida actual: ${delErr.message}` }
     }
-    console.log(`DELETE result: error=${delErr}, count=${count}`)
   }
 
-  // Insert new ingredients with calculated quantities
+  // Insert new ingredients
   const insertedDetails: string[] = []
   const insertErrors: string[] = []
 
-  for (const ing of resolved) {
-    let cantidad: number
-    if (ing.unidad_medida === 'unidad') {
-      cantidad = Math.max(1, Math.round(calPerIngredient / ing.cal))
-    } else {
-      cantidad = Math.max(10, Math.round((calPerIngredient / ing.cal) * ing.porcion_base))
-    }
-
+  for (const { ing, cantidad } of planned) {
     const { error: insErr } = await supabase.from('calendario').insert({
-      user_id: userId,
-      dia,
-      comida,
-      alimento_id: ing.id,
-      cantidad,
-      unidad: ing.unidad_medida,
+      user_id: userId, dia, comida, alimento_id: ing.id, cantidad, unidad: ing.unidad_medida,
     })
-
     if (insErr) {
-      console.error(`reemplazar_comida INSERT error for ${ing.nombre}:`, insErr.message)
       insertErrors.push(`${ing.nombre}: ${insErr.message}`)
     } else {
       insertedDetails.push(`${cantidad}${ing.unidad_medida} de ${ing.nombre}`)
@@ -649,11 +669,9 @@ async function executeReemplazarComidaCompleta(
     return { result: `Error insertando ingredientes: ${insertErrors.join(', ')}` }
   }
 
-  const totalCal = Math.round(mealCalTarget)
   const subMsg = substituted.length > 0 ? ` Nota: ${substituted.join(', ')}.` : ''
-  const errMsg = insertErrors.length > 0 ? ` Errores: ${insertErrors.join(', ')}.` : ''
   return {
-    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Presupuesto: ~${totalCal} kcal.${subMsg}${errMsg}`,
+    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Total: ~${Math.round(totalActualCal)} kcal (objetivo: ${Math.round(mealCalTarget)} kcal).${subMsg}`,
     revertData,
   }
 }
@@ -690,8 +708,36 @@ async function executeAgregarIngredienteAComida(
   if (duplicate) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const a = (Array.isArray(duplicate.alimento) ? (duplicate.alimento as any)[0] : duplicate.alimento) as any
+    const nombre = a?.nombre || alimento
+
+    // If the requested cantidad is different, update it directly
+    if (cantidad !== duplicate.cantidad) {
+      const revertData: RevertData = {
+        type: 'cambiar',
+        originalRows: [{ rowId: duplicate.id, alimento_id: duplicate.alimento_id, cantidad: duplicate.cantidad, unidad: duplicate.unidad }],
+        userId,
+      }
+
+      const { error: updErr } = await supabase
+        .from('calendario')
+        .update({ cantidad })
+        .eq('id', duplicate.id)
+
+      if (updErr) {
+        console.error('Duplicate update error:', updErr.message)
+        return { result: `Error actualizando cantidad: ${updErr.message}` }
+      }
+
+      console.log(`Updated ${nombre}: ${duplicate.cantidad} → ${cantidad} ${duplicate.unidad}`)
+      return {
+        result: `Actualicé ${nombre} en el ${comida} del ${DIAS_NOMBRES[dia - 1]}: ${duplicate.cantidad}→${cantidad} ${duplicate.unidad}.`,
+        revertData,
+      }
+    }
+
+    // Same quantity — just inform
     return {
-      result: `DUPLICADO: Ya tiene ${a?.nombre || alimento} en el ${comida} del ${DIAS_NOMBRES[dia - 1]} (${duplicate.cantidad} ${duplicate.unidad}). Pregúntale a la usuaria: "Ya tienes ${a?.nombre} en tu ${comida} (${duplicate.cantidad} ${duplicate.unidad}). ¿Quieres que aumente la cantidad?" Si dice sí, pregúntale cuánto más quiere y luego llama este tool de nuevo con cantidad = la cantidad TOTAL deseada (actual + adicional) y el ingrediente se actualizará en vez de duplicarse. ID de fila existente: ${duplicate.id}`,
+      result: `${nombre} ya está en el ${comida} del ${DIAS_NOMBRES[dia - 1]} con ${duplicate.cantidad} ${duplicate.unidad}. Si quieres cambiar la cantidad, llama este tool con la cantidad nueva deseada.`,
     }
   }
 
