@@ -518,6 +518,12 @@ async function executeReemplazarComidaCompleta(
   input: { dia: number; comida: string; ingredientes: string[] }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia, comida, ingredientes } = input
+  console.log(`\n=== REEMPLAZAR COMIDA ===`)
+  console.log(`userId: "${userId}" (type: ${typeof userId})`)
+  console.log(`dia: "${dia}" (type: ${typeof dia})`)
+  console.log(`comida: "${comida}" (type: ${typeof comida})`)
+  console.log(`ingredientes: ${JSON.stringify(ingredientes)}`)
+  console.log(`========================\n`)
 
   // Get user's macro targets and meal distribution
   const { data: usuario } = await supabase
@@ -541,6 +547,8 @@ async function executeReemplazarComidaCompleta(
     .eq('dia', dia)
     .eq('comida', comida)
 
+  console.log(`SELECT result: ${currentItems?.length || 0} items found. IDs: ${currentItems?.map(i => i.id).join(', ') || 'none'}`)
+
   const revertData: RevertData = {
     type: 'cambiar',
     originalRows: (currentItems || []).map(item => ({
@@ -552,9 +560,10 @@ async function executeReemplazarComidaCompleta(
     userId,
   }
 
-  // Resolve all ingredients from catalog
+  // Resolve all ingredients from catalog or USDA
   const resolved: { id: string; nombre: string; cal: number; porcion_base: number; unidad_medida: string }[] = []
   const notFound: string[] = []
+  const substituted: string[] = []
 
   for (const name of ingredientes) {
     const found = await findAlimento(supabase, name)
@@ -566,13 +575,16 @@ async function executeReemplazarComidaCompleta(
         porcion_base: found.porcion_base || 100,
         unidad_medida: found.unidad_medida,
       })
+      if (removeAccents(found.nombre.toLowerCase()) !== removeAccents(name.toLowerCase())) {
+        substituted.push(`"${name}" → usé "${found.nombre}"`)
+      }
     } else {
       notFound.push(name)
     }
   }
 
   if (notFound.length > 0) {
-    return { result: `No encontré estos ingredientes en el catálogo: ${notFound.join(', ')}. Usa buscar_o_crear_alimento para registrarlos primero, luego llama reemplazar_comida_completa de nuevo.` }
+    return { result: `No encontré estos ingredientes en el catálogo: ${notFound.join(', ')}. DEBES usar buscar_macros_usda para buscar sus macros, luego buscar_o_crear_alimento para registrarlos, y finalmente llamar reemplazar_comida_completa de nuevo con todos los ingredientes.` }
   }
 
   if (resolved.length === 0) {
@@ -584,16 +596,23 @@ async function executeReemplazarComidaCompleta(
 
   // Delete current items
   if (currentItems && currentItems.length > 0) {
-    await supabase
+    const { error: delErr, count } = await supabase
       .from('calendario')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('user_id', userId)
       .eq('dia', dia)
       .eq('comida', comida)
+
+    if (delErr) {
+      console.error('reemplazar_comida DELETE error:', delErr.message)
+      return { result: `Error eliminando comida actual: ${delErr.message}` }
+    }
+    console.log(`DELETE result: error=${delErr}, count=${count}`)
   }
 
   // Insert new ingredients with calculated quantities
   const insertedDetails: string[] = []
+  const insertErrors: string[] = []
 
   for (const ing of resolved) {
     let cantidad: number
@@ -603,7 +622,7 @@ async function executeReemplazarComidaCompleta(
       cantidad = Math.max(10, Math.round((calPerIngredient / ing.cal) * ing.porcion_base))
     }
 
-    await supabase.from('calendario').insert({
+    const { error: insErr } = await supabase.from('calendario').insert({
       user_id: userId,
       dia,
       comida,
@@ -612,12 +631,23 @@ async function executeReemplazarComidaCompleta(
       unidad: ing.unidad_medida,
     })
 
-    insertedDetails.push(`${cantidad}${ing.unidad_medida} de ${ing.nombre}`)
+    if (insErr) {
+      console.error(`reemplazar_comida INSERT error for ${ing.nombre}:`, insErr.message)
+      insertErrors.push(`${ing.nombre}: ${insErr.message}`)
+    } else {
+      insertedDetails.push(`${cantidad}${ing.unidad_medida} de ${ing.nombre}`)
+    }
+  }
+
+  if (insertErrors.length > 0 && insertedDetails.length === 0) {
+    return { result: `Error insertando ingredientes: ${insertErrors.join(', ')}` }
   }
 
   const totalCal = Math.round(mealCalTarget)
+  const subMsg = substituted.length > 0 ? ` Nota: ${substituted.join(', ')}.` : ''
+  const errMsg = insertErrors.length > 0 ? ` Errores: ${insertErrors.join(', ')}.` : ''
   return {
-    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Presupuesto: ~${totalCal} kcal.`,
+    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Presupuesto: ~${totalCal} kcal.${subMsg}${errMsg}`,
     revertData,
   }
 }
@@ -1061,12 +1091,27 @@ Tienes 9 herramientas disponibles:
 - buscar_o_crear_alimento: Para registrar un alimento nuevo que no está en el catálogo. SIEMPRE pide confirmación de macros a la usuaria antes de crear.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
 
-AÑADIR vs CAMBIAR:
-- Si la usuaria dice "quiero que mi cena sea X, Y y Z" o "hazme una receta con..." → usa reemplazar_comida_completa
-- Si la usuaria dice "añade X a mi almuerzo" o "quiero agregar X" → usa agregar_ingrediente_a_comida
-- Si la usuaria dice "cambia X por Y" o "reemplaza X" → usa cambiar_alimento
-- Si la usuaria dice "elimina X", "quita X", "remueve X", "saca X" → usa eliminar_ingrediente_de_comida
+CUÁNDO USAR CADA TOOL (OBLIGATORIO):
+
+reemplazar_comida_completa — cuando la usuaria define TODA la comida nueva:
+  "quiero que mi almuerzo sea pollo, habichuelas, espinaca y aceite de oliva" → reemplazar_comida_completa
+  "pon en mi cena salmón con arroz y brócoli" → reemplazar_comida_completa
+  "cambia mi desayuno por huevos con tortilla y aguacate" → reemplazar_comida_completa
+  "hazme una receta con..." → reemplazar_comida_completa
+  "quiero comer X, Y y Z el viernes" → reemplazar_comida_completa
+
+cambiar_alimento — cuando reemplaza UN solo ingrediente por otro:
+  "cambia el pollo por salmón" → cambiar_alimento
+  "en vez de arroz ponme quinoa" → cambiar_alimento
+
+agregar_ingrediente_a_comida — cuando AÑADE algo a lo que ya tiene:
+  "añade aguacate a mi almuerzo" → agregar_ingrediente_a_comida
+
+eliminar_ingrediente_de_comida — cuando QUITA algo:
+  "elimina la espinaca" → eliminar_ingrediente_de_comida
+
 - NUNCA elimines la única proteína de una comida sin advertir primero
+- Si la frase menciona 2+ ingredientes nuevos para una comida → SIEMPRE es reemplazar_comida_completa
 
 CANTIDADES Y PORCIONES:
 Cuando la usuaria pide añadir un alimento sin especificar gramos (ej. "añade 1 tortilla", "añade un huevo"):
@@ -1112,7 +1157,9 @@ Cuando la usuaria mencione un alimento que no está en el catálogo:
 5. Después de crear el alimento, asígnalo al calendario con cambiar_alimento o agregar_snack normalmente
 IMPORTANTE: Siempre aclara si los valores vienen de USDA (producto genérico) o del empaque (más preciso para esa marca).
 
-Responde siempre en español. Sé concisa y práctica.`
+Responde siempre en español. Sé concisa y práctica.
+
+REGLA CRÍTICA: Cuando la usuaria pida un cambio en el calendario (cambiar, añadir, eliminar, reemplazar), SIEMPRE usa el tool correspondiente. NUNCA describas un cambio sin ejecutar el tool. Si no puedes ejecutar el tool, explica por qué.`
 
     // Load conversation history from Supabase (last 30 messages)
     const { data: history } = await supabase
@@ -1238,6 +1285,10 @@ Responde siempre en español. Sé concisa y práctica.`
       }
     }
 
+    // Detect if user is requesting a calendar change — force tool use
+    const lastUserText = (messages[messages.length - 1]?.content || '').toLowerCase()
+    const forceToolUse = /quiero que mi|reemplaza (mi|toda)|cambia toda|pon en mi|hazme una receta|quiero comer .+ el|añade .+ a mi|cambia el .+ por|elimina |quita |remueve |saca |quiero un snack/.test(lastUserText)
+
     while (iterations < 8) {
       iterations++
 
@@ -1246,12 +1297,15 @@ Responde siempre en español. Sé concisa y práctica.`
         max_tokens: 1024,
         system: systemPrompt,
         tools,
+        tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
         messages: loopMessages,
       })
 
       // Collect all tool_use blocks
       const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
       const textBlock = response.content.find(b => b.type === 'text')
+
+      console.log(`[Chat] Iteration ${iterations}: stop_reason=${response.stop_reason}, tools=${toolUseBlocks.map(b => b.type === 'tool_use' ? b.name : '').join(',') || 'none'}, text=${textBlock?.type === 'text' ? textBlock.text.slice(0, 100) : 'none'}`)
 
       if (toolUseBlocks.length === 0) {
         finalResponse = textBlock?.type === 'text' ? textBlock.text : ''
