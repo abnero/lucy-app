@@ -684,13 +684,11 @@ async function executeReemplazarComidaCompleta(
     planned.push({ ing, cantidad })
   }
 
-  // Check if calories fall short
+  // Note calorie shortfall (warn in result but still execute)
   const calDiff = mealCalTarget - totalActualCal
+  let calWarning = ''
   if (calDiff > 50) {
-    const plannedList = planned.map(p => `${p.cantidad}${p.ing.unidad_medida} de ${p.ing.nombre}`).join(', ')
-    return {
-      result: `Con estos ingredientes (${plannedList}) la comida tendrá ~${Math.round(totalActualCal)} kcal en vez de las ~${Math.round(mealCalTarget)} kcal planificadas (faltan ~${Math.round(calDiff)} kcal). Pregúntale a la usuaria: "Con estos ingredientes tu ${comida} tendrá ~${Math.round(totalActualCal)} kcal en vez de ${Math.round(mealCalTarget)} kcal. ¿Quieres añadir algún ingrediente adicional o lo dejamos así?" Si confirma, llama este tool de nuevo con los mismos ingredientes — se ejecutará con las cantidades calculadas.`,
-    }
+    calWarning = ` Nota: esta comida tiene ~${Math.round(totalActualCal)} kcal, que es menos que tu meta de ${Math.round(mealCalTarget)} kcal. Puedes añadir un ingrediente extra si quieres completar los macros.`
   }
 
   // Delete current items
@@ -727,8 +725,9 @@ async function executeReemplazarComidaCompleta(
   }
 
   const subMsg = substituted.length > 0 ? ` Nota: ${substituted.join(', ')}.` : ''
+  console.log('[REEMPLAZAR] Completado, revertData:', JSON.stringify({ type: revertData.type, rowCount: revertData.originalRows?.length, userId: revertData.userId?.slice(0, 8) }))
   return {
-    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Total: ~${Math.round(totalActualCal)} kcal (objetivo: ${Math.round(mealCalTarget)} kcal).${subMsg}`,
+    result: `Reemplacé el ${comida} del ${DIAS_NOMBRES[dia - 1]} con: ${insertedDetails.join(', ')}. Total: ~${Math.round(totalActualCal)} kcal (objetivo: ${Math.round(mealCalTarget)} kcal).${subMsg}${calWarning}`,
     revertData,
   }
 }
@@ -1272,6 +1271,19 @@ En todas las comidas, la proteína NUNCA se sacrifica. Si hay conflicto entre ma
 - Mantener la proteína objetivo → ajustar carbs o grasas
 - Nunca reducir proteína para compensar un ingrediente nuevo
 - Si la usuaria quiere quitar la única proteína de una comida, advierte antes de ejecutar
+
+REGLA 4 — CONFIRMAR DÍA ANTES DE EJECUTAR:
+Antes de ejecutar cualquier cambio, confirma el día exacto con la usuaria: "Voy a modificar tu [comida] del [DÍA]. ¿Confirmas?"
+NUNCA asumas un día basándote en el contexto del chat. Si la usuaria no especificó el día, pregunta: "¿Para qué día quieres este cambio?"
+
+REGLA 5 — AMBIGÜEDAD DE ALIMENTOS:
+Si el alimento que pide la usuaria tiene múltiples variantes en el catálogo, SIEMPRE pregunta cuál quiere:
+- "pasta" → "¿Pasta regular o pasta integral?"
+- "pollo" → "¿Qué tipo de pollo prefieres? Tengo pechuga, muslos o caderas"
+- "tocineta" → "¿Tocineta regular o tocineta de pavo?"
+- "pan" → "¿Pan regular o pan integral?"
+- "carne molida" → "¿Carne molida regular o 97% magra?"
+NUNCA elijas una variante sin preguntar primero.
 
 REGLAS GENERALES:
 - Si la usuaria pide un alimento que no está en el catálogo, sigue el protocolo de ALIMENTOS NO RECONOCIDOS.
