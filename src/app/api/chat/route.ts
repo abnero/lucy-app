@@ -23,14 +23,15 @@ const DIAS_NOMBRES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sá
 const tools: Anthropic.Tool[] = [
   {
     name: 'cambiar_alimento',
-    description: 'Cambia un alimento por otro en el calendario de la usuaria. Busca el nuevo alimento en el catálogo, calcula la cantidad apropiada para mantener macros similares, y actualiza el calendario. Si el cambio es en la cena, también actualiza el almuerzo del día siguiente (Regla 2: almuerzo = cena del día anterior).',
+    description: 'Cambia un alimento por otro O cambia la cantidad de un alimento existente. Para cambiar cantidad: usa alimento_actual=alimento_nuevo y pasa nueva_cantidad. Para reemplazar: usa nombres diferentes.',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
         comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
-        alimento_actual: { type: 'string', description: 'Nombre exacto del alimento a reemplazar (como aparece en el calendario)' },
-        alimento_nuevo: { type: 'string', description: 'Nombre del nuevo alimento (debe existir en el catálogo)' },
+        alimento_actual: { type: 'string', description: 'Nombre del alimento a modificar' },
+        alimento_nuevo: { type: 'string', description: 'Nombre del nuevo alimento (mismo nombre si solo cambias cantidad)' },
+        nueva_cantidad: { type: 'number', description: 'Cantidad específica deseada (ej. 1 para 1 rebanada, 150 para 150g). Si no se pasa, se calcula automáticamente.' },
       },
       required: ['dia', 'comida', 'alimento_actual', 'alimento_nuevo'],
     },
@@ -237,7 +238,7 @@ async function getSimilarAlimentos(supabase: SupabaseClient, nombre: string) {
 async function executeCambiarAlimento(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: number; comida: string; alimento_actual: string; alimento_nuevo: string }
+  input: { dia: number; comida: string; alimento_actual: string; alimento_nuevo: string; nueva_cantidad?: number }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia, comida, alimento_actual, alimento_nuevo } = input
 
@@ -268,7 +269,7 @@ async function executeCambiarAlimento(
     return { result: `No encontré "${alimento_actual}" en el ${comida} del ${DIAS_NOMBRES[dia - 1]}. Los alimentos en esa comida son: ${available}.` }
   }
 
-  // Find new alimento in catalog
+  // Check if this is a quantity-only change (same food, or nueva_cantidad provided)
   const newAlimento = await findAlimento(supabase, alimento_nuevo)
   if (!newAlimento) {
     const suggestions = await getSimilarAlimentos(supabase, alimento_nuevo)
@@ -276,7 +277,52 @@ async function executeCambiarAlimento(
     return { result: `"${alimento_nuevo}" no está en el catálogo de alimentos.${sugText}` }
   }
 
-  // Calculate new quantity to match calories of the original
+  // If same food or nueva_cantidad provided → just update quantity
+  if (input.nueva_cantidad !== undefined || newAlimento.id === targetEntry.alimento_id) {
+    const newQty = input.nueva_cantidad ?? targetEntry.cantidad
+    const revertData: RevertData = {
+      type: 'cambiar',
+      originalRows: [{ rowId: targetEntry.id, alimento_id: targetEntry.alimento_id, cantidad: targetEntry.cantidad, unidad: targetEntry.unidad }],
+      userId,
+    }
+
+    console.log(`[cambiar_alimento] UPDATE: id=${targetEntry.id}, cantidad=${newQty}, userId=${userId}`)
+
+    const { error: updErr, count: updCount } = await supabase
+      .from('calendario')
+      .update({ cantidad: newQty }, { count: 'exact' })
+      .eq('id', targetEntry.id)
+      .eq('user_id', userId)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const foodName = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)?.nombre || alimento_actual
+
+    if (updErr) {
+      console.error('[cambiar_alimento] UPDATE error:', updErr.message)
+      return { result: `Error actualizando cantidad: ${updErr.message}` }
+    }
+
+    console.log(`[cambiar_alimento] UPDATE count: ${updCount}`)
+
+    // Verify the change was persisted
+    const { data: check } = await supabase
+      .from('calendario')
+      .select('cantidad')
+      .eq('id', targetEntry.id)
+      .single()
+
+    console.log(`[VERIFICACION] cantidadEnDB=${check?.cantidad}, cantidadEsperada=${newQty}`)
+
+    if (check && check.cantidad != newQty) {
+      console.error(`[cambiar_alimento] MISMATCH! DB has ${check.cantidad} but expected ${newQty}`)
+      return { result: `Error: el cambio no se guardó correctamente (DB tiene ${check.cantidad}, esperaba ${newQty}). Puede ser un problema de permisos.` }
+    }
+
+    console.log(`[cambiar_alimento] SUCCESS: ${foodName} ${targetEntry.cantidad}→${newQty} ${targetEntry.unidad}`)
+    return { result: `Cambié ${foodName} de ${targetEntry.cantidad} a ${newQty} ${targetEntry.unidad} en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.`, revertData }
+  }
+
+  // Different food → calculate new quantity to match calories
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const oldAlimento = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)
 
@@ -1160,9 +1206,12 @@ reemplazar_comida_completa — cuando la usuaria CONFIRMA que quiere reemplazar 
   Paso 3: SOLO entonces ejecuta reemplazar_comida_completa
   NUNCA sugieras Y ejecutes en el mismo turno. Siempre son 2 mensajes separados.
 
-cambiar_alimento — cuando reemplaza UN solo ingrediente por otro:
-  "cambia el pollo por salmón" → cambiar_alimento
-  "en vez de arroz ponme quinoa" → cambiar_alimento
+cambiar_alimento — para REEMPLAZAR un ingrediente o CAMBIAR SU CANTIDAD:
+  "cambia el pollo por salmón" → cambiar_alimento(alimento_actual="Pollo", alimento_nuevo="Salmon")
+  "en vez de arroz ponme quinoa" → cambiar_alimento(alimento_actual="Arroz", alimento_nuevo="Quinoa")
+  "ponme 1 rebanada de pan" → cambiar_alimento(alimento_actual="Pan", alimento_nuevo="Pan", nueva_cantidad=1)
+  "reduce el arroz a 100g" → cambiar_alimento(alimento_actual="Arroz", alimento_nuevo="Arroz", nueva_cantidad=100)
+  "aumenta el pollo a 200g" → cambiar_alimento(alimento_actual="Pollo", alimento_nuevo="Pollo", nueva_cantidad=200)
 
 agregar_ingrediente_a_comida — cuando AÑADE algo o CAMBIA CANTIDAD de un ingrediente existente:
   "añade aguacate a mi almuerzo" → agregar_ingrediente_a_comida
@@ -1201,17 +1250,33 @@ Cuando la usuaria pida un snack, sigue estos pasos EN ORDEN:
 6. Si pide snack para TODOS los días, calcula los macros promedio disponibles después de las 3 comidas principales y sugiere opciones que quepan diariamente. Cuando lo añadas con dia="todos", la lista de compras se actualiza automáticamente.
 7. Para snacks compuestos ("yogur con arándanos y mantequilla de maní"), usa agregar_snack con ingredientes[] en vez de alimento/cantidad individuales.
 
-MÚLTIPLES CAMBIOS EN UN MENSAJE:
-Si la usuaria pide varios cambios a la vez (ej. "reduce el pan y añádeme una merienda"):
-1. Haz primero el cambio del calendario (reduce el pan)
-2. Confirma ese cambio: "Listo, reduje el pan a X."
-3. Luego pregunta sobre el snack: "Ahora vamos con tu merienda — ¿para qué día la quieres?"
-NO intentes hacer ambas cosas al mismo tiempo.
+REGLA 1 — UN CAMBIO A LA VEZ:
+Cuando la usuaria pida más de un cambio en un mismo mensaje:
+1. Reconoce todos los cambios que pidió
+2. Dile: "Perfecto, vamos uno a la vez."
+3. Ejecuta SOLO el primer cambio
+4. Al terminar, pregunta: "Listo ✅ ¿Procedemos con [el siguiente cambio]?"
+5. Espera confirmación antes de ejecutar el siguiente
+Ejemplo: "Ponme 1 rebanada de pan y añádeme una merienda de yogur" → Primero reduce el pan → "Listo ✅ Ahora, ¿procedemos con la merienda de yogur con arándanos?"
+NUNCA ejecutes 2 tools en el mismo turno.
 
-REGLAS IMPORTANTES:
-- Si la usuaria pide un alimento que no está en el catálogo, sigue el protocolo de ALIMENTOS NO RECONOCIDOS (buscar USDA → pedir datos → crear → asignar).
+REGLA 2 — CANTIDADES RAZONABLES CON ADVERTENCIA:
+Cuando las cantidades calculadas serían absurdas para llegar al presupuesto calórico:
+- Usa cantidades naturales y razonables (máximos: vegetales 300g, proteínas 250g, carbs 200g, grasas 30g)
+- NO infles cantidades solo para llegar a las calorías objetivo
+- Si la comida queda por debajo del presupuesto, informa: "Con estos ingredientes tu [comida] tendrá ~[X] kcal, que es menos de tu meta de [Y] kcal. Te sugiero añadir [proteína/carb/grasa] para completar tus macros. ¿Lo añadimos?"
+- Espera respuesta antes de actuar
+
+REGLA 3 — PRIORIDAD PROTEÍNA:
+En todas las comidas, la proteína NUNCA se sacrifica. Si hay conflicto entre macros al ajustar cantidades:
+- Mantener la proteína objetivo → ajustar carbs o grasas
+- Nunca reducir proteína para compensar un ingrediente nuevo
+- Si la usuaria quiere quitar la única proteína de una comida, advierte antes de ejecutar
+
+REGLAS GENERALES:
+- Si la usuaria pide un alimento que no está en el catálogo, sigue el protocolo de ALIMENTOS NO RECONOCIDOS.
 - Después de cada cambio, confirma qué cambiaste con cantidades específicas.
-- Si cambias la cena, recuerda que el almuerzo del día siguiente debe ser igual (Regla 2).
+- Si cambias la cena, recuerda que el almuerzo del día siguiente debe ser igual (Regla 2 del calendario).
 - Si la usuaria dice "reviértelo", "deshaz", "quítalo", o similar, usa revertir_cambio.
 - NO agregues un snack sin antes calcular los macros restantes.
 ALIMENTOS NO RECONOCIDOS:
@@ -1294,6 +1359,8 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
     let iterations = 0
 
     const executeTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
+      console.log(`[TOOL CALL] ${name}`, JSON.stringify(input).slice(0, 200))
+      const logResult = (r: string) => { console.log(`[TOOL RESULT] ${name}:`, r.slice(0, 150)); return r }
       try {
         if (name === 'cambiar_alimento') {
           const { result, revertData } = await executeCambiarAlimento(supabase, userId, {
@@ -1301,9 +1368,10 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
             comida: input.comida as string,
             alimento_actual: input.alimento_actual as string,
             alimento_nuevo: input.alimento_nuevo as string,
+            nueva_cantidad: input.nueva_cantidad as number | undefined,
           })
           if (revertData) currentRevertData = revertData
-          return result
+          return logResult(result)
         } else if (name === 'agregar_snack') {
           const { result, revertData } = await executeAgregarSnack(supabase, userId, {
             dia: input.dia as string,
@@ -1370,10 +1438,12 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
           currentRevertData = null
           return result
         }
-        return 'Herramienta no reconocida.'
+        const noToolResult = 'Herramienta no reconocida.'
+        console.log(`[TOOL RESULT] ${name}:`, noToolResult)
+        return noToolResult
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error desconocido'
-        console.error(`Tool "${name}" failed:`, msg)
+        console.error(`[TOOL ERROR] ${name}:`, msg)
         return `ERROR: No pude ejecutar esta acción (${msg}). Dile a la usuaria que hubo un problema y pregúntale si quiere intentar de nuevo.`
       }
     }
@@ -1381,7 +1451,9 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
     // Detect if user is requesting a calendar change — force tool use
     const lastUserText = (messages[messages.length - 1]?.content || '').toLowerCase()
     // Force tool use for direct actions (not recipes — those need confirmation first)
-    const forceToolUse = /añade .+ a mi|cambia el .+ por|elimina |quita |remueve |saca |quiero un snack|aumenta |reduce /.test(lastUserText)
+    const forceToolUse = /ponme|pon .+ en mi|cambia .+ (por|a )|reduce |aumenta |añade .+ a mi|elimina |quita |remueve |saca |quiero un snack|rebanada/.test(lastUserText)
+    console.log(`[CHAT] forceToolUse=${forceToolUse}, message="${lastUserText.slice(0, 80)}"`)
+
 
     while (iterations < 8) {
       iterations++
