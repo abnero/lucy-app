@@ -149,8 +149,8 @@ export default function MiPerfilPage() {
 
     const pesoNum = parseFloat(peso)
     const edadNum = parseInt(edad)
-    const pesoKg = unidadPeso === 'lbs' ? pesoNum * 0.453592 : pesoNum
-    const pesoLbs = unidadPeso === 'lbs' ? pesoNum : pesoNum * 2.20462
+    const pesoKg = unidadPeso === 'lbs' ? Math.round(pesoNum * 0.453592 * 10) / 10 : pesoNum
+    const pesoLbs = unidadPeso === 'lbs' ? pesoNum : Math.round(pesoNum * 2.20462 * 10) / 10
 
     let altCm: number, altPies: number
     if (unidadAltura === 'ft') {
