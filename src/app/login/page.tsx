@@ -157,15 +157,20 @@ export default function LoginPage() {
             </button>
           </p>
 
-          {/* Waitlist CTA */}
-          <div className="mt-6 pt-5 border-t border-lucy-border">
-            <p className="text-center text-xs text-lucy-muted mb-3">¿No tienes cuenta?</p>
+          {/* Waitlist + Registration */}
+          <div className="mt-6 pt-5 border-t border-lucy-border space-y-3">
             <button
               onClick={() => router.push('/waitlist')}
               className="w-full border border-lucy-accent text-lucy-accent font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-lucy-accent/5 transition-colors"
             >
               Únete a la lista de espera →
             </button>
+            <p className="text-center text-xs text-lucy-muted">
+              ¿Ya fuiste aprobada?{' '}
+              <button onClick={() => router.push('/registro')} className="text-lucy-accent font-medium hover:opacity-80">
+                Crear cuenta →
+              </button>
+            </p>
           </div>
         </div>
 
