@@ -37,15 +37,27 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: 'agregar_snack',
-    description: 'Añade un snack al calendario de la usuaria. Busca el alimento en el catálogo y lo inserta como snack.',
+    description: 'Añade un snack al calendario. Soporta un alimento individual o múltiples ingredientes para un snack compuesto (ej. yogur con arándanos y mantequilla de maní).',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'string', description: 'Día (1-7) o "todos" para añadir a todos los días' },
-        alimento: { type: 'string', description: 'Nombre del alimento para el snack (debe existir en el catálogo)' },
-        cantidad: { type: 'number', description: 'Cantidad en la unidad del alimento' },
+        alimento: { type: 'string', description: 'Nombre del alimento (para snack de 1 ingrediente)' },
+        cantidad: { type: 'number', description: 'Cantidad del alimento individual' },
+        ingredientes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              alimento: { type: 'string' },
+              cantidad: { type: 'number' },
+            },
+            required: ['alimento', 'cantidad'],
+          },
+          description: 'Lista de ingredientes para snack compuesto (alternativa a alimento/cantidad individuales)',
+        },
       },
-      required: ['dia', 'alimento', 'cantidad'],
+      required: ['dia'],
     },
   },
   {
@@ -353,84 +365,83 @@ async function executeCambiarAlimento(
 async function executeAgregarSnack(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: string; alimento: string; cantidad: number }
+  input: { dia: string; alimento?: string; cantidad?: number; ingredientes?: { alimento: string; cantidad: number }[] }
 ): Promise<{ result: string; revertData?: RevertData }> {
-  const { dia, alimento, cantidad } = input
+  const { dia } = input
 
-  const found = await findAlimento(supabase, alimento)
-  if (!found) {
-    const suggestions = await getSimilarAlimentos(supabase, alimento)
-    const sugText = suggestions.length > 0 ? ` Alimentos similares disponibles: ${suggestions.join(', ')}.` : ''
-    return { result: `"${alimento}" no está en el catálogo.${sugText}` }
+  // Build list of items to add (single or multi-ingredient)
+  const itemsToAdd: { alimento: string; cantidad: number }[] = []
+  if (input.ingredientes && input.ingredientes.length > 0) {
+    itemsToAdd.push(...input.ingredientes)
+  } else if (input.alimento && input.cantidad) {
+    itemsToAdd.push({ alimento: input.alimento, cantidad: input.cantidad })
+  } else {
+    return { result: 'Necesito al menos un alimento con cantidad para el snack.' }
   }
 
-  // Sanity check for countable units
-  let finalCantidad = cantidad
-  if (found.unidad_medida === 'unidad' && finalCantidad > 20) {
-    finalCantidad = Math.round(finalCantidad / (found.porcion_base || 100))
-    if (finalCantidad < 1) finalCantidad = 1
+  // Resolve all items
+  const resolved: { food: Awaited<ReturnType<typeof findAlimento>>; cantidad: number }[] = []
+  const notFound: string[] = []
+
+  for (const item of itemsToAdd) {
+    const found = await findAlimento(supabase, item.alimento)
+    if (!found) {
+      notFound.push(item.alimento)
+      continue
+    }
+    let qty = item.cantidad
+    if (found.unidad_medida === 'unidad' && qty > 20) {
+      qty = Math.max(1, Math.round(qty / (found.porcion_base || 100)))
+    }
+    resolved.push({ food: found, cantidad: qty })
+  }
+
+  if (notFound.length > 0) {
+    return { result: `No encontré: ${notFound.join(', ')}. Usa buscar_o_crear_alimento para registrarlos primero.` }
   }
 
   const dias = dia === 'todos' ? [1, 2, 3, 4, 5, 6, 7] : [parseInt(dia)]
-  const rows = dias.map(d => ({
-    user_id: userId,
-    dia: d,
-    comida: 'snack',
-    alimento_id: found.id,
-    cantidad: finalCantidad,
-    unidad: found.unidad_medida,
-  }))
+  const allRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string }[] = []
 
-  const { data: inserted, error } = await supabase
-    .from('calendario')
-    .insert(rows)
-    .select('id')
-
-  if (error) {
-    return { result: `Error al agregar snack: ${error.message}` }
+  for (const { food, cantidad } of resolved) {
+    if (!food) continue
+    for (const d of dias) {
+      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida })
+    }
   }
 
-  const revertData: RevertData = {
-    type: 'snack',
-    insertedIds: inserted?.map(r => r.id) || [],
-    userId,
-  }
+  const { data: inserted, error } = await supabase.from('calendario').insert(allRows).select('id')
+  if (error) return { result: `Error al agregar snack: ${error.message}` }
 
-  // If adding to all days, update lista_compras
+  const revertData: RevertData = { type: 'snack', insertedIds: inserted?.map(r => r.id) || [], userId }
+
+  // Update lista_compras if adding to all days
   if (dia === 'todos') {
-    const totalCantidad = cantidad * 7
-    // Try upsert - if alimento already in lista, add to it
-    const { data: existing } = await supabase
-      .from('lista_compras')
-      .select('id, cantidad_total')
-      .eq('user_id', userId)
-      .eq('alimento_id', found.id)
-      .single()
-
-    if (existing) {
-      await supabase
-        .from('lista_compras')
-        .update({ cantidad_total: existing.cantidad_total + totalCantidad })
-        .eq('id', existing.id)
-    } else {
-      await supabase
-        .from('lista_compras')
-        .insert({
-          user_id: userId,
-          alimento_id: found.id,
-          cantidad_total: totalCantidad,
-          unidad: found.unidad_medida,
-          comprado: false,
-        })
+    for (const { food, cantidad } of resolved) {
+      if (!food) continue
+      const total = cantidad * 7
+      const { data: existing } = await supabase.from('lista_compras').select('id, cantidad_total').eq('user_id', userId).eq('alimento_id', food.id).single()
+      if (existing) {
+        await supabase.from('lista_compras').update({ cantidad_total: existing.cantidad_total + total }).eq('id', existing.id)
+      } else {
+        await supabase.from('lista_compras').insert({ user_id: userId, alimento_id: food.id, cantidad_total: total, unidad: food.unidad_medida, comprado: false })
+      }
     }
   }
 
   const diasText = dia === 'todos' ? 'todos los días' : DIAS_NOMBRES[parseInt(dia) - 1]
-  const cals = Math.round(found.calorias_por_unidad * (cantidad / (found.porcion_base || 100)))
+  let totalCals = 0
+  const details: string[] = []
+  for (const { food, cantidad } of resolved) {
+    if (!food) continue
+    const ratio = food.unidad_medida === 'unidad' ? cantidad : cantidad / (food.porcion_base || 100)
+    totalCals += food.calorias_por_unidad * ratio
+    details.push(`${cantidad}${food.unidad_medida} de ${food.nombre}`)
+  }
   const listaMsg = dia === 'todos' ? ' Tu lista de compras también se actualizó.' : ''
 
   return {
-    result: `Añadí ${cantidad}${found.unidad_medida} de ${found.nombre} como snack el ${diasText}. Son ~${cals} kcal extra por día.${listaMsg}`,
+    result: `Añadí como snack el ${diasText}: ${details.join(', ')}. Total: ~${Math.round(totalCals)} kcal.${listaMsg}`,
     revertData,
   }
 }
@@ -1135,7 +1146,7 @@ Tienes 9 herramientas disponibles:
 - agregar_ingrediente_a_comida: Para AÑADIR un ingrediente nuevo a una comida existente, compensando reduciendo alimentos de la misma categoría.
 - eliminar_ingrediente_de_comida: Para ELIMINAR un ingrediente de una comida. Úsalo cuando la usuaria diga "elimina", "quita", "remueve" o "saca".
 - calcular_macros_dia: Para calcular macros consumidos y restantes de un día. SIEMPRE usa esta herramienta ANTES de sugerir un snack.
-- agregar_snack: Para añadir un snack al calendario. Usa dia "todos" para snack diario, o un número 1-7 para un día específico.
+- agregar_snack: Para añadir un snack (1 o varios ingredientes). Usa ingredientes[] para snacks compuestos (yogur+arándanos). Usa dia "todos" para diario.
 - buscar_macros_usda: Para buscar macros de cualquier alimento en la base de datos USDA.
 - buscar_o_crear_alimento: Para registrar un alimento nuevo que no está en el catálogo. SIEMPRE pide confirmación de macros a la usuaria antes de crear.
 - revertir_cambio: Para deshacer el último cambio cuando la usuaria lo pida.
@@ -1188,6 +1199,14 @@ Cuando la usuaria pida un snack, sigue estos pasos EN ORDEN:
 4. Pregunta: "¿Cuál te gusta? ¿Lo añado a tu plan?"
 5. Si confirma, usa agregar_snack con la cantidad correcta
 6. Si pide snack para TODOS los días, calcula los macros promedio disponibles después de las 3 comidas principales y sugiere opciones que quepan diariamente. Cuando lo añadas con dia="todos", la lista de compras se actualiza automáticamente.
+7. Para snacks compuestos ("yogur con arándanos y mantequilla de maní"), usa agregar_snack con ingredientes[] en vez de alimento/cantidad individuales.
+
+MÚLTIPLES CAMBIOS EN UN MENSAJE:
+Si la usuaria pide varios cambios a la vez (ej. "reduce el pan y añádeme una merienda"):
+1. Haz primero el cambio del calendario (reduce el pan)
+2. Confirma ese cambio: "Listo, reduje el pan a X."
+3. Luego pregunta sobre el snack: "Ahora vamos con tu merienda — ¿para qué día la quieres?"
+NO intentes hacer ambas cosas al mismo tiempo.
 
 REGLAS IMPORTANTES:
 - Si la usuaria pide un alimento que no está en el catálogo, sigue el protocolo de ALIMENTOS NO RECONOCIDOS (buscar USDA → pedir datos → crear → asignar).
@@ -1288,8 +1307,9 @@ Si la usuaria pide un alimento individual (salmón, arroz, huevo), ahí sí busc
         } else if (name === 'agregar_snack') {
           const { result, revertData } = await executeAgregarSnack(supabase, userId, {
             dia: input.dia as string,
-            alimento: input.alimento as string,
-            cantidad: input.cantidad as number,
+            alimento: input.alimento as string | undefined,
+            cantidad: input.cantidad as number | undefined,
+            ingredientes: input.ingredientes as { alimento: string; cantidad: number }[] | undefined,
           })
           if (revertData) currentRevertData = revertData
           return result

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     if (!error) {
       // Redirect to home — the client-side AuthProvider will pick up
       // the session from the URL hash and route accordingly
-      return NextResponse.redirect(`${origin}/dashboard`)
+      return NextResponse.redirect(`${origin}/auth/handle`)
     }
   }
 

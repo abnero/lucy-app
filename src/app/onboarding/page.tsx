@@ -59,6 +59,14 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
+      return
+    }
+    if (!loading && user) {
+      supabase.from('usuarios').select('aprobado').eq('id', user.id).single().then(({ data }) => {
+        if (data && !data.aprobado) {
+          router.push('/waitlist')
+        }
+      })
     }
     if (user?.user_metadata?.nombre) {
       setNombre(user.user_metadata.nombre)
@@ -124,6 +132,7 @@ export default function OnboardingPage() {
         carbs_objetivo: macros.carbs,
         grasas_objetivo: macros.grasas,
         onboarding_completado: true,
+        aprobado: true,
       })
       .eq('id', user!.id)
 

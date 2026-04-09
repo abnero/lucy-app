@@ -299,7 +299,7 @@ export default function MiCalendarioPage() {
       {/* Meals — swipeable */}
       <div
         ref={mealsRef}
-        className="px-4 overflow-hidden"
+        className="px-4 overflow-x-hidden"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >

@@ -13,18 +13,22 @@ export default function AuthHandlePage() {
   useEffect(() => {
     if (loading) return
     if (user) {
-      // Check if user has a profile in usuarios
       supabase
         .from('usuarios')
-        .select('id')
+        .select('aprobado')
         .eq('id', user.id)
         .single()
-        .then(({ data }) => {
-          if (data) {
-            // Existing user → route normally
-            getDestination(user.id).then(dest => router.push(dest))
+        .then(({ data, error }) => {
+          console.log('[auth/handle] Query result:', { email: user.email, aprobado: data?.aprobado, error: error?.message })
+          console.log('[auth/handle] Decision:', data?.aprobado ? 'PERMITIR' : 'BLOQUEAR → waitlist')
+
+          if (data?.aprobado === true) {
+            getDestination(user.id).then(dest => {
+              console.log('[auth/handle] Routing to:', dest)
+              router.push(dest)
+            })
           } else {
-            // New user without profile → waitlist
+            console.log('[auth/handle] Signing out and redirecting to waitlist')
             supabase.auth.signOut().then(() => {
               router.push('/waitlist?from=google')
             })
