@@ -1237,6 +1237,8 @@ Al confirmar un snack, menciona SOLO lo que acabas de añadir. No menciones snac
 5. Si da valores distintos → buscar_o_crear_alimento con fuente "usuario"
 6. Si no se encuentra en ningún lado → pide datos del empaque a la usuaria
 NUNCA uses un alimento similar como sustituto silencioso.
+Si el alimento es una MARCA ESPECÍFICA (ej. "Halo Top", "Special K", "Activia", "Quest", cualquier nombre de marca) → di: "Tengo valores aproximados para [tipo de alimento], pero [marca] puede tener valores diferentes. ¿Tienes el empaque? Si no, puedo usar los valores estándar." Si no tiene el empaque → usa valores estándar y aclara que son aproximados. Si tiene el empaque → usa esos valores.
+
 Si el alimento pedido es una VARIANTE PROCESADA de algo en el catálogo (ej. "kale chips" vs "Kale", "banana chips" vs "Guineo"), NO uses el alimento base — el procesamiento cambia los macros. Busca los valores reales y crea el alimento nuevo con buscar_o_crear_alimento.
 
 ═══ RECETAS ═══
@@ -1421,8 +1423,16 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
     const lastUserText = (messages[messages.length - 1]?.content || '').toLowerCase()
     // Force tool use for direct actions (not recipes — those need confirmation first)
     const forceToolUse = /ponme|pon .+ en mi|cambia .+ (por|a )|reduce |aumenta |añade .+ a mi|elimina |quita |remueve |saca |quiero un snack|rebanada/.test(lastUserText)
-    console.log(`[CHAT] forceToolUse=${forceToolUse}, message="${lastUserText.slice(0, 80)}"`)
 
+    // Detect brand names — inject instruction to ask for packaging
+    const knownBrands = ['halo top', 'special k', 'activia', 'chobani', 'dannon', 'yoplait', 'quest', 'kind bar', 'rxbar', 'larabar', 'clif bar', 'premier protein', 'muscle milk', 'ensure', 'slim fast', 'fairlife', 'oikos', 'fage', 'siggi', 'nature valley', 'fiber one', 'think thin', 'atkins', 'built bar', 'carve']
+    const detectedBrand = knownBrands.find(brand => lastUserText.includes(brand))
+    if (detectedBrand) {
+      apiMessages.push({
+        role: 'user' as const,
+        content: `INSTRUCCIÓN: "${detectedBrand}" es una marca específica. ANTES de buscar valores, pregúntale: "Tengo valores aproximados, pero ${detectedBrand} puede tener valores diferentes. ¿Tienes el empaque a la mano?" Espera respuesta.`,
+      })
+    }
 
     while (iterations < 8) {
       iterations++
