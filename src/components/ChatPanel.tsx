@@ -122,12 +122,13 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
         if (data.revertData !== undefined) {
           revertDataRef.current = data.revertData
         }
-        // Refresh calendar after a short delay to ensure DB has propagated
-        if (onDataChange) {
-          setTimeout(() => {
-            console.log('[ChatPanel] Triggering onDataChange')
-            onDataChange()
-          }, 500)
+        // Refresh calendar when Lucy confirms a change
+        const text = (data.response || '').toLowerCase()
+        const madeChange = /✅|listo|cambié|reemplacé|añadí|eliminé|actualicé|modifiqué|puse|quité|reduje|aumenté|moví|ajusté|guardé|revertí|deshice|regresé|restauré|volví|de vuelta|recuperé|lo dejé como|lo regresé|reverted|undone|restored/.test(text)
+        if (onDataChange && madeChange) {
+          // Double refresh: immediate + delayed to catch DB propagation
+          onDataChange()
+          setTimeout(() => onDataChange(), 1500)
         }
       }
     } catch {
