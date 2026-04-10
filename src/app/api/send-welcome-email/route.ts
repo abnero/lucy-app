@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await resend.emails.send({
       from: 'Lucy <noreply@lucy.fit>',
       to: email,
-      subject: '¡Tu acceso a Lucy está listo! 🎉',
+      subject: '¡Bienvenida a Lucy! Tu calendario metabólico está listo 🥗',
       html: `
 <!DOCTYPE html>
 <html lang="es">
@@ -44,18 +44,18 @@ export async function POST(req: NextRequest) {
             </td>
           </tr>
           <tr>
-            <td style="padding-bottom:28px;">
-              <p style="margin:0; font-size:14px; color:#9896B0; line-height:1.6;">Tu acceso a Lucy está listo. Crea tu cuenta y empieza a personalizar tu calendario metabólico.</p>
+            <td style="padding-bottom:20px;">
+              <p style="margin:0; font-size:14px; color:#9896B0; line-height:1.6;">Tu calendario metabólico personalizado está listo. Tienes 7 días de comidas calculadas con tus macros exactos.</p>
             </td>
           </tr>
           <tr>
-            <td align="center" style="padding-bottom:20px;">
-              <a href="https://www.lucy.fit/registro" style="display:inline-block; background-color:#7B7FC4; color:#FFFFFF; text-decoration:none; font-size:14px; font-weight:500; padding:12px 32px; border-radius:12px;">Crear mi cuenta</a>
+            <td style="padding-bottom:28px;">
+              <p style="margin:0; font-size:14px; color:#9896B0; line-height:1.6;">¿Quieres cambiar algún alimento, añadir un snack o hacer una receta diferente? Solo háblame por chat — estoy ahí para ayudarte 💜</p>
             </td>
           </tr>
           <tr>
             <td align="center" style="padding-bottom:32px;">
-              <p style="margin:0; font-size:12px; color:#9896B0;">Crea tu cuenta con este email:<br/><strong style="color:#2D2B45;">${email}</strong></p>
+              <a href="https://www.lucy.fit/mi-calendario" style="display:inline-block; background-color:#7B7FC4; color:#FFFFFF; text-decoration:none; font-size:14px; font-weight:500; padding:12px 32px; border-radius:12px;">Ver mi calendario</a>
             </td>
           </tr>
           <tr>

@@ -142,6 +142,15 @@ export default function OnboardingPage() {
       return
     }
 
+    // Send welcome email (non-blocking)
+    if (user?.email) {
+      fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, nombre: nombre.trim() }),
+      }).catch(err => console.error('Welcome email failed:', err))
+    }
+
     router.push('/mis-macros')
   }
 
