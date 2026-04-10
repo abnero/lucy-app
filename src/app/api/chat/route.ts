@@ -1005,10 +1005,12 @@ async function executeBuscarOCrearAlimento(
 ): Promise<string> {
   const { nombre, calorias_por_100g, proteina_por_100g, carbohidratos_por_100g, grasa_por_100g, unidad_medida, fuente } = input
 
-  // Search existing
-  const existing = await findAlimento(supabase, nombre)
-  if (existing) {
-    return `Alimento encontrado: "${existing.nombre}" (ID: ${existing.id}, calorias: ${existing.calorias_por_unidad} kcal, porcion_base: ${existing.porcion_base}${existing.unidad_medida}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack usando el nombre exacto "${existing.nombre}".`
+  // Search existing — EXACT match only (not fuzzy) to allow similar names like "Kale" vs "Kale Chips"
+  const { data: all } = await supabase.from('alimentos').select(ALIMENTOS_FIELDS)
+  const normalizedInput = removeAccents(nombre.toLowerCase().trim())
+  const exactMatch = all?.find(a => removeAccents(a.nombre.toLowerCase()) === normalizedInput)
+  if (exactMatch) {
+    return `Alimento encontrado: "${exactMatch.nombre}" (ID: ${exactMatch.id}, calorias: ${exactMatch.calorias_por_unidad} kcal, porcion_base: ${exactMatch.porcion_base}${exactMatch.unidad_medida}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack usando el nombre exacto "${exactMatch.nombre}".`
   }
 
   // Determine category based on macros
@@ -1235,6 +1237,7 @@ Al confirmar un snack, menciona SOLO lo que acabas de añadir. No menciones snac
 5. Si da valores distintos → buscar_o_crear_alimento con fuente "usuario"
 6. Si no se encuentra en ningún lado → pide datos del empaque a la usuaria
 NUNCA uses un alimento similar como sustituto silencioso.
+Si el alimento pedido es una VARIANTE PROCESADA de algo en el catálogo (ej. "kale chips" vs "Kale", "banana chips" vs "Guineo"), NO uses el alimento base — el procesamiento cambia los macros. Busca los valores reales y crea el alimento nuevo con buscar_o_crear_alimento.
 
 ═══ RECETAS ═══
 Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
@@ -1249,7 +1252,10 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 ═══ REGLAS OBLIGATORIAS ═══
 
 1. UN CAMBIO A LA VEZ
-Múltiples cambios en un mensaje → ejecuta solo el primero → "Listo ✅ ¿Procedemos con [siguiente]?" → espera confirmación. NUNCA ejecutes 2 tools en el mismo turno.
+Si la usuaria pide múltiples cambios en un mensaje → ejecuta solo el primero → confirma → pregunta "¿Procedemos con [siguiente]?" → espera confirmación. NUNCA ejecutes 2 tools en el mismo turno.
+
+EXCEPCIÓN OBLIGATORIA — CREAR + AÑADIR ALIMENTO NUEVO:
+Después de que la usuaria confirme los valores de un alimento nuevo, DEBES ejecutar buscar_o_crear_alimento Y LUEGO INMEDIATAMENTE el tool de añadir (agregar_ingrediente_a_comida, cambiar_alimento, o agregar_snack) SIN PAUSA entre los dos. Estos dos tools juntos son UN SOLO cambio. NUNCA te detengas entre estos dos tools ni pidas confirmación adicional entre ellos.
 
 2. CANTIDADES RAZONABLES
 Máximos: vegetales 300g, proteínas 250g, carbs 200g, grasas 30g. Mínimo 10g para sólidos.
@@ -1426,7 +1432,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         max_tokens: 1024,
         system: systemPrompt,
         tools,
-        tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
+        tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
         messages: loopMessages,
       })
 
