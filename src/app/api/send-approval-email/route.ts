@@ -7,7 +7,14 @@ const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[approval-email] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY)
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[approval-email] RESEND_API_KEY is not set')
+      return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })
+    }
+
     const { email, nombre } = await req.json()
+    console.log('[approval-email] Sending to:', email)
     if (!email) {
       return NextResponse.json({ error: 'email required' }, { status: 400 })
     }
@@ -16,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const resend = getResend()
     const { data, error } = await resend.emails.send({
-      from: 'Lucy <noreply@lucy.fit>',
+      from: 'Lucy <onboarding@resend.dev>',
       to: email,
       subject: '¡Tu acceso a Lucy está listo! 🎉',
       html: `
@@ -75,6 +82,9 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`,
     })
+
+    console.log('[approval-email] Resend response:', JSON.stringify(data))
+    console.log('[approval-email] Resend error:', JSON.stringify(error))
 
     if (error) {
       console.error('Resend error:', error)

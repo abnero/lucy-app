@@ -12,13 +12,21 @@ export default function NuevaContrasenaPage() {
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
 
-  // Supabase sets the session from the URL hash automatically
+  // Supabase sets the session from the URL hash or code exchange
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    // Check if we already have a session (from code-flow exchange)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true)
+    })
+
+    // Also listen for hash-based password recovery
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         setReady(true)
       }
     })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +48,7 @@ export default function NuevaContrasenaPage() {
     if (error) {
       setError(error.message)
     } else {
-      router.push('/mi-calendario')
+      router.push('/auth/handle')
     }
     setLoading(false)
   }
