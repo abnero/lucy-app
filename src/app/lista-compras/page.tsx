@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import ChatPanel from '@/components/ChatPanel'
 import FoodAvatar from '@/components/FoodAvatar'
+import { toImperial } from '@/lib/units'
 
 interface CompraItem {
   id: string
@@ -16,6 +17,9 @@ interface CompraItem {
     nombre: string
     foto_url: string | null
     categoria_supermercado: string | null
+    unidad_medida: string
+    unidad_display: string | null
+    factor_conversion: number | null
   }
 }
 
@@ -46,7 +50,7 @@ export default function ListaComprasPage() {
     if (!loading && user) {
       supabase
         .from('lista_compras')
-        .select('id, cantidad_total, unidad, comprado, alimento:alimentos(nombre, foto_url, categoria_supermercado)')
+        .select('id, cantidad_total, unidad, comprado, alimento:alimentos(nombre, foto_url, categoria_supermercado, unidad_medida, unidad_display, factor_conversion)')
         .eq('user_id', user.id)
         .then(({ data }) => {
           if (data) {
@@ -151,7 +155,7 @@ export default function ListaComprasPage() {
                         }`}>
                           {item.alimento?.nombre}
                         </p>
-                        <p className="text-xs text-lucy-muted">{item.cantidad_total} {item.unidad}</p>
+                        <p className="text-xs text-lucy-muted">{item.alimento ? toImperial(item.cantidad_total, item.alimento) : `${item.cantidad_total} ${item.unidad}`}</p>
                       </div>
                     </button>
                   ))}

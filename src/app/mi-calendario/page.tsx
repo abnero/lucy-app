@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import ChatPanel from '@/components/ChatPanel'
 import FoodAvatar from '@/components/FoodAvatar'
+import { toImperial } from '@/lib/units'
 
 interface CalendarioItem {
   dia: number
@@ -22,6 +23,8 @@ interface CalendarioItem {
     grasas_por_unidad: number
     porcion_base: number
     unidad_medida: string
+    unidad_display: string | null
+    factor_conversion: number | null
   }
 }
 
@@ -64,7 +67,7 @@ export default function MiCalendarioPage() {
     console.log('[Calendar] fetchCalendar triggered')
     supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -88,7 +91,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
+          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -362,7 +365,7 @@ export default function MiCalendarioPage() {
                       <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} />
                       <div>
                         <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
-                        <p className="text-xs text-lucy-muted">{item.cantidad} {item.unidad}</p>
+                        <p className="text-xs text-lucy-muted">{item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}</p>
                       </div>
                     </button>
                   ))}
@@ -395,7 +398,7 @@ export default function MiCalendarioPage() {
                     <FoodAvatar nombre={a.nombre} foto_url={a.foto_url} size="lg" />
                   </div>
                   <p className="text-sm font-medium text-lucy-text">{a.nombre}</p>
-                  <p className="text-lg text-lucy-accent font-medium">{selectedItem.cantidad} {selectedItem.unidad}</p>
+                  <p className="text-lg text-lucy-accent font-medium">{toImperial(selectedItem.cantidad, a)}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {[
