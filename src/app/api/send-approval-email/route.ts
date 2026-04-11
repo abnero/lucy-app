@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const resend = getResend()
     const { data, error } = await resend.emails.send({
-      from: 'Lucy <onboarding@resend.dev>',
+      from: 'Lucy <noreply@lucy.fit>',
       to: email,
       subject: '¡Tu acceso a Lucy está listo! 🎉',
       html: `

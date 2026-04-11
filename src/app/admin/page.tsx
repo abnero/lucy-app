@@ -62,11 +62,15 @@ export default function AdminPage() {
     await supabase.from('usuarios').update({ aprobado: true }).eq('email', email.toLowerCase())
 
     // Send approval email (non-blocking)
+    console.log('[admin] Calling send-approval-email for:', email)
     fetch('/api/send-approval-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.toLowerCase(), nombre: existingUser?.nombre }),
-    }).catch(err => console.error('Approval email failed:', err))
+    })
+      .then(r => r.json())
+      .then(data => console.log('[admin] Approval email response:', data))
+      .catch(err => console.error('[admin] Approval email failed:', err))
 
     setAprobados(prev => { const n = new Set(prev); n.add(email.toLowerCase()); return n })
     setUsuarios(prev => prev.map(u => u.email?.toLowerCase() === email.toLowerCase() ? { ...u, aprobado: true } : u))
