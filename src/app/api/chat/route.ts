@@ -176,15 +176,19 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base'
+const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, es_personalizado, creado_por'
 
-async function findAlimento(supabase: SupabaseClient, nombre: string) {
+async function findAlimento(supabase: SupabaseClient, nombre: string, userId?: string) {
   const normalized = removeAccents(nombre.toLowerCase().trim())
 
   // Fetch all alimentos and match in JS (91 rows is small enough)
-  const { data: all } = await supabase
+  const { data: rawAll } = await supabase
     .from('alimentos')
     .select(ALIMENTOS_FIELDS)
+
+  // Filter: only catalog foods (es_personalizado=false/null) OR foods created by this user
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const all = (rawAll || []).filter((a: any) => !a.es_personalizado || a.creado_por === userId)
 
   if (!all || all.length === 0) return null
 
@@ -279,7 +283,7 @@ async function executeCambiarAlimento(
   }
 
   // Check if this is a quantity-only change (same food, or nueva_cantidad provided)
-  const newAlimento = await findAlimento(supabase, alimento_nuevo)
+  const newAlimento = await findAlimento(supabase, alimento_nuevo, userId)
   if (!newAlimento) {
     const suggestions = await getSimilarAlimentos(supabase, alimento_nuevo)
     const sugText = suggestions.length > 0 ? ` Alimentos similares disponibles: ${suggestions.join(', ')}.` : ''
@@ -439,7 +443,7 @@ async function executeAgregarSnack(
   const notFound: string[] = []
 
   for (const item of itemsToAdd) {
-    const found = await findAlimento(supabase, item.alimento)
+    const found = await findAlimento(supabase, item.alimento, userId)
     if (!found) {
       notFound.push(item.alimento)
       continue
@@ -638,7 +642,7 @@ async function executeReemplazarComidaCompleta(
   const substituted: string[] = []
 
   for (const name of ingredientes) {
-    const found = await findAlimento(supabase, name)
+    const found = await findAlimento(supabase, name, userId)
     if (found) {
       resolved.push({
         id: found.id,
@@ -749,7 +753,7 @@ async function executeAgregarIngredienteAComida(
   const { dia, comida, alimento, cantidad } = input
 
   // Find the ingredient in catalog
-  const newFood = await findAlimento(supabase, alimento)
+  const newFood = await findAlimento(supabase, alimento, userId)
   if (!newFood) {
     const suggestions = await getSimilarAlimentos(supabase, alimento)
     const sugText = suggestions.length > 0 ? ` Similares: ${suggestions.join(', ')}.` : ''

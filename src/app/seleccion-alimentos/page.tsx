@@ -61,6 +61,7 @@ export default function SeleccionAlimentosPage() {
       .from('alimentos')
       .select('id, nombre, foto_url, rol_permitido')
       .contains('rol_permitido', [config.rol])
+      .or('es_personalizado.is.null,es_personalizado.eq.false')
       .order('nombre')
       .then(({ data }) => {
         setAlimentos(data ?? [])
