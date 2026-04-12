@@ -524,7 +524,7 @@ export default function MiCalendarioPage() {
       {/* Weekly view */}
       <div className="px-4 mb-6">
         <div className="max-w-lg mx-auto overflow-x-auto scrollbar-hide -mx-4 px-6">
-          <div className="bg-lucy-white rounded-card border border-lucy-border" style={{ minWidth: '960px' }}>
+          <div className="bg-lucy-white rounded-card border border-lucy-border" style={{ minWidth: 'max-content' }}>
             {/* Header row */}
             <div className="flex border-b border-lucy-border">
               <div style={{ width: '80px' }} className="shrink-0 px-2 py-2" />
