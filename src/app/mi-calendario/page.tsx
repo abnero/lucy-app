@@ -40,6 +40,26 @@ const COMIDAS = [
   { key: 'cena', label: 'Cena' },
   { key: 'snack', label: 'Snack' },
 ]
+const COMIDAS_SEMANA = COMIDAS.slice(0, 3)
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function getWeekDates(): Date[] {
+  const today = new Date()
+  const day = today.getDay() // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+}
+
+function formatShortDate(d: Date): string {
+  return `${d.getDate()} ${MESES_CORTOS[d.getMonth()]}`
+}
 
 export default function MiCalendarioPage() {
   const { user, loading } = useAuth()
@@ -57,10 +77,14 @@ export default function MiCalendarioPage() {
   const [showDayMacros, setShowDayMacros] = useState(false)
   const [objetivos, setObjetivos] = useState({ cal: 0, prot: 0, carbs: 0, grasas: 0 })
   const [slideClass, setSlideClass] = useState('')
+  const [vista, setVista] = useState<'dia' | 'semana'>('dia')
+  const [exportingPdf, setExportingPdf] = useState(false)
   const animating = useRef(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const mealsRef = useRef<HTMLDivElement>(null)
+  const pdfContainerRef = useRef<HTMLDivElement>(null)
+  const weekDates = useRef(getWeekDates()).current
 
   const fetchCalendar = useCallback(() => {
     if (!user) return
@@ -173,6 +197,49 @@ export default function MiCalendarioPage() {
 
   const itemsDelDia = items.filter(i => i.dia === diaActivo)
 
+  const exportarPdf = useCallback(async () => {
+    if (exportingPdf) return
+    const node = pdfContainerRef.current
+    if (!node) return
+    setExportingPdf(true)
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ])
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const imgRatio = canvas.width / canvas.height
+      const pageRatio = pageW / pageH
+      let renderW: number, renderH: number
+      if (imgRatio > pageRatio) {
+        renderW = pageW
+        renderH = pageW / imgRatio
+      } else {
+        renderH = pageH
+        renderW = pageH * imgRatio
+      }
+      const x = (pageW - renderW) / 2
+      const y = (pageH - renderH) / 2
+      pdf.addImage(imgData, 'PNG', x, y, renderW, renderH)
+      const fechaStr = new Date().toISOString().slice(0, 10)
+      const safeName = (nombre || 'usuaria').replace(/\s+/g, '-')
+      pdf.save(`Lucy-Calendario-${safeName}-${fechaStr}.pdf`)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setExportingPdf(false)
+    }
+  }, [exportingPdf, nombre])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -198,15 +265,41 @@ export default function MiCalendarioPage() {
     <div className="min-h-screen pb-24">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
           <div>
             <h1 className="font-logo text-xl text-lucy-text">Lucy</h1>
             <p className="text-lucy-soft text-[9px] tracking-[0.25em] uppercase">calendario metabólico</p>
           </div>
-          <p className="text-sm text-lucy-text">Hola, <span className="font-medium">{nombre}</span></p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-lucy-text hidden xs:block">Hola, <span className="font-medium">{nombre}</span></p>
+            <div className="flex items-center gap-0.5 bg-lucy-border/30 rounded-btn p-0.5">
+              <button
+                onClick={() => setVista('dia')}
+                aria-label="Vista día"
+                className={`p-1.5 rounded ${vista === 'dia' ? 'bg-lucy-white' : ''}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="2" y="2" width="10" height="10" rx="1.5" stroke={vista === 'dia' ? '#7B7FC4' : '#9896B0'} strokeWidth="1.5" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setVista('semana')}
+                aria-label="Vista semanal"
+                className={`p-1.5 rounded ${vista === 'semana' ? 'bg-lucy-white' : ''}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="2" y="2" width="4" height="4" rx="0.5" stroke={vista === 'semana' ? '#7B7FC4' : '#9896B0'} strokeWidth="1.3" />
+                  <rect x="8" y="2" width="4" height="4" rx="0.5" stroke={vista === 'semana' ? '#7B7FC4' : '#9896B0'} strokeWidth="1.3" />
+                  <rect x="2" y="8" width="4" height="4" rx="0.5" stroke={vista === 'semana' ? '#7B7FC4' : '#9896B0'} strokeWidth="1.3" />
+                  <rect x="8" y="8" width="4" height="4" rx="0.5" stroke={vista === 'semana' ? '#7B7FC4' : '#9896B0'} strokeWidth="1.3" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {vista === 'dia' && (<>
       {/* Day tabs */}
       <div className="px-4 mb-4">
         <div className="max-w-lg mx-auto">
@@ -382,7 +475,6 @@ export default function MiCalendarioPage() {
         </div>
       </div>
 
-      {/* Chat */}
       {/* Food detail modal */}
       {selectedItem && selectedItem.alimento && (() => {
         const a = selectedItem.alimento
@@ -425,6 +517,199 @@ export default function MiCalendarioPage() {
           </>
         )
       })()}
+
+      </>)}
+
+      {vista === 'semana' && (<>
+      {/* Weekly view */}
+      <div className="px-4 mb-6">
+        <div className="max-w-lg mx-auto overflow-x-auto scrollbar-hide -mx-4 px-4">
+          <div className="bg-lucy-white rounded-card border border-lucy-border" style={{ minWidth: '960px' }}>
+            {/* Header row */}
+            <div className="flex border-b border-lucy-border">
+              <div style={{ width: '80px' }} className="shrink-0 px-2 py-2" />
+              {weekDates.map((date, i) => (
+                <div key={i} style={{ width: '130px' }} className="shrink-0 px-2 py-2 text-center border-l border-lucy-border">
+                  <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{DIAS[i].slice(0, 3)}</p>
+                  <p className="text-[10px] text-lucy-soft">{formatShortDate(date)}</p>
+                </div>
+              ))}
+            </div>
+            {/* Meal rows */}
+            {COMIDAS_SEMANA.map(({ key, label }) => (
+              <div key={key} className="flex border-b border-lucy-border last:border-b-0">
+                <div style={{ width: '80px' }} className="shrink-0 px-2 py-3 flex items-start">
+                  <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{label}</p>
+                </div>
+                {weekDates.map((_, i) => {
+                  const dia = i + 1
+                  const cellItems = items
+                    .filter(it => it.dia === dia && it.comida === key)
+                    .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
+                  return (
+                    <div key={i} style={{ width: '130px' }} className="shrink-0 px-2 py-2 border-l border-lucy-border space-y-1.5">
+                      {cellItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] text-lucy-text leading-tight truncate">{item.alimento?.nombre}</p>
+                            <p className="text-[9px] text-lucy-muted leading-tight">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-center text-[10px] text-lucy-soft mt-2">Desliza horizontalmente para ver toda la semana →</p>
+      </div>
+
+      {/* Floating PDF export button */}
+      <div className="fixed bottom-44 right-4 z-20">
+        <button
+          onClick={exportarPdf}
+          disabled={exportingPdf}
+          aria-label="Exportar PDF"
+          className="w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg"
+        >
+          {exportingPdf ? (
+            <svg className="animate-spin" width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="2.5" strokeOpacity="0.3" />
+              <path d="M21 12a9 9 0 0 0-9-9" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 4v11M12 15l-4-4M12 15l4-4M5 19h14" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* Hidden offscreen PDF render */}
+      <div
+        ref={pdfContainerRef}
+        style={{
+          position: 'fixed',
+          left: '-10000px',
+          top: 0,
+          width: '1100px',
+          backgroundColor: '#ffffff',
+          padding: '32px 36px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          color: '#2D2B45',
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lucy-logo.svg" alt="Lucy" style={{ height: '70px', display: 'inline-block' }} />
+        </div>
+
+        {/* Table */}
+        <div style={{ border: '1px solid #E5E3F0', borderRadius: '8px', overflow: 'hidden' }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', backgroundColor: '#7B7FC4', color: '#ffffff' }}>
+            <div style={{ width: '95px', flexShrink: 0, padding: '12px 8px' }} />
+            {weekDates.map((date, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  padding: '12px 8px',
+                  textAlign: 'center',
+                  borderLeft: '1px solid rgba(255,255,255,0.25)',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{DIAS[i].slice(0, 3)}</div>
+                <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>{formatShortDate(date)}</div>
+              </div>
+            ))}
+          </div>
+          {/* Meal rows */}
+          {COMIDAS_SEMANA.map(({ key, label }, rowIdx) => (
+            <div
+              key={key}
+              style={{
+                display: 'flex',
+                borderTop: rowIdx === 0 ? 'none' : '1px solid #E5E3F0',
+                backgroundColor: rowIdx % 2 === 0 ? '#ffffff' : '#FAFAFE',
+              }}
+            >
+              <div
+                style={{
+                  width: '95px',
+                  flexShrink: 0,
+                  padding: '14px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#7B7FC4',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                }}
+              >
+                {label}
+              </div>
+              {weekDates.map((_, i) => {
+                const dia = i + 1
+                const cellItems = items
+                  .filter(it => it.dia === dia && it.comida === key)
+                  .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      padding: '10px 8px',
+                      borderLeft: '1px solid #E5E3F0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
+                    {cellItems.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#2D2B45', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.alimento?.nombre}
+                          </div>
+                          <div style={{ fontSize: '9px', color: '#9896B0', lineHeight: 1.2 }}>
+                            {item.alimento ? toImperial(item.cantidad, item.alimento) : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            fontSize: '11px',
+            color: '#9896B0',
+          }}
+        >
+          <span>Powered by</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/caribeno-fit-labs.png" alt="Caribeño Fit Labs" style={{ height: '24px' }} />
+          <span style={{ color: '#2D2B45', fontWeight: 500 }}>Caribeño Fit Labs</span>
+        </div>
+      </div>
+      </>)}
 
       <ChatPanel onDataChange={fetchCalendar} />
 
