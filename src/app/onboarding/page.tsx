@@ -16,9 +16,9 @@ const NIVELES_ACTIVIDAD = [
 ] as const
 
 const METAS = [
-  { value: 'perder_peso', label: 'Bajar de peso', calAdjust: -500 },
-  { value: 'mantener_peso', label: 'Mantenerme', calAdjust: 0 },
-  { value: 'ganar_masa', label: 'Ganar masa muscular', calAdjust: 300 },
+  { value: 'perder_peso', label: 'Bajar de peso' },
+  { value: 'mantener_peso', label: 'Mantenerme' },
+  { value: 'ganar_masa', label: 'Ganar masa muscular' },
 ] as const
 
 function calcularMacros(
@@ -26,12 +26,15 @@ function calcularMacros(
   alturaCm: number,
   edad: number,
   factorActividad: number,
-  ajusteCalorias: number,
+  meta: string,
   genero: string = 'femenino'
 ) {
   const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + (genero === 'masculino' ? 5 : -161)
   const tdee = bmr * factorActividad
-  const calorias = Math.round(tdee + ajusteCalorias)
+  let calorias: number
+  if (meta === 'perder_peso') calorias = Math.max(Math.round(tdee * 0.9), 1200)
+  else if (meta === 'ganar_masa') calorias = Math.round(tdee * 1.2)
+  else calorias = Math.round(tdee * 1.0)
   const proteina = Math.round((calorias * 0.30) / 4)
   const carbs = Math.round((calorias * 0.40) / 4)
   const grasas = Math.round((calorias * 0.30) / 9)
@@ -110,8 +113,7 @@ export default function OnboardingPage() {
     }
 
     const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
-    const metaObj = METAS.find(m => m.value === meta)!
-    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, metaObj.calAdjust, genero)
+    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, meta, genero)
 
     setSaving(true)
 

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch user macros
     const { data: usuario, error: userErr } = await supabase
       .from('usuarios')
-      .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, meta')
+      .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, meta, peso_kg, altura_cm, edad, nivel_actividad, genero')
       .eq('id', userId)
       .single()
 
@@ -146,9 +146,42 @@ Genera el calendario de 7 días. Responde SOLO con JSON, sin texto adicional.`
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
 
-    // 5. Clear existing calendar and shopping list
+    // 5. Clear existing calendar, shopping list, and chat history
     await supabase.from('calendario').delete().eq('user_id', userId)
     await supabase.from('lista_compras').delete().eq('user_id', userId)
+    await supabase.from('conversaciones').delete().eq('user_id', userId)
+
+    // 5b. Compute TDEE (Mifflin-St Jeor) and build intro message
+    const FACTORES_ACTIVIDAD: Record<string, number> = {
+      sedentario: 1.2,
+      ligero: 1.375,
+      moderado: 1.55,
+      activo: 1.725,
+      muy_activo: 1.9,
+    }
+    const pesoKg = Number(usuario.peso_kg) || 0
+    const alturaCm = Number(usuario.altura_cm) || 0
+    const edad = Number(usuario.edad) || 0
+    const factor = FACTORES_ACTIVIDAD[usuario.nivel_actividad] ?? 1.2
+    const generoOffset = usuario.genero === 'masculino' ? 5 : -161
+    const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + generoOffset
+    const tdee = Math.round(bmr * factor)
+    const calObjetivo = usuario.calorias_objetivo
+
+    let introMessage = ''
+    if (usuario.meta === 'perder_peso') {
+      introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 10% — ${calObjetivo} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
+    } else if (usuario.meta === 'ganar_masa') {
+      introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del 20% — ${calObjetivo} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
+    } else {
+      introMessage = `Basado en tu perfil, tu cuerpo necesita aproximadamente ${tdee} calorías al día para mantenerse. Tu plan está calibrado exactamente en eso — ${calObjetivo} calorías — con la distribución correcta de proteína, carbohidratos y grasas para que te sientas con energía todo el día. ¡Aquí está tu plan! ✨`
+    }
+
+    await supabase.from('conversaciones').insert({
+      user_id: userId,
+      role: 'assistant',
+      content: introMessage,
+    })
 
     // 6. Save calendar entries
     const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string }[] = []
