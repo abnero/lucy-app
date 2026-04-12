@@ -550,7 +550,7 @@ export default function MiCalendarioPage() {
                     <div key={i} style={{ width: '130px' }} className="shrink-0 px-2 py-2 border-l border-lucy-border space-y-1.5">
                       {cellItems.map((item, idx) => (
                         <div key={idx} className="flex items-center gap-1.5">
-                          <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
+                          <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-lucy-text leading-tight truncate">{item.alimento?.nombre}</p>
                             <p className="text-[9px] text-lucy-muted leading-tight">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
@@ -673,7 +673,7 @@ export default function MiCalendarioPage() {
                   >
                     {cellItems.map((item, idx) => (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
+                        <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: '10px', color: '#2D2B45', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {item.alimento?.nombre}

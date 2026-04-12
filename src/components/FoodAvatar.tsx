@@ -5,10 +5,11 @@ import { useState, useEffect } from 'react'
 interface FoodAvatarProps {
   nombre: string
   foto_url?: string | null
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 
 const sizeClasses = {
+  xs: 'w-6 h-6 text-[10px]',
   sm: 'w-9 h-9 text-sm',
   md: 'w-10 h-10 text-sm',
   lg: 'w-16 h-16 text-xl',
