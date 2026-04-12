@@ -178,7 +178,7 @@ export default function LoginPage() {
         <div className="mt-10 pb-safe animate-poweredIn flex items-center justify-center gap-1.5">
           <span className="text-[11px] text-lucy-muted">Powered by</span>
           <img
-            src="/caribeno transparente.PNG"
+            src="/caribeno-fit-labs.png"
             alt="Caribeño Fit Labs"
             className="h-6"
           />
