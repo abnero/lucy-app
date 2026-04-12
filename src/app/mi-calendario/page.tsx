@@ -292,6 +292,48 @@ export default function MiCalendarioPage() {
       return
     }
 
+    // Update shopping list — subtract old, add new
+    const uid = user.id
+    const oldAlimentoId = original.alimento_id
+    const cantidadOrig = original.cantidad
+
+    // 1. Subtract old food
+    const { data: oldRow } = await supabase
+      .from('lista_compras')
+      .select('id, cantidad_total')
+      .eq('user_id', uid)
+      .eq('alimento_id', oldAlimentoId)
+      .single()
+
+    if (oldRow) {
+      const remaining = oldRow.cantidad_total - cantidadOrig
+      if (remaining <= 0) {
+        await supabase.from('lista_compras').delete().eq('id', oldRow.id)
+      } else {
+        await supabase.from('lista_compras').update({ cantidad_total: remaining }).eq('id', oldRow.id)
+      }
+    }
+
+    // 2. Add new food
+    const { data: newRow } = await supabase
+      .from('lista_compras')
+      .select('id, cantidad_total')
+      .eq('user_id', uid)
+      .eq('alimento_id', nuevoAlimento.id)
+      .single()
+
+    if (newRow) {
+      await supabase.from('lista_compras').update({ cantidad_total: newRow.cantidad_total + cantidadNueva }).eq('id', newRow.id)
+    } else {
+      await supabase.from('lista_compras').insert({
+        user_id: uid,
+        alimento_id: nuevoAlimento.id,
+        cantidad_total: cantidadNueva,
+        unidad: nuevoAlimento.unidad_medida,
+        comprado: false,
+      })
+    }
+
     // Update local state
     setItems(prev => prev.map(item => {
       if (item.id !== original.id) return item
