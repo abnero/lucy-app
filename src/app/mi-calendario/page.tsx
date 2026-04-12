@@ -6,9 +6,12 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import ChatPanel from '@/components/ChatPanel'
 import FoodAvatar from '@/components/FoodAvatar'
+import FoodWizard, { WizardAlimento } from '@/components/FoodWizard'
 import { toImperial } from '@/lib/units'
 
 interface CalendarioItem {
+  id: string
+  alimento_id: string
   dia: number
   comida: string
   cantidad: number
@@ -25,6 +28,7 @@ interface CalendarioItem {
     unidad_medida: string
     unidad_display: string | null
     factor_conversion: number | null
+    rol_permitido: string[]
   }
 }
 
@@ -61,6 +65,24 @@ function formatShortDate(d: Date): string {
   return `${d.getDate()} ${MESES_CORTOS[d.getMonth()]}`
 }
 
+function getSwapRoles(comida: string, rolPermitido: string[]): string[] {
+  if (comida === 'desayuno') {
+    const breakfast = rolPermitido.filter(r => r.startsWith('Desayuno'))
+    return breakfast.length > 0 ? breakfast : ['Desayuno_1']
+  }
+  const main = rolPermitido.filter(r => !r.startsWith('Desayuno'))
+  return main.length > 0 ? main : rolPermitido
+}
+
+const ROL_LABELS: Record<string, string> = {
+  Desayuno_1: 'Desayuno',
+  Desayuno_2: 'Acompañante',
+  Proteina: 'Proteína',
+  Carbohidrato: 'Carbs',
+  Fibra: 'Fibra',
+  Grasa: 'Grasa',
+}
+
 export default function MiCalendarioPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -79,6 +101,7 @@ export default function MiCalendarioPage() {
   const [slideClass, setSlideClass] = useState('')
   const [vista, setVista] = useState<'dia' | 'semana'>('dia')
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [wizardTarget, setWizardTarget] = useState<CalendarioItem | null>(null)
   const animating = useRef(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
@@ -91,7 +114,7 @@ export default function MiCalendarioPage() {
     console.log('[Calendar] fetchCalendar triggered')
     supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
+      .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -115,7 +138,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
+          .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -239,6 +262,63 @@ export default function MiCalendarioPage() {
       setExportingPdf(false)
     }
   }, [exportingPdf, nombre])
+
+  const handleSwapAlimento = useCallback(async (nuevoAlimento: WizardAlimento) => {
+    if (!wizardTarget || !user) return
+    const original = wizardTarget
+    const a = original.alimento
+
+    // Recalculate quantity to match original calories
+    const calOrig = a.calorias_por_unidad
+    const calNuevo = nuevoAlimento.calorias_por_unidad
+    let cantidadNueva = calNuevo > 0
+      ? Math.round((original.cantidad * calOrig) / calNuevo)
+      : nuevoAlimento.porcion_base || 100
+
+    // Clamp to porcion_min / porcion_max
+    const pMin = nuevoAlimento.porcion_min || 0
+    const pMax = nuevoAlimento.porcion_max || Infinity
+    if (cantidadNueva < pMin) cantidadNueva = pMin
+    if (cantidadNueva > pMax) cantidadNueva = pMax
+
+    // Update Supabase
+    const { error: dbErr } = await supabase
+      .from('calendario')
+      .update({ alimento_id: nuevoAlimento.id, cantidad: cantidadNueva })
+      .eq('id', original.id)
+
+    if (dbErr) {
+      console.error('Swap failed:', dbErr)
+      return
+    }
+
+    // Update local state
+    setItems(prev => prev.map(item => {
+      if (item.id !== original.id) return item
+      return {
+        ...item,
+        alimento_id: nuevoAlimento.id,
+        cantidad: cantidadNueva,
+        alimento: {
+          nombre: nuevoAlimento.nombre,
+          foto_url: nuevoAlimento.foto_url,
+          categoria_comida: nuevoAlimento.categoria_comida,
+          calorias_por_unidad: nuevoAlimento.calorias_por_unidad,
+          proteina_por_unidad: nuevoAlimento.proteina_por_unidad,
+          carbs_por_unidad: nuevoAlimento.carbs_por_unidad,
+          grasas_por_unidad: nuevoAlimento.grasas_por_unidad,
+          porcion_base: nuevoAlimento.porcion_base,
+          unidad_medida: nuevoAlimento.unidad_medida,
+          unidad_display: nuevoAlimento.unidad_display,
+          factor_conversion: nuevoAlimento.factor_conversion,
+          rol_permitido: nuevoAlimento.rol_permitido,
+        },
+      }
+    }))
+
+    setWizardTarget(null)
+    setSelectedItem(null)
+  }, [wizardTarget, user])
 
   if (loading) {
     return (
@@ -507,6 +587,15 @@ export default function MiCalendarioPage() {
                   ))}
                 </div>
                 <button
+                  onClick={() => {
+                    setWizardTarget(selectedItem)
+                    setSelectedItem(null)
+                  }}
+                  className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity mb-2"
+                >
+                  Cambiar alimento
+                </button>
+                <button
                   onClick={() => setSelectedItem(null)}
                   className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
                 >
@@ -710,6 +799,17 @@ export default function MiCalendarioPage() {
         </div>
       </div>
       </>)}
+
+      {/* Food swap wizard */}
+      {wizardTarget && user && (
+        <FoodWizard
+          rolPermitido={getSwapRoles(wizardTarget.comida, wizardTarget.alimento.rol_permitido)}
+          userId={user.id}
+          titulo={`Cambiar ${ROL_LABELS[getSwapRoles(wizardTarget.comida, wizardTarget.alimento.rol_permitido)[0]] || 'Alimento'} — ${DIAS[wizardTarget.dia - 1]}`}
+          onSelect={handleSwapAlimento}
+          onClose={() => setWizardTarget(null)}
+        />
+      )}
 
       <ChatPanel onDataChange={fetchCalendar} />
 
