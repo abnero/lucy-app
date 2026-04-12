@@ -523,7 +523,7 @@ export default function MiCalendarioPage() {
       {vista === 'semana' && (<>
       {/* Weekly view */}
       <div className="px-4 mb-6">
-        <div className="max-w-lg mx-auto overflow-x-auto scrollbar-hide -mx-4 px-4">
+        <div className="max-w-lg mx-auto overflow-x-auto scrollbar-hide -mx-4 px-6">
           <div className="bg-lucy-white rounded-card border border-lucy-border" style={{ minWidth: '960px' }}>
             {/* Header row */}
             <div className="flex border-b border-lucy-border">
@@ -552,7 +552,7 @@ export default function MiCalendarioPage() {
                         <div key={idx} className="flex items-center gap-1.5">
                           <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-[10px] text-lucy-text leading-tight truncate">{item.alimento?.nombre}</p>
+                            <p className="text-[10px] text-lucy-text leading-tight" style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>{item.alimento?.nombre}</p>
                             <p className="text-[9px] text-lucy-muted leading-tight">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
                           </div>
                         </div>
@@ -675,7 +675,7 @@ export default function MiCalendarioPage() {
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: '10px', color: '#2D2B45', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '10px', color: '#2D2B45', lineHeight: 1.2, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>
                             {item.alimento?.nombre}
                           </div>
                           <div style={{ fontSize: '9px', color: '#9896B0', lineHeight: 1.2 }}>
