@@ -44,7 +44,7 @@ const COMIDAS = [
   { key: 'cena', label: 'Cena' },
   { key: 'snack', label: 'Snack' },
 ]
-const COMIDAS_SEMANA = COMIDAS.slice(0, 3)
+const COMIDAS_BASE = COMIDAS.slice(0, 3)
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 function getWeekDates(): Date[] {
@@ -219,6 +219,8 @@ export default function MiCalendarioPage() {
   }, [diaActivo, changeDia])
 
   const itemsDelDia = items.filter(i => i.dia === diaActivo)
+  const hasSnacks = items.some(i => i.comida === 'snack')
+  const comidasSemana = hasSnacks ? [...COMIDAS_BASE, { key: 'snack', label: 'Snack' }] : COMIDAS_BASE
 
   const exportarPdf = useCallback(async () => {
     if (exportingPdf) return
@@ -667,7 +669,7 @@ export default function MiCalendarioPage() {
               ))}
             </div>
             {/* Meal rows */}
-            {COMIDAS_SEMANA.map(({ key, label }) => (
+            {comidasSemana.map(({ key, label }) => (
               <div key={key} className="flex border-b border-lucy-border last:border-b-0">
                 <div style={{ width: '80px' }} className="shrink-0 px-2 py-3 flex items-start">
                   <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{label}</p>
@@ -760,7 +762,7 @@ export default function MiCalendarioPage() {
             ))}
           </div>
           {/* Meal rows */}
-          {COMIDAS_SEMANA.map(({ key, label }, rowIdx) => (
+          {comidasSemana.map(({ key, label }, rowIdx) => (
             <div
               key={key}
               style={{
