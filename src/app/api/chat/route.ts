@@ -427,13 +427,18 @@ async function executeAgregarSnack(
   input: { dia: string; alimento?: string; cantidad?: number; ingredientes?: { alimento: string; cantidad: number }[] }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia } = input
+  console.log('[agregar_snack] Input:', JSON.stringify(input))
 
   // Build list of items to add (single or multi-ingredient)
   const itemsToAdd: { alimento: string; cantidad: number }[] = []
   if (input.ingredientes && input.ingredientes.length > 0) {
     itemsToAdd.push(...input.ingredientes)
-  } else if (input.alimento && input.cantidad) {
+  } else if (input.alimento && input.cantidad != null && input.cantidad > 0) {
     itemsToAdd.push({ alimento: input.alimento, cantidad: input.cantidad })
+  } else if (input.alimento) {
+    // Lucy passed alimento without cantidad — use a sensible default
+    console.log('[agregar_snack] No cantidad provided, using default portion')
+    itemsToAdd.push({ alimento: input.alimento, cantidad: 120 })
   } else {
     return { result: 'Necesito al menos un alimento con cantidad para el snack.' }
   }
@@ -464,27 +469,39 @@ async function executeAgregarSnack(
 
   for (const { food, cantidad } of resolved) {
     if (!food) continue
+    // For countable items (unidad), ensure quantity makes sense
+    let qty = cantidad
+    if (food.unidad_medida === 'unidad' && qty > 20) {
+      qty = Math.max(1, Math.round(qty / (food.porcion_base || 100)))
+    }
     for (const d of dias) {
-      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida })
+      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad: qty, unidad: food.unidad_medida })
     }
   }
 
+  console.log(`[agregar_snack] Inserting ${allRows.length} rows for dias=[${dias.join(',')}]`)
   const { data: inserted, error } = await supabase.from('calendario').insert(allRows).select('id')
-  if (error) return { result: `Error al agregar snack: ${error.message}` }
+  if (error) {
+    console.error('[agregar_snack] Insert error:', error.message, error.details, error.hint)
+    return { result: `Error al agregar snack: ${error.message}` }
+  }
+  console.log(`[agregar_snack] Inserted ${inserted?.length || 0} rows successfully`)
 
   const revertData: RevertData = { type: 'snack', insertedIds: inserted?.map(r => r.id) || [], userId }
 
-  // Update lista_compras if adding to all days
-  if (dia === 'todos') {
-    for (const { food, cantidad } of resolved) {
-      if (!food) continue
-      const total = cantidad * 7
-      const { data: existing } = await supabase.from('lista_compras').select('id, cantidad_total').eq('user_id', userId).eq('alimento_id', food.id).single()
-      if (existing) {
-        await supabase.from('lista_compras').update({ cantidad_total: existing.cantidad_total + total }).eq('id', existing.id)
-      } else {
-        await supabase.from('lista_compras').insert({ user_id: userId, alimento_id: food.id, cantidad_total: total, unidad: food.unidad_medida, comprado: false })
-      }
+  // Update lista_compras
+  for (const { food, cantidad } of resolved) {
+    if (!food) continue
+    let qty = cantidad
+    if (food.unidad_medida === 'unidad' && qty > 20) {
+      qty = Math.max(1, Math.round(qty / (food.porcion_base || 100)))
+    }
+    const total = qty * dias.length
+    const { data: existing } = await supabase.from('lista_compras').select('id, cantidad_total').eq('user_id', userId).eq('alimento_id', food.id).single()
+    if (existing) {
+      await supabase.from('lista_compras').update({ cantidad_total: existing.cantidad_total + total }).eq('id', existing.id)
+    } else {
+      await supabase.from('lista_compras').insert({ user_id: userId, alimento_id: food.id, cantidad_total: total, unidad: food.unidad_medida, comprado: false })
     }
   }
 
@@ -1212,6 +1229,7 @@ export async function POST(req: NextRequest) {
 ${localTime} (${tz})
 Hoy = día ${todayNum} (${DIAS_NOMBRES[todayNum - 1]}). Mañana = día ${todayNum < 7 ? todayNum + 1 : 1}.
 ${mealContext}
+IMPORTANTE: La fecha y hora arriba es la ÚNICA fuente de verdad sobre el día actual. Ignora cualquier referencia a días o fechas en el historial de conversación anterior — ese contexto puede ser de días pasados. Siempre opera basándote en la fecha y el número de día indicados aquí.
 
 ═══ CALENDARIO ═══${calendarioTexto}
 
@@ -1378,7 +1396,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             ingredientes: input.ingredientes as { alimento: string; cantidad: number }[] | undefined,
           })
           if (revertData) currentRevertData = revertData
-          return result
+          return logResult(result)
         } else if (name === 'calcular_macros_dia') {
           return await executeCalcularMacrosDia(supabase, userId, {
             dia: input.dia as number,
