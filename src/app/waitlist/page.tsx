@@ -124,6 +124,13 @@ function WaitlistContent() {
     } else {
       setStatus('success')
       setCount(prev => prev + 1)
+
+      // Send confirmation email (non-blocking)
+      fetch('/api/send-waitlist-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      }).catch(err => console.error('[waitlist] Confirmation email failed:', err))
     }
   }, [email])
 
