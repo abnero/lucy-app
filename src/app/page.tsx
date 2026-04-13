@@ -14,7 +14,7 @@ export default function Home() {
     if (user) {
       getDestination(user.id).then(dest => router.push(dest))
     } else {
-      router.push('/login')
+      router.push('/waitlist')
     }
   }, [user, loading, router])
 

@@ -72,8 +72,12 @@ export default function AdminPage() {
       .then(data => console.log('[admin] Approval email response:', data))
       .catch(err => console.error('[admin] Approval email failed:', err))
 
+    // Remove from waitlist
+    await supabase.from('waitlist').delete().eq('email', email.toLowerCase())
+
     setAprobados(prev => { const n = new Set(prev); n.add(email.toLowerCase()); return n })
     setUsuarios(prev => prev.map(u => u.email?.toLowerCase() === email.toLowerCase() ? { ...u, aprobado: true } : u))
+    setWaitlist(prev => prev.filter(w => w.email.toLowerCase() !== email.toLowerCase()))
   }
 
   const handleRevocar = async (email: string) => {
@@ -152,7 +156,7 @@ export default function AdminPage() {
                         <td className="py-3 text-lucy-muted">{new Date(item.created_at).toLocaleDateString('es-ES')}</td>
                         <td className="py-3 text-right">
                           {isAprobado ? (
-                            <span className="text-xs text-green-500 font-medium">Aprobada ✓</span>
+                            <span className="text-xs text-lucy-muted">Ya aprobado</span>
                           ) : (
                             <button
                               onClick={() => handleAprobar(item.email)}

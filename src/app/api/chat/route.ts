@@ -1108,11 +1108,32 @@ function buildCalendarioTexto(
   return text
 }
 
+// ─── Rate limiting (in-memory, per user, 10 req/min) ───
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT_WINDOW = 60_000
+const RATE_LIMIT_MAX = 10
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = rateLimitMap.get(userId) || []
+  const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW)
+  recent.push(now)
+  rateLimitMap.set(userId, recent)
+  return recent.length <= RATE_LIMIT_MAX
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, accessToken, messages, lastRevertData, clientTime, clientTimezone } = await req.json()
     if (!userId || !accessToken || !messages) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Rate limit check
+    if (!checkRateLimit(userId)) {
+      return NextResponse.json({
+        reply: 'Dame un momento — estás enviando mensajes muy rápido. Intenta en unos segundos. 😊',
+      })
     }
 
     // Parse client time context
@@ -1232,6 +1253,7 @@ NUNCA sugieras y ejecutes en el mismo turno.
 4. Espera confirmación → ejecuta agregar_snack
 Para snacks compuestos ("yogur con arándanos"): usa ingredientes[] en agregar_snack.
 Al confirmar un snack, menciona SOLO lo que acabas de añadir. No menciones snacks anteriores ni otros cambios. Cada snack es independiente.
+Si la usuaria pide el snack para todos los días: confirmar una sola vez → ejecutar agregar_snack con dia="todos" → confirmar con el resultado.
 
 ═══ PROTOCOLO ALIMENTOS NO RECONOCIDOS ═══
 1. Intenta el tool directamente (busca en catálogo automáticamente)
@@ -1257,15 +1279,12 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 
 ═══ REGLAS OBLIGATORIAS ═══
 
-⚠️ 0. NUNCA CONFIRMAR SIN EJECUTAR (PRIORIDAD MÁXIMA)
-NUNCA digas "listo", "añadí", "ya está", "hecho" ni confirmes un cambio a menos que el tool correspondiente se haya ejecutado exitosamente en este mismo turno. Si un tool falla, reporta el error exacto — NUNCA inventes un mensaje de éxito.
-Cuando la usuaria pida un cambio para "todos los días" o "toda la semana", DEBES ejecutar el tool UNA VEZ POR CADA DÍA (7 llamadas: día 1, día 2, ..., día 7). NO uses dia="todos" — ejecuta 7 llamadas individuales y confirma el resultado de cada una.
+⚠️ REGLA ABSOLUTA: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
+Cuando la usuaria pida añadir un snack o cambio para todos los días, usa dia="todos" en el tool. Es la forma correcta y eficiente. El tool lo soporta nativamente.
 
 1. UN CAMBIO A LA VEZ
 Si la usuaria pide múltiples cambios en un mensaje → ejecuta solo el primero → confirma → pregunta "¿Procedemos con [siguiente]?" → espera confirmación. NUNCA ejecutes 2 tools en el mismo turno.
-
-EXCEPCIÓN OBLIGATORIA — CREAR + AÑADIR ALIMENTO NUEVO:
-Después de que la usuaria confirme los valores de un alimento nuevo, DEBES ejecutar buscar_o_crear_alimento Y LUEGO INMEDIATAMENTE el tool de añadir (agregar_ingrediente_a_comida, cambiar_alimento, o agregar_snack) SIN PAUSA entre los dos. Estos dos tools juntos son UN SOLO cambio. NUNCA te detengas entre estos dos tools ni pidas confirmación adicional entre ellos.
+EXCEPCIÓN ÚNICA: buscar_o_crear_alimento + el tool de añadir correspondiente = se ejecutan juntos en un solo turno sin pausa. Esta es la única excepción permitida a la regla de un cambio a la vez.
 
 2. CANTIDADES RAZONABLES
 Máximos: vegetales 300g, proteínas 250g, carbs 200g, grasas 30g. Mínimo 10g para sólidos.
@@ -1286,9 +1305,6 @@ Sinónimos: "mantequilla de maní"→"Crema de mani", "blueberries"→"Arándano
 
 6. NUNCA MENCIONAR FUENTES TÉCNICAS
 NUNCA digas "USDA", "base de datos", "catálogo", "busqué en". Tú simplemente SABES la información.
-
-7. SIEMPRE EJECUTAR TOOLS
-Cuando la usuaria pida un cambio, SIEMPRE usa el tool. NUNCA describas un cambio sin ejecutarlo.
 
 ═══ UNIDADES IMPERIALES ═══
 Siempre habla en unidades imperiales con la usuaria. Usa oz para proteínas y tubérculos, cups para granos, vegetales y frutas, tbsp para aceites y semillas, fl oz para bebidas empacadas. Cuando la usuaria pida un cambio en cualquier unidad (gramos, tazas, oz, libras), convierte internamente a gramos usando factor_conversion antes de ejecutar el tool. Confirma siempre en la unidad imperial correspondiente al alimento.
