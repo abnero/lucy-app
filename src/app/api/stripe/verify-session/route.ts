@@ -77,7 +77,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'session_id required' }, { status: 400 })
     }
 
-    const session = await getStripe().checkout.sessions.retrieve(session_id)
+    const session = await getStripe().checkout.sessions.retrieve(session_id, {
+      expand: ['customer', 'payment_intent'],
+    })
 
     if (session.payment_status !== 'paid') {
       return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
@@ -88,8 +90,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No email found in session' }, { status: 400 })
     }
 
-    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.toString() || null
-    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.toString() || null
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
+    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id ?? null
 
     const { isNewUser } = await activateAccess(email, customerId, paymentIntentId)
 

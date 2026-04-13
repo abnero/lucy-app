@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     }
 
     const emailLower = email.toLowerCase()
-    const customerId = typeof session.customer === 'string' ? session.customer : null
-    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null
+    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id ?? null
 
     // Idempotent — check if already processed
     const { data: existing } = await getServiceSupabase()
