@@ -3,6 +3,8 @@ import { getStripe } from '@/lib/stripe'
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('STRIPE KEY PREFIX:', process.env.STRIPE_SECRET_KEY?.substring(0, 7))
+    console.log('STRIPE PRICE ID:', process.env.STRIPE_PRICE_ID)
     const { email } = await req.json()
 
     const sessionParams: Record<string, unknown> = {
