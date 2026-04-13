@@ -375,6 +375,33 @@ function WaitlistContent() {
           </div>
         </section>
 
+        {/* ═══ PREVIEW DEL PRODUCTO ═══ */}
+        <section style={{ padding: '64px 20px 32px' }}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, textAlign: 'center', marginBottom: '12px' }}>
+            ASÍ SE VE
+          </p>
+          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '12px' }}>
+            Tu plan de la semana, siempre a la mano.
+          </h3>
+          <p style={{ fontSize: '14px', color: '#6B6889', textAlign: 'center', lineHeight: 1.6, marginBottom: '32px' }}>
+            Descárgalo en PDF e imprímelo. O úsalo directo desde tu teléfono.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/calendario-ejemplo.png"
+              alt="Ejemplo de calendario metabólico semanal de Lucy"
+              style={{
+                width: '100%',
+                maxWidth: '800px',
+                borderRadius: '12px',
+                boxShadow: '0 8px 32px rgba(123, 127, 196, 0.15)',
+                display: 'block',
+              }}
+            />
+          </div>
+        </section>
+
         {/* ═══ SECCIÓN 4 — TESTIMONIOS ═══ */}
         <section style={{ padding: '64px 20px' }}>
           <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, textAlign: 'center', marginBottom: '12px' }}>
