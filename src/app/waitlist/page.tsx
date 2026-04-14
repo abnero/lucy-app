@@ -24,12 +24,18 @@ const TESTIMONIOS = [
     nombre: 'Airdalery',
     texto: 'Me explica exactamente cuántas calorías quemo y por qué mi plan es así. Eso me da confianza.',
   },
+  {
+    nombre: 'Linette',
+    texto: 'Ahora por fin me siento segura porque sé qué comer y las cantidades para bajar de peso.',
+  },
 ]
 
 const PROBLEMAS = [
-  { emoji: '🤯', texto: 'Los planes genéricos no funcionan para tu cuerpo' },
-  { emoji: '⏰', texto: 'Tu coach no está disponible a las 9pm cuando tienes hambre' },
-  { emoji: '😩', texto: 'Contar calorías es agotador y no es sostenible' },
+  { emoji: '🤯', titulo: 'No sé qué comer ni en qué cantidades para bajar de peso', texto: 'El problema más común que escucho de mujeres que quieren bajar de peso es exactamente ese.' },
+  { emoji: '😩', titulo: 'Contar calorías es agotador y no es sostenible', texto: 'Ninguna mujer con una vida ocupada tiene tiempo para calcular cada gramo de comida a mano.' },
+  { emoji: '🍽️', titulo: 'Siempre las mismas recetas y ya me aburrí', texto: '¿Te pasa que no sabes recetas nuevas y por eso terminas comiendo lo mismo o lo que sea?' },
+  { emoji: '📏', titulo: 'Sé que el pollo es bueno, pero ¿2 oz o 8 oz?', texto: 'La diferencia entre bajar de peso y no bajar de peso muchas veces no es qué comes — es cuánto comes.' },
+  { emoji: '⏰', titulo: 'Tu coach no contesta a las 7pm cuando tienes hambre', texto: 'En ese momento tomas la decisión equivocada — no porque no quieras bajar de peso, sino porque no tienes ayuda en ese instante.' },
 ]
 
 const BENEFICIOS = [
@@ -238,9 +244,18 @@ function WaitlistContent() {
           <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#2D2B45', lineHeight: 1.2, textAlign: 'center', marginBottom: '16px' }}>
             Tu asistente nutricional personal con IA — disponible cuando tú lo necesitas
           </h2>
-          <p style={{ fontSize: '15px', color: '#6B6889', textAlign: 'center', lineHeight: 1.6, marginBottom: '28px' }}>
+          <p style={{ fontSize: '15px', color: '#6B6889', textAlign: 'center', lineHeight: 1.6, marginBottom: '24px' }}>
             Un plan de nutrición personalizado, calculado para tu cuerpo, que puedes ajustar en segundos desde tu teléfono.
           </p>
+
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE9F4', borderRadius: '16px', padding: '24px 20px', marginBottom: '28px', textAlign: 'center' }}>
+            <p style={{ fontSize: '17px', fontWeight: 700, color: '#2D2B45', lineHeight: 1.4, marginBottom: '10px' }}>
+              ¿Empiezas la dieta el lunes con toda la energía y para el miércoles ya lo dejaste?
+            </p>
+            <p style={{ fontSize: '14px', color: '#6B6889', lineHeight: 1.6 }}>
+              El problema no eres tú — es que el plan no era tuyo. Era genérico, aburrido, y no encajaba con tu vida.
+            </p>
+          </div>
 
           {/* Badge */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
@@ -333,29 +348,52 @@ function WaitlistContent() {
           <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '32px' }}>
             Sabes que debes comer bien. El problema es el <em>cómo</em>.
           </h3>
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }} className="scrollbar-hide">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: '16px' }}>
             {PROBLEMAS.map((p, i) => (
               <div key={i} style={{
-                minWidth: '260px',
                 backgroundColor: '#FFFFFF',
                 border: '1px solid #EAE9F4',
                 borderRadius: '16px',
                 padding: '24px 20px',
-                scrollSnapAlign: 'start',
-                flexShrink: 0,
               }}>
                 <span style={{ fontSize: '28px', display: 'block', marginBottom: '12px' }}>{p.emoji}</span>
-                <p style={{ fontSize: '15px', color: '#2D2B45', fontWeight: 500, lineHeight: 1.5 }}>{p.texto}</p>
+                <p style={{ fontSize: '15px', color: '#2D2B45', fontWeight: 600, lineHeight: 1.4, marginBottom: '8px' }}>{p.titulo}</p>
+                <p style={{ fontSize: '13px', color: '#6B6889', lineHeight: 1.5 }}>{p.texto}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ═══ SECCIÓN 3 — LA SOLUCIÓN ═══ */}
-        <section style={{ padding: '64px 20px' }}>
-          <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, textAlign: 'center', marginBottom: '12px' }}>
+        {/* Transition — reveal */}
+        <div style={{ padding: '64px 20px 48px', textAlign: 'center' }}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, marginBottom: '24px' }}>
             LA SOLUCIÓN
           </p>
+          <p style={{ fontSize: '18px', color: '#6B6889', marginBottom: '8px' }}>
+            Por eso creamos a
+          </p>
+          <span className="lucy-reveal" style={{
+            fontFamily: 'Georgia, serif',
+            color: '#7B7FC4',
+            display: 'inline-block',
+            position: 'relative',
+            paddingBottom: '6px',
+          }}>
+            Lucy
+            <span style={{
+              position: 'absolute',
+              bottom: 0,
+              left: '10%',
+              width: '80%',
+              height: '3px',
+              backgroundColor: '#7B7FC4',
+              borderRadius: '2px',
+            }} />
+          </span>
+        </div>
+
+        {/* ═══ SECCIÓN 3 — LA SOLUCIÓN ═══ */}
+        <section style={{ padding: '0 20px 64px' }}>
           <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', marginBottom: '40px' }}>
             Lucy lo hace por ti.
           </h3>
@@ -370,6 +408,47 @@ function WaitlistContent() {
                 <span style={{ fontSize: '32px', display: 'block', marginBottom: '12px' }}>{b.emoji}</span>
                 <p style={{ fontSize: '17px', fontWeight: 600, color: '#2D2B45', marginBottom: '8px' }}>{b.titulo}</p>
                 <p style={{ fontSize: '14px', color: '#6B6889', lineHeight: 1.6 }}>{b.texto}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══ LUCY EN ACCIÓN ═══ */}
+        <section style={{ padding: '64px 20px' }}>
+          <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, textAlign: 'center', marginBottom: '12px' }}>
+            LUCY EN ACCIÓN
+          </p>
+          <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', marginBottom: '8px' }}>
+            Mírala trabajar.
+          </h3>
+          <p style={{ fontSize: '14px', color: '#6B6889', textAlign: 'center', lineHeight: 1.6, marginBottom: '36px' }}>
+            Esto es lo que puedes pedirle a Lucy desde tu teléfono.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', alignItems: 'center' }}>
+            {[
+              { src: '/screenshots/calendario-dia.PNG', label: 'Tu plan del día, siempre organizado' },
+              { src: '/screenshots/chat-cambio-alimento.PNG', label: 'Cambia cualquier alimento en segundos' },
+              { src: '/screenshots/chat-receta.PNG', label: 'Pídele recetas según tus alimentos' },
+              { src: '/screenshots/chat-snack.PNG', label: 'Lucy sabe cuándo tienes hambre y qué comer' },
+            ].map((item, i) => (
+              <div key={i} style={{ width: '100%', maxWidth: '280px' }}>
+                <div style={{
+                  borderRadius: '36px',
+                  border: '8px solid #2D2B45',
+                  backgroundColor: '#FFFFFF',
+                  overflow: 'hidden',
+                  boxShadow: '0 12px 40px rgba(45, 43, 69, 0.12)',
+                }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.src}
+                    alt={item.label}
+                    style={{ width: '100%', display: 'block' }}
+                  />
+                </div>
+                <p style={{ fontSize: '13px', color: '#6B6889', textAlign: 'center', marginTop: '14px', lineHeight: 1.4 }}>
+                  {item.label}
+                </p>
               </div>
             ))}
           </div>
@@ -536,6 +615,16 @@ function WaitlistContent() {
         }
         .animate-pulse-soft {
           animation: pulseSoft 3s ease-in-out infinite;
+        }
+        .lucy-reveal {
+          font-size: 56px;
+          font-weight: 700;
+          line-height: 1.1;
+        }
+        @media (min-width: 768px) {
+          .lucy-reveal {
+            font-size: 72px;
+          }
         }
       `}</style>
     </div>
