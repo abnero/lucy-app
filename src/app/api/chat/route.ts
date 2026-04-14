@@ -376,7 +376,7 @@ async function executeCambiarAlimento(
   }
 
   // Update the calendar entry
-  await supabase
+  const { error: updateError } = await supabase
     .from('calendario')
     .update({
       alimento_id: newAlimento.id,
@@ -384,6 +384,23 @@ async function executeCambiarAlimento(
       unidad: newAlimento.unidad_medida,
     })
     .eq('id', targetEntry.id)
+
+  if (updateError) {
+    console.error('[cambiar_alimento] UPDATE error:', updateError.message)
+    return { result: `No pude actualizar el calendario: ${updateError.message}. Intenta de nuevo.` }
+  }
+
+  // Verify persistence
+  const { data: verify } = await supabase
+    .from('calendario')
+    .select('alimento_id')
+    .eq('id', targetEntry.id)
+    .single()
+
+  if (!verify || verify.alimento_id !== newAlimento.id) {
+    console.error('[cambiar_alimento] VERIFICATION FAILED: expected', newAlimento.id, 'got', verify?.alimento_id)
+    return { result: 'El cambio no se guardó correctamente. Intenta de nuevo.' }
+  }
 
   let extraMsg = ''
 
@@ -409,7 +426,7 @@ async function executeCambiarAlimento(
           unidad: matchingAlmuerzo.unidad,
         })
 
-        await supabase
+        const { error: nextDayError } = await supabase
           .from('calendario')
           .update({
             alimento_id: newAlimento.id,
@@ -418,7 +435,11 @@ async function executeCambiarAlimento(
           })
           .eq('id', matchingAlmuerzo.id)
 
-        extraMsg = ` También actualicé el almuerzo del ${DIAS_NOMBRES[nextDay - 1]} (Regla: almuerzo = cena del día anterior).`
+        if (nextDayError) {
+          console.error('[cambiar_alimento] Next-day almuerzo update failed:', nextDayError.message)
+        } else {
+          extraMsg = ` También actualicé el almuerzo del ${DIAS_NOMBRES[nextDay - 1]} (Regla: almuerzo = cena del día anterior).`
+        }
       }
     }
   }
@@ -892,8 +913,12 @@ async function executeAgregarIngredienteAComida(
         newQty = Math.max(10, Math.round((targetCal / a.calorias_por_unidad) * (a.porcion_base || 100)))
       }
 
-      await supabase.from('calendario').update({ cantidad: newQty }).eq('id', item.id)
-      compensationMsg += ` ${a.nombre}: ${item.cantidad}→${newQty}${item.unidad}.`
+      const { error: compErr } = await supabase.from('calendario').update({ cantidad: newQty }).eq('id', item.id)
+      if (compErr) {
+        console.error('[agregar_ingrediente] Compensation update failed:', compErr.message)
+      } else {
+        compensationMsg += ` ${a.nombre}: ${item.cantidad}→${newQty}${item.unidad}.`
+      }
     }
   } else {
     compensationMsg = ` No hay alimentos que reducir sin tocar proteínas. Se añadió como extra (+${Math.round(newCalories)} kcal).`
@@ -1129,8 +1154,9 @@ async function executeRevertir(
   }
 
   if (revertData.type === 'cambiar' && revertData.originalRows) {
+    let failures = 0
     for (const row of revertData.originalRows) {
-      await supabase
+      const { error: revErr } = await supabase
         .from('calendario')
         .update({
           alimento_id: row.alimento_id,
@@ -1138,14 +1164,25 @@ async function executeRevertir(
           unidad: row.unidad,
         })
         .eq('id', row.rowId)
+      if (revErr) {
+        console.error('[revertir] Update failed for row', row.rowId, revErr.message)
+        failures++
+      }
     }
+    if (failures > 0) return `Error: no se pudieron revertir ${failures} cambio(s). Puede ser un problema de permisos.`
     return 'Revertí el último cambio. Tu calendario está como antes.'
   }
 
   if (revertData.type === 'snack' && revertData.insertedIds) {
+    let failures = 0
     for (const id of revertData.insertedIds) {
-      await supabase.from('calendario').delete().eq('id', id)
+      const { error: delErr } = await supabase.from('calendario').delete().eq('id', id)
+      if (delErr) {
+        console.error('[revertir] Delete failed for id', id, delErr.message)
+        failures++
+      }
     }
+    if (failures > 0) return `Error: no se pudieron eliminar ${failures} snack(s).`
     return 'Eliminé el snack que añadí. Tu calendario está como antes.'
   }
 
@@ -1225,6 +1262,12 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createAuthenticatedClient(accessToken)
+
+    // Verify auth token is still valid
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    if (authError || !authUser) {
+      return NextResponse.json({ error: 'Tu sesión expiró. Recarga la página e intenta de nuevo.' }, { status: 401 })
+    }
 
     // Fetch user profile
     const { data: usuario } = await supabase
