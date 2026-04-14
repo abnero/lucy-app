@@ -284,70 +284,41 @@ function WaitlistContent() {
             </p>
           )}
 
-          {/* iPhone mockup */}
+          {/* Hero image */}
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
-            <div style={{
-              width: '180px',
-              height: '340px',
-              borderRadius: '28px',
-              border: '3px solid #2D2B45',
-              backgroundColor: '#F8F7FC',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 20px 40px rgba(45,43,69,0.1)',
-            }}>
-              {/* Notch */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '60px',
-                height: '16px',
-                backgroundColor: '#2D2B45',
-                borderRadius: '0 0 12px 12px',
-              }} />
-              {/* Screen content */}
-              <div style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px 16px 20px',
-              }}>
-                <p style={{ fontFamily: 'Georgia, serif', fontSize: '24px', color: '#2D2B45', marginBottom: '4px' }}>Lucy</p>
-                <p style={{ fontSize: '5px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, marginBottom: '20px' }}>CALENDARIO METABÓLICO</p>
-                {/* Mini calendar preview */}
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {['Desayuno', 'Almuerzo', 'Cena'].map(meal => (
-                    <div key={meal} style={{
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                      border: '1px solid #EAE9F4',
-                    }}>
-                      <p style={{ fontSize: '6px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B6889', marginBottom: '3px' }}>{meal}</p>
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#EAE9F4', flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ height: '4px', backgroundColor: '#EAE9F4', borderRadius: '2px', width: '70%' }} />
-                          <div style={{ height: '3px', backgroundColor: '#EAE9F4', borderRadius: '2px', width: '40%', marginTop: '3px', opacity: 0.5 }} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/hero-mujer-telefono.png"
+              alt="Mujer usando Lucy en su teléfono"
+              style={{
+                width: '100%',
+                maxWidth: '400px',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                boxShadow: '0 20px 40px rgba(45,43,69,0.1)',
+              }}
+            />
           </div>
+
+          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginTop: '48px' }}>
+            Sabes que debes comer bien. El problema es el <em>cómo</em>.
+          </h3>
         </section>
 
         {/* ═══ SECCIÓN 2 — EL PROBLEMA ═══ */}
         <section style={{ padding: '64px 20px' }}>
-          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '32px' }}>
-            Sabes que debes comer bien. El problema es el <em>cómo</em>.
-          </h3>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/problema-mujer-nevera.png"
+            alt="Mujer pensativa frente a la nevera"
+            style={{
+              width: '100%',
+              maxHeight: '300px',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              marginBottom: '32px',
+            }}
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: '16px' }}>
             {PROBLEMAS.map((p, i) => (
               <div key={i} style={{
@@ -483,9 +454,21 @@ function WaitlistContent() {
 
         {/* ═══ SECCIÓN 4 — TESTIMONIOS ═══ */}
         <section style={{ padding: '64px 20px' }}>
-          <p style={{ fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#7B7FC4', fontWeight: 500, textAlign: 'center', marginBottom: '12px' }}>
-            PRUEBA SOCIAL
-          </p>
+          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '24px' }}>
+            Camina libre de estrés y segura de ti misma... con Lucy
+          </h3>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/testimonio-mujer-caminando.png"
+            alt="Mujer caminando con confianza"
+            style={{
+              width: '100%',
+              maxHeight: '250px',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              marginBottom: '32px',
+            }}
+          />
           <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '32px' }}>
             Las primeras en probarlo ya lo aman.
           </h3>
