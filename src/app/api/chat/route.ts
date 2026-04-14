@@ -176,7 +176,7 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, es_personalizado, creado_por'
+const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, porcion_min, porcion_max, es_personalizado, creado_por'
 
 async function findAlimento(supabase: SupabaseClient, nombre: string, userId?: string) {
   const normalized = removeAccents(nombre.toLowerCase().trim())
@@ -353,6 +353,14 @@ async function executeCambiarAlimento(
   } else {
     // For weight/volume items: calculate grams/ml
     newCantidad = Math.round((oldCalories / newAlimento.calorias_por_unidad) * (newAlimento.porcion_base || 100))
+  }
+
+  // Clamp to valid portion range
+  if (newAlimento.porcion_min && newCantidad < newAlimento.porcion_min) {
+    newCantidad = newAlimento.porcion_min
+  }
+  if (newAlimento.porcion_max && newCantidad > newAlimento.porcion_max) {
+    newCantidad = newAlimento.porcion_max
   }
 
   // Save original for revert (using row ID for precise targeting)
