@@ -401,6 +401,7 @@ function WaitlistContent() {
               { src: '/screenshots/chat-cambio-alimento.PNG', label: 'Cambia cualquier alimento en segundos' },
               { src: '/screenshots/chat-receta.PNG', label: 'Pídele recetas según tus alimentos' },
               { src: '/screenshots/chat-snack.PNG', label: 'Lucy sabe cuándo tienes hambre y qué comer' },
+              { src: '/screenshots/lista-compras.PNG', label: 'Tu lista de compras, generada automáticamente' },
             ].map((item, i) => (
               <div key={i} style={{ width: '100%', maxWidth: '280px' }}>
                 <div style={{
