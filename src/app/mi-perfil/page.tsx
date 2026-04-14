@@ -54,7 +54,7 @@ interface UsuarioData {
 }
 
 export default function MiPerfilPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, session, loading, signOut } = useAuth()
   const router = useRouter()
 
   const [userData, setUserData] = useState<UsuarioData | null>(null)
@@ -74,7 +74,10 @@ export default function MiPerfilPage() {
   const [successMsg, setSuccessMsg] = useState('')
   const [saving, setSaving] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const originalValues = useRef<{ nombre: string; peso: string; pies: string; pulgadas: string; edad: string; genero: string; nivelActividad: string; meta: string } | null>(null)
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -128,10 +131,24 @@ export default function MiPerfilPage() {
             setEdad(u.edad ? u.edad.toString() : '')
             setNivelActividad(u.nivel_actividad || '')
             setMeta(u.meta || '')
+            let origPies = ''
+            let origPulgadas = ''
             if (u.altura_pies) {
               const totalInches = u.altura_pies * 12
-              setPies(Math.floor(totalInches / 12).toString())
-              setPulgadas(Math.round(totalInches % 12).toString())
+              origPies = Math.floor(totalInches / 12).toString()
+              origPulgadas = Math.round(totalInches % 12).toString()
+              setPies(origPies)
+              setPulgadas(origPulgadas)
+            }
+            originalValues.current = {
+              nombre: u.nombre || '',
+              peso: u.peso_lbs ? u.peso_lbs.toString() : '',
+              pies: origPies,
+              pulgadas: origPulgadas,
+              edad: u.edad ? u.edad.toString() : '',
+              genero: u.genero || 'femenino',
+              nivelActividad: u.nivel_actividad || '',
+              meta: u.meta || '',
             }
           }
           setLoadingData(false)
@@ -143,6 +160,12 @@ export default function MiPerfilPage() {
     e.preventDefault()
     setError('')
     setSuccessMsg('')
+
+    if (!hasChanges) {
+      setShowRegenConfirm(true)
+      return
+    }
+
     if (!nombre.trim() || !peso || !edad || !nivelActividad || !meta) {
       setError('Por favor completa todos los campos')
       return
@@ -234,6 +257,40 @@ export default function MiPerfilPage() {
         <p className="text-lucy-muted text-sm">Cargando...</p>
       </div>
     )
+  }
+
+  const hasChanges = originalValues.current ? (
+    nombre !== originalValues.current.nombre ||
+    peso !== originalValues.current.peso ||
+    pies !== originalValues.current.pies ||
+    pulgadas !== originalValues.current.pulgadas ||
+    edad !== originalValues.current.edad ||
+    genero !== originalValues.current.genero ||
+    nivelActividad !== originalValues.current.nivelActividad ||
+    meta !== originalValues.current.meta
+  ) : true // default to true while loading
+
+  const handleRegenerate = async () => {
+    if (!user || !session) return
+    setShowRegenConfirm(false)
+    setRegenerating(true)
+    try {
+      const res = await fetch('/api/generar-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, accessToken: session.access_token }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        setError(data.error)
+        setRegenerating(false)
+        return
+      }
+      router.push('/mi-calendario')
+    } catch {
+      setError('Error regenerando el plan. Intenta de nuevo.')
+      setRegenerating(false)
+    }
   }
 
   if (!user || !userData) return null
@@ -429,9 +486,9 @@ export default function MiPerfilPage() {
             {error && <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>}
             {successMsg && <p className="text-lucy-accent text-xs bg-lucy-accent/5 border border-lucy-accent/20 rounded-btn p-3">{successMsg}</p>}
 
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || regenerating}
               className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-              {saving ? 'Guardando...' : 'Guardar cambios'}
+              {saving ? 'Guardando...' : regenerating ? 'Regenerando...' : hasChanges ? 'Guardar cambios' : 'Regenerar mi plan'}
             </button>
           </form>
 
@@ -455,6 +512,36 @@ export default function MiPerfilPage() {
           </div>
         </div>
       </div>
+
+      {/* Regen confirmation modal */}
+      {showRegenConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setShowRegenConfirm(false)} />
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-6 pointer-events-none">
+            <div className="bg-lucy-white rounded-card border border-lucy-border p-6 w-full max-w-xs pointer-events-auto animate-macroIn">
+              <div className="text-center mb-4">
+                <p className="text-2xl mb-2">🔄</p>
+                <p className="text-sm font-medium text-lucy-text">¿Regenerar tu plan?</p>
+              </div>
+              <p className="text-xs text-lucy-muted text-center leading-relaxed mb-5">
+                Esto actualizará tu calendario con las últimas mejoras de Lucy. Tus snacks y cambios personalizados se mantendrán si son posibles.
+              </p>
+              <button
+                onClick={handleRegenerate}
+                className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity mb-2"
+              >
+                Sí, regenerar
+              </button>
+              <button
+                onClick={() => setShowRegenConfirm(false)}
+                className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Chat */}
       <ChatPanel />
