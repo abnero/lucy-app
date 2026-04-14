@@ -1038,6 +1038,47 @@ async function executeBuscarOCrearAlimento(
   const categoria_comida = proteina_por_100g > carbohidratos_por_100g ? 'proteina' : 'carbohidrato'
   const rol = proteina_por_100g > carbohidratos_por_100g ? 'Proteina' : 'Carbohidrato'
 
+  // Determine unidad_display and factor_conversion
+  const um = unidad_medida || 'gramos'
+  const nombreLower = removeAccents(nombre.toLowerCase())
+  let unidad_display: string
+  let factor_conversion: number
+
+  if (um === 'unidad') {
+    unidad_display = 'unidad'
+    factor_conversion = 1
+  } else if (um === 'ml') {
+    unidad_display = 'fl_oz'
+    factor_conversion = 29.57
+  } else if (categoria_comida === 'proteina') {
+    unidad_display = 'oz'
+    factor_conversion = 28.35
+  } else if (grasa_por_100g > proteina_por_100g + carbohidratos_por_100g) {
+    const isLiquid = /aceite|oil|vinagre|salsa|miel|syrup|jarabe/.test(nombreLower)
+    if (isLiquid) {
+      unidad_display = 'tbsp'
+      factor_conversion = 15
+    } else {
+      unidad_display = 'oz'
+      factor_conversion = 28.35
+    }
+  } else if (categoria_comida === 'carbohidrato') {
+    const isFruit = /fruta|fruit|berry|mango|piña|melon|guineo|banana|manzana|pera|uva|fresa|arandano|kiwi|naranja|mandarina|papaya|sandia/.test(nombreLower)
+    if (isFruit) {
+      unidad_display = 'cup'
+      factor_conversion = 150
+    } else {
+      unidad_display = 'cup'
+      factor_conversion = 185
+    }
+  } else if (categoria_comida === 'vegetal' || /vegetal|ensalada|lechuga|espinaca|kale|brocoli|coliflor|pepino|tomate|cebolla|pimiento|zanahoria|apio|calabacin/.test(nombreLower)) {
+    unidad_display = 'cup'
+    factor_conversion = 100
+  } else {
+    unidad_display = 'oz'
+    factor_conversion = 28.35
+  }
+
   // Create new — use service-level insert via RPC or direct insert
   const { data: created, error } = await supabase
     .from('alimentos')
@@ -1049,15 +1090,17 @@ async function executeBuscarOCrearAlimento(
       carbs_por_unidad: carbohidratos_por_100g,
       grasas_por_unidad: grasa_por_100g,
       fibra_por_unidad: 0,
-      unidad_medida: unidad_medida || 'gramos',
-      porcion_base: unidad_medida === 'unidad' ? 1 : 100,
-      porcion_min: unidad_medida === 'unidad' ? 1 : 50,
-      porcion_max: unidad_medida === 'unidad' ? 10 : 200,
+      unidad_medida: um,
+      porcion_base: um === 'unidad' ? 1 : 100,
+      porcion_min: um === 'unidad' ? 1 : 50,
+      porcion_max: um === 'unidad' ? 10 : 200,
       rol_permitido: [rol],
       categoria_supermercado: 'otro',
       es_personalizado: true,
       creado_por: userId,
       fuente,
+      unidad_display,
+      factor_conversion,
     })
     .select('id')
     .single()
