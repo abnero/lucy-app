@@ -22,7 +22,7 @@ interface UsuarioItem {
 }
 
 export default function AdminPage() {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const router = useRouter()
 
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([])
@@ -31,16 +31,25 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(true)
 
   const fetchData = useCallback(async () => {
-    const [wl, usr, ap] = await Promise.all([
+    // Waitlist and emails_aprobados use client-side Supabase (RLS allows these)
+    const [wl, ap] = await Promise.all([
       supabase.from('waitlist').select('id, email, created_at').order('created_at', { ascending: false }),
-      supabase.from('usuarios').select('id, email, nombre, aprobado, created_at').order('created_at', { ascending: false }),
       supabase.from('emails_aprobados').select('email'),
     ])
     if (wl.data) setWaitlist(wl.data)
-    if (usr.data) setUsuarios(usr.data)
     if (ap.data) setAprobados(new Set(ap.data.map(a => a.email)))
+
+    // Usuarios uses service role endpoint to bypass RLS
+    if (session?.access_token) {
+      const res = await fetch('/api/admin/usuarios', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (data.usuarios) setUsuarios(data.usuarios)
+    }
+
     setLoadingData(false)
-  }, [])
+  }, [session])
 
   useEffect(() => {
     if (!loading && !user) { router.push('/login'); return }
