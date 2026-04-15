@@ -586,7 +586,7 @@ async function executeCalcularMacrosDia(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const a = (Array.isArray(item.alimento) ? (item.alimento as any)[0] : item.alimento) as any
     if (!a) continue
-    const ratio = item.cantidad / (a.porcion_base || 100)
+    const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
     calConsumed += a.calorias_por_unidad * ratio
     protConsumed += a.proteina_por_unidad * ratio
     carbsConsumed += a.carbs_por_unidad * ratio
