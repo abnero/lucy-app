@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert historial
-    await sb.from('historial_coach').insert({
+    const { error: historialError } = await sb.from('historial_coach').insert({
       coach_id: verified.coach.id,
       coach_email: verified.coach.email,
       clienta_user_id: clientaUserId,
@@ -86,9 +86,11 @@ export async function POST(req: NextRequest) {
       nota: nota || null,
     })
 
+    if (historialError) {
+      console.error('Error insertando historial_coach:', historialError.message, historialError.details)
+    }
+
     // Regenerate calendar for the clienta
-    // Get a service-level access token by getting the user's session
-    // Since we use service role, we call generar-plan internally
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
 
     // We need the clienta's access token for generar-plan (which uses authenticated client)
