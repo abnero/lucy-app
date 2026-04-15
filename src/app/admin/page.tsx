@@ -102,9 +102,12 @@ export default function AdminPage() {
       body: JSON.stringify({ userId: u.id, email: u.email, nombre: u.nombre }),
     })
     const data = await res.json()
-    if (data.success) {
-      setCoaches(prev => { const n = new Set(prev); n.add(u.id); return n })
+    if (!data.success) {
+      console.error('Error hacer coach:', data.error)
+      alert('Error: ' + data.error)
+      return
     }
+    setCoaches(prev => { const n = new Set(prev); n.add(u.id); return n })
   }
 
   const handleRevocar = async (email: string) => {
