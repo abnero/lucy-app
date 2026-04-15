@@ -19,7 +19,9 @@ interface UsuarioItem {
   nombre: string
   aprobado: boolean
   created_at: string
+  onboarding_completado?: boolean
 }
+
 
 export default function AdminPage() {
   const { user, session, loading } = useAuth()
@@ -28,16 +30,19 @@ export default function AdminPage() {
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([])
   const [aprobados, setAprobados] = useState<Set<string>>(new Set())
+  const [coaches, setCoaches] = useState<Set<string>>(new Set())
   const [loadingData, setLoadingData] = useState(true)
 
   const fetchData = useCallback(async () => {
-    // Waitlist and emails_aprobados use client-side Supabase (RLS allows these)
-    const [wl, ap] = await Promise.all([
+    // Waitlist, emails_aprobados, and coaches use client-side Supabase
+    const [wl, ap, co] = await Promise.all([
       supabase.from('waitlist').select('id, email, created_at').order('created_at', { ascending: false }),
       supabase.from('emails_aprobados').select('email'),
+      supabase.from('coaches').select('user_id'),
     ])
     if (wl.data) setWaitlist(wl.data)
     if (ap.data) setAprobados(new Set(ap.data.map(a => a.email)))
+    if (co.data) setCoaches(new Set(co.data.map(c => c.user_id)))
 
     // Usuarios uses service role endpoint to bypass RLS
     if (session?.access_token) {
@@ -87,6 +92,19 @@ export default function AdminPage() {
     setAprobados(prev => { const n = new Set(prev); n.add(email.toLowerCase()); return n })
     setUsuarios(prev => prev.map(u => u.email?.toLowerCase() === email.toLowerCase() ? { ...u, aprobado: true } : u))
     setWaitlist(prev => prev.filter(w => w.email.toLowerCase() !== email.toLowerCase()))
+  }
+
+  const handleHacerCoach = async (u: UsuarioItem) => {
+    if (!session?.access_token) return
+    const res = await fetch('/api/admin/hacer-coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ userId: u.id, email: u.email, nombre: u.nombre }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setCoaches(prev => { const n = new Set(prev); n.add(u.id); return n })
+    }
   }
 
   const handleRevocar = async (email: string) => {
@@ -205,7 +223,12 @@ export default function AdminPage() {
                   {usuarios.map(u => (
                     <tr key={u.id} className="border-b border-lucy-border/50">
                       <td className="py-3 text-lucy-text">{u.email}</td>
-                      <td className="py-3 text-lucy-text">{u.nombre}</td>
+                      <td className="py-3 text-lucy-text">
+                        {u.nombre}
+                        {coaches.has(u.id) && (
+                          <span className="ml-2 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Coach</span>
+                        )}
+                      </td>
                       <td className="py-3 text-lucy-muted">{new Date(u.created_at).toLocaleDateString('es-ES')}</td>
                       <td className="py-3">
                         {u.aprobado ? (
@@ -214,7 +237,15 @@ export default function AdminPage() {
                           <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Pendiente</span>
                         )}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-3 text-right flex items-center justify-end gap-2">
+                        {!coaches.has(u.id) && (
+                          <button
+                            onClick={() => handleHacerCoach(u)}
+                            className="text-xs text-purple-500 hover:text-purple-700"
+                          >
+                            Hacer coach
+                          </button>
+                        )}
                         {u.aprobado ? (
                           <button
                             onClick={() => handleRevocar(u.email)}

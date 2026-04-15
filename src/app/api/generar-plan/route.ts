@@ -31,12 +31,15 @@ interface PlanDia {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessToken } = await req.json()
-    if (!userId || !accessToken) {
-      return NextResponse.json({ error: 'userId and accessToken required' }, { status: 400 })
+    const { userId, accessToken, serviceRoleKey } = await req.json()
+    if (!userId || (!accessToken && !serviceRoleKey)) {
+      return NextResponse.json({ error: 'userId and accessToken (or serviceRoleKey) required' }, { status: 400 })
     }
 
-    const supabase = createAuthenticatedClient(accessToken)
+    // Allow service role for coach-initiated regeneration
+    const supabase = serviceRoleKey === process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : createAuthenticatedClient(accessToken)
 
     // 1. Fetch user macros
     const { data: usuario, error: userErr } = await supabase
@@ -128,7 +131,7 @@ Genera el calendario de 7 días. Responde SOLO con JSON, sin texto adicional.`
 
     // 4. Call Anthropic API
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [
         { role: 'user', content: userMessage },
