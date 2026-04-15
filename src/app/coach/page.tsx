@@ -150,21 +150,24 @@ export default function CoachPage() {
     if (which === 'prot') {
       const remaining = 100 - value
       const ratio = carbsPct + grasasPct > 0 ? remaining / (carbsPct + grasasPct) : 0.5
+      const newCarbs = Math.round(carbsPct * ratio)
       setProtPct(value)
-      setCarbsPct(Math.round((carbsPct * ratio)))
-      setGrasasPct(100 - value - Math.round((carbsPct * ratio)))
+      setCarbsPct(newCarbs)
+      setGrasasPct(100 - value - newCarbs)
     } else if (which === 'carbs') {
       const remaining = 100 - value
       const ratio = protPct + grasasPct > 0 ? remaining / (protPct + grasasPct) : 0.5
+      const newProt = Math.round(protPct * ratio)
       setCarbsPct(value)
-      setProtPct(Math.round((protPct * ratio)))
-      setGrasasPct(100 - value - Math.round((protPct * ratio)))
+      setProtPct(newProt)
+      setGrasasPct(100 - value - newProt)
     } else {
       const remaining = 100 - value
       const ratio = protPct + carbsPct > 0 ? remaining / (protPct + carbsPct) : 0.5
+      const newProt = Math.round(protPct * ratio)
       setGrasasPct(value)
-      setProtPct(Math.round((protPct * ratio)))
-      setCarbsPct(100 - value - Math.round((protPct * ratio)))
+      setProtPct(newProt)
+      setCarbsPct(100 - value - newProt)
     }
   }
 
@@ -440,7 +443,7 @@ export default function CoachPage() {
 
                     <button
                       onClick={handleAjustar}
-                      disabled={adjusting || !calorias || protPct + carbsPct + grasasPct !== 100}
+                      disabled={adjusting || !calorias || Math.abs(protPct + carbsPct + grasasPct - 100) > 1}
                       className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
                     >
                       {adjusting ? 'Procesando...' : 'Confirmar ajuste'}
