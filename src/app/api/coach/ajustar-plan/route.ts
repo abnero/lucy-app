@@ -105,26 +105,37 @@ export async function POST(req: NextRequest) {
     })
 
     // Insert historial — at the end so logs don't get truncated by generar-plan
-    console.log('[ajustar-plan] INSERT historial_coach con coach_id:', verified.coach.id, 'clienta:', clientaUserId)
-    const { error: historialError } = await sb.from('historial_coach').insert({
+    console.log('[historial] Attempting INSERT with:', JSON.stringify({
       coach_id: verified.coach.id,
-      coach_email: verified.coach.email,
       clienta_user_id: clientaUserId,
       calorias_antes: clienta.calorias_objetivo,
-      proteina_antes: clienta.proteina_objetivo,
-      carbs_antes: clienta.carbs_objetivo,
-      grasas_antes: clienta.grasas_objetivo,
       calorias_despues: caloriasNuevas,
+      proteina_antes: clienta.proteina_objetivo,
       proteina_despues: proteinaG,
+      carbs_antes: clienta.carbs_objetivo,
       carbs_despues: carbsG,
+      grasas_antes: clienta.grasas_objetivo,
       grasas_despues: grasasG,
-      nota: nota || null,
-    })
+      nota: nota ?? null,
+    }))
+    const { data: insertData, error: insertErr } = await sb.from('historial_coach').insert({
+      coach_id: verified.coach.id,
+      clienta_user_id: clientaUserId,
+      calorias_antes: clienta.calorias_objetivo,
+      calorias_despues: caloriasNuevas,
+      proteina_antes: clienta.proteina_objetivo,
+      proteina_despues: proteinaG,
+      carbs_antes: clienta.carbs_objetivo,
+      carbs_despues: carbsG,
+      grasas_antes: clienta.grasas_objetivo,
+      grasas_despues: grasasG,
+      nota: nota ?? null,
+    }).select()
 
-    if (historialError) {
-      console.error('[ajustar-plan] INSERT historial_coach FAILED:', JSON.stringify(historialError))
-    } else {
-      console.log('[ajustar-plan] INSERT historial_coach OK')
+    console.log('[historial] resultado INSERT:', JSON.stringify({ insertData, insertErr }))
+
+    if (insertErr) {
+      console.error('[historial] ERROR:', insertErr.message, insertErr.details, insertErr.hint)
     }
 
     return NextResponse.json({ success: true })
