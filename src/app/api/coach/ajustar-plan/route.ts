@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     if (!verified) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { clientaUserId, caloriasNuevas, proteinaPct, carbsPct, grasasPct, nota } = await req.json()
+    console.log('[ajustar-plan] Input:', { clientaUserId, caloriasNuevas, proteinaPct, carbsPct, grasasPct, coachId: verified.coach.id, coachEmail: verified.coach.email })
     if (!clientaUserId || !caloriasNuevas) {
       return NextResponse.json({ error: 'clientaUserId and caloriasNuevas required' }, { status: 400 })
     }
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert historial
+    console.log('[ajustar-plan] INSERT historial_coach con coach_id:', verified.coach.id, 'clienta:', clientaUserId)
     const { error: historialError } = await sb.from('historial_coach').insert({
       coach_id: verified.coach.id,
       coach_email: verified.coach.email,
@@ -87,7 +89,9 @@ export async function POST(req: NextRequest) {
     })
 
     if (historialError) {
-      console.error('Error insertando historial_coach:', historialError.message, historialError.details)
+      console.error('[ajustar-plan] INSERT historial_coach FAILED:', JSON.stringify(historialError))
+    } else {
+      console.log('[ajustar-plan] INSERT historial_coach OK')
     }
 
     // Regenerate calendar for the clienta
