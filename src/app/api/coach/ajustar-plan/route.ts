@@ -71,42 +71,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error updating: ' + updateErr.message }, { status: 500 })
     }
 
-    // Insert historial
-    console.log('[ajustar-plan] INSERT historial_coach con coach_id:', verified.coach.id, 'clienta:', clientaUserId)
-    const { error: historialError } = await sb.from('historial_coach').insert({
-      coach_id: verified.coach.id,
-      coach_email: verified.coach.email,
-      clienta_user_id: clientaUserId,
-      calorias_antes: clienta.calorias_objetivo,
-      proteina_antes: clienta.proteina_objetivo,
-      carbs_antes: clienta.carbs_objetivo,
-      grasas_antes: clienta.grasas_objetivo,
-      calorias_despues: caloriasNuevas,
-      proteina_despues: proteinaG,
-      carbs_despues: carbsG,
-      grasas_despues: grasasG,
-      nota: nota || null,
-    })
-
-    if (historialError) {
-      console.error('[ajustar-plan] INSERT historial_coach FAILED:', JSON.stringify(historialError))
-    } else {
-      console.log('[ajustar-plan] INSERT historial_coach OK')
-    }
-
     // Regenerate calendar for the clienta
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
 
-    // We need the clienta's access token for generar-plan (which uses authenticated client)
-    // Instead, we'll clear and regenerate using service role directly
     await sb.from('calendario').delete().eq('user_id', clientaUserId)
     await sb.from('lista_compras').delete().eq('user_id', clientaUserId)
 
-    // Call generar-plan via internal fetch (it needs userId + accessToken)
-    // Since we can't get the clienta's access token, we use a workaround:
-    // Import and call the generation logic. For now, just clear and let the clienta
-    // regenerate on next login. OR we can trigger it server-side.
-    // Best approach: call the API with service role workaround
     try {
       const genRes = await fetch(`${siteUrl}/api/generar-plan`, {
         method: 'POST',
@@ -133,6 +103,29 @@ export async function POST(req: NextRequest) {
       role: 'assistant',
       content: lucyMsg,
     })
+
+    // Insert historial — at the end so logs don't get truncated by generar-plan
+    console.log('[ajustar-plan] INSERT historial_coach con coach_id:', verified.coach.id, 'clienta:', clientaUserId)
+    const { error: historialError } = await sb.from('historial_coach').insert({
+      coach_id: verified.coach.id,
+      coach_email: verified.coach.email,
+      clienta_user_id: clientaUserId,
+      calorias_antes: clienta.calorias_objetivo,
+      proteina_antes: clienta.proteina_objetivo,
+      carbs_antes: clienta.carbs_objetivo,
+      grasas_antes: clienta.grasas_objetivo,
+      calorias_despues: caloriasNuevas,
+      proteina_despues: proteinaG,
+      carbs_despues: carbsG,
+      grasas_despues: grasasG,
+      nota: nota || null,
+    })
+
+    if (historialError) {
+      console.error('[ajustar-plan] INSERT historial_coach FAILED:', JSON.stringify(historialError))
+    } else {
+      console.log('[ajustar-plan] INSERT historial_coach OK')
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {
