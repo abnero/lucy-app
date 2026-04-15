@@ -36,6 +36,7 @@ export default function SeleccionAlimentosPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [hasCalendario, setHasCalendario] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
     if (!loading && !user) {
@@ -133,6 +134,7 @@ export default function SeleccionAlimentosPage() {
       router.push('/generando')
     } else {
       setPaso(paso + 1)
+      setBusqueda('')
     }
   }
 
@@ -252,14 +254,44 @@ export default function SeleccionAlimentosPage() {
           </p>
         </div>
 
-        {/* Grid */}
+        {/* Search + Grid */}
         {loadingAlimentos ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-lucy-muted text-sm">Cargando alimentos...</p>
           </div>
         ) : (
+          <>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar alimento..."
+            style={{
+              border: '1.5px solid #7B7FC4',
+              borderRadius: '12px',
+              padding: '10px 16px',
+              fontFamily: 'DM Sans, sans-serif',
+              background: 'white',
+              width: '100%',
+              fontSize: '15px',
+              outline: 'none',
+              marginBottom: '12px',
+              color: '#2D2B45',
+              boxSizing: 'border-box' as const,
+            }}
+          />
+          {(() => {
+            const alimentosFiltrados = alimentos.filter(a => a.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+            if (alimentosFiltrados.length === 0 && busqueda.length > 0) {
+              return (
+                <p style={{ color: '#9B99B8', fontSize: '14px', textAlign: 'center', padding: '16px 0' }}>
+                  No encontramos &quot;{busqueda}&quot;. Puedes pedírselo a Lucy en el chat después.
+                </p>
+              )
+            }
+            return (
           <div className="grid grid-cols-2 gap-3 mb-8">
-            {alimentos.map(alimento => {
+            {alimentosFiltrados.map(alimento => {
               const isSelected = selected.has(alimento.id)
               return (
                 <button
@@ -281,6 +313,9 @@ export default function SeleccionAlimentosPage() {
               )
             })}
           </div>
+            )
+          })()}
+          </>
         )}
 
         {error && (
