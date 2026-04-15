@@ -242,6 +242,51 @@ Genera el calendario de 7 días. Responde SOLO con JSON, sin texto adicional.`
       }
     }
 
+    // 8. Detect macro deficit and notify user
+    const { data: calWithFood } = await supabase
+      .from('calendario')
+      .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
+      .eq('user_id', userId)
+
+    if (calWithFood && calWithFood.length > 0) {
+      const dailyTotals: Record<number, { cal: number; prot: number }> = {}
+
+      for (const row of calWithFood) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const a = (Array.isArray(row.alimento) ? (row.alimento as any)[0] : row.alimento) as any
+        if (!a) continue
+        const ratio = a.unidad_medida === 'unidad' ? row.cantidad : row.cantidad / (a.porcion_base || 100)
+        if (!dailyTotals[row.dia]) dailyTotals[row.dia] = { cal: 0, prot: 0 }
+        dailyTotals[row.dia].cal += a.calorias_por_unidad * ratio
+        dailyTotals[row.dia].prot += (a.proteina_por_unidad || 0) * ratio
+      }
+
+      const days = Object.values(dailyTotals)
+      const avgCal = days.reduce((s, d) => s + d.cal, 0) / (days.length || 1)
+      const avgProt = days.reduce((s, d) => s + d.prot, 0) / (days.length || 1)
+      const calObjetivo = usuario.calorias_objetivo || 0
+      const protObjetivo = usuario.proteina_objetivo || 0
+
+      console.log('[deficit] calorias promedio:', Math.round(avgCal), 'objetivo:', calObjetivo)
+      console.log('[deficit] proteina promedio:', Math.round(avgProt), 'objetivo:', protObjetivo)
+
+      if (avgCal < calObjetivo * 0.90) {
+        await supabase.from('conversaciones').insert({
+          user_id: userId,
+          role: 'assistant',
+          content: `Noté que tu plan tiene un promedio de ${Math.round(avgCal)} calorías diarias, un poco por debajo de tu objetivo de ${Math.round(calObjetivo)} calorías. Esto puede pasar cuando los alimentos que escogiste son naturalmente bajos en calorías. ¿Quieres que te sugiera qué añadir para completar tus macros? 💜`,
+        })
+      }
+
+      if (avgProt < protObjetivo - 15) {
+        await supabase.from('conversaciones').insert({
+          user_id: userId,
+          role: 'assistant',
+          content: `También noté que tu proteína promedio es de ${Math.round(avgProt)}g, por debajo de tu objetivo de ${Math.round(protObjetivo)}g. Puedo sugerirte cómo completarla sin cambiar tus comidas principales. ¿Te ayudo?`,
+        })
+      }
+    }
+
     return NextResponse.json({ success: true, dias: plan.dias.length, items: calendarioRows.length })
   } catch (err) {
     console.error('generar-plan error:', err)
