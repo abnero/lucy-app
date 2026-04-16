@@ -335,14 +335,14 @@ export default function SeleccionAlimentosPage() {
         {mostrarWarningProteina && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4 mb-4">
             <p className="text-sm font-medium text-yellow-800 mb-1">
-              ⚠️ Este desayuno no tiene fuente de proteína
+              ⚠️ No has escogido una fuente de proteína para este desayuno
             </p>
             <p className="text-xs text-yellow-700 leading-relaxed mb-2">
-              Considera agregar Huevo, Clara de Huevo, Yogur Griego o Proteína en Polvo para balancear tu plan.
+              Considera escoger Huevo, Clara de Huevo, Yogur Griego o Proteína en Polvo para balancear tu plan.
               Sin proteína en el desayuno, Lucy tendrá que compensar en otras comidas.
             </p>
             <p className="text-[11px] text-yellow-600">
-              Puedes continuar sin proteína o volver a seleccionar.
+              Puedes continuar sin proteína o seguir escogiendo opciones.
             </p>
           </div>
         )}
