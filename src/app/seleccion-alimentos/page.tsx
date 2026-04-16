@@ -37,6 +37,7 @@ export default function SeleccionAlimentosPage() {
   const [error, setError] = useState('')
   const [hasCalendario, setHasCalendario] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const [rolesAlimentos, setRolesAlimentos] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,6 +67,9 @@ export default function SeleccionAlimentosPage() {
       .order('nombre')
       .then(({ data }) => {
         setAlimentos(data ?? [])
+        const roles: Record<string, string[]> = {}
+        data?.forEach(a => { roles[a.id] = a.rol_permitido })
+        setRolesAlimentos(roles)
         setLoadingAlimentos(false)
       })
   }, [paso, user])
@@ -84,6 +88,11 @@ export default function SeleccionAlimentosPage() {
       return { ...prev, [paso]: current }
     })
   }, [paso, config.max])
+
+  const tieneProteinaSeleccionada = Array.from(selected).some(
+    id => rolesAlimentos[id]?.includes('Proteina')
+  )
+  const mostrarWarningProteina = (paso === 0 || paso === 1) && selected.size > 0 && !tieneProteinaSeleccionada
 
   const canAdvance = selected.size >= config.min
   const isLastStep = paso === PASOS.length - 1
@@ -320,6 +329,22 @@ export default function SeleccionAlimentosPage() {
 
         {error && (
           <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3 mb-4">{error}</p>
+        )}
+
+        {/* Protein warning for breakfast steps */}
+        {mostrarWarningProteina && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4 mb-4">
+            <p className="text-sm font-medium text-yellow-800 mb-1">
+              ⚠️ Este desayuno no tiene fuente de proteína
+            </p>
+            <p className="text-xs text-yellow-700 leading-relaxed mb-2">
+              Considera agregar Huevo, Clara de Huevo, Yogur Griego o Proteína en Polvo para balancear tu plan.
+              Sin proteína en el desayuno, Lucy tendrá que compensar en otras comidas.
+            </p>
+            <p className="text-[11px] text-yellow-600">
+              Puedes continuar sin proteína o volver a seleccionar.
+            </p>
+          </div>
         )}
 
         {/* Navigation */}
