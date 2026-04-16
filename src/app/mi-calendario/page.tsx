@@ -8,6 +8,10 @@ import ChatPanel from '@/components/ChatPanel'
 import FoodAvatar from '@/components/FoodAvatar'
 import FoodWizard, { WizardAlimento } from '@/components/FoodWizard'
 import { toImperial } from '@/lib/units'
+import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
+import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
+import { registrarCambioEnChat } from '@/lib/registrar-cambio-lucy'
+import { nombreDiaCompleto, type AlimentoCalendario } from '@/lib/analisis-calorico'
 
 interface CalendarioItem {
   id: string
@@ -25,6 +29,8 @@ interface CalendarioItem {
     carbs_por_unidad: number
     grasas_por_unidad: number
     porcion_base: number
+    porcion_min: number
+    porcion_max: number
     unidad_medida: string
     unidad_display: string | null
     factor_conversion: number | null
@@ -114,7 +120,7 @@ export default function MiCalendarioPage() {
     console.log('[Calendar] fetchCalendar triggered')
     supabase
       .from('calendario')
-      .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
+      .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
       .eq('user_id', user.id)
       .order('dia')
       .order('comida')
@@ -138,7 +144,7 @@ export default function MiCalendarioPage() {
       Promise.all([
         supabase
           .from('calendario')
-          .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
+          .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
           .eq('user_id', user.id)
           .order('dia')
           .order('comida'),
@@ -221,6 +227,61 @@ export default function MiCalendarioPage() {
   const itemsDelDia = items.filter(i => i.dia === diaActivo)
   const hasSnacks = items.some(i => i.comida === 'snack')
   const comidasSemana = hasSnacks ? [...COMIDAS_BASE, { key: 'snack', label: 'Snack' }] : COMIDAS_BASE
+
+  // Map calendar items to AlimentoCalendario format for analysis hook
+  const alimentosParaAnalisis: AlimentoCalendario[] = items
+    .filter(i => i.alimento && (i.comida === 'desayuno' || i.comida === 'almuerzo' || i.comida === 'cena'))
+    .map(i => ({
+      alimento_id: i.alimento_id,
+      nombre: i.alimento.nombre,
+      cantidad: i.cantidad,
+      unidad_medida: (i.alimento.unidad_medida as 'gramos' | 'ml' | 'unidad'),
+      porcion_base: i.alimento.porcion_base,
+      porcion_min: i.alimento.porcion_min,
+      porcion_max: i.alimento.porcion_max,
+      calorias_por_unidad: i.alimento.calorias_por_unidad,
+      proteina_por_unidad: i.alimento.proteina_por_unidad,
+      comida: i.comida as 'desayuno' | 'almuerzo' | 'cena',
+      dia: i.dia,
+    }))
+
+  console.log('[analisis] Objetivos:', { objetivo_calorias: objetivos.cal, objetivo_proteina: objetivos.prot, alimentos_count: alimentosParaAnalisis.length })
+
+  const { resultado, diasProblematicos, getDiaDato, aplicarSugerencia } = useAnalisisCalorico({
+    alimentos: alimentosParaAnalisis,
+    objetivo_calorias: objetivos.cal,
+    objetivo_proteina: objetivos.prot,
+    onCambiarCantidad: async ({ alimento_id, nombre, comida, dia, cantidad_nueva }) => {
+      if (!user) return
+      const target = items.find(i => i.alimento_id === alimento_id && i.comida === comida && i.dia === dia)
+      if (!target) return
+
+      await supabase
+        .from('calendario')
+        .update({ cantidad: cantidad_nueva })
+        .eq('id', target.id)
+
+      const cpu = target.alimento.unidad_medida === 'unidad'
+        ? target.alimento.calorias_por_unidad
+        : target.alimento.calorias_por_unidad / (target.alimento.porcion_base || 100)
+      const impacto_calorias = Math.round((cantidad_nueva - target.cantidad) * cpu)
+
+      await registrarCambioEnChat({
+        user_id: user.id,
+        nombre_alimento: nombre,
+        comida,
+        dia_nombre: nombreDiaCompleto(dia),
+        cantidad_anterior: target.cantidad,
+        cantidad_nueva,
+        unidad_medida: target.alimento.unidad_medida,
+        impacto_calorias,
+      })
+
+      setItems(prev => prev.map(it =>
+        it.id === target.id ? { ...it, cantidad: cantidad_nueva } : it
+      ))
+    },
+  })
 
   const exportarPdf = useCallback(async () => {
     if (exportingPdf) return
@@ -352,6 +413,8 @@ export default function MiCalendarioPage() {
           carbs_por_unidad: nuevoAlimento.carbs_por_unidad,
           grasas_por_unidad: nuevoAlimento.grasas_por_unidad,
           porcion_base: nuevoAlimento.porcion_base,
+          porcion_min: nuevoAlimento.porcion_min,
+          porcion_max: nuevoAlimento.porcion_max,
           unidad_medida: nuevoAlimento.unidad_medida,
           unidad_display: nuevoAlimento.unidad_display,
           factor_conversion: nuevoAlimento.factor_conversion,
@@ -424,27 +487,42 @@ export default function MiCalendarioPage() {
       </div>
 
       {vista === 'dia' && (<>
+      {/* Banner resumen análisis calórico */}
+      {resultado && <BannerResumen resultado={resultado} onVerDetalle={() => {
+        if (!resultado.dias_problematicos.length || animating.current) return
+        // Find first problematic day that is NOT the current day, fallback to first
+        const target = resultado.dias_problematicos.find(d => d.dia !== diaActivo) ?? resultado.dias_problematicos[0]
+        if (target.dia === diaActivo) return
+        changeDia(target.dia, target.dia > diaActivo ? 'left' : 'right')
+      }} />}
+
       {/* Day tabs */}
       <div className="px-4 mb-4">
         <div className="max-w-lg mx-auto">
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-            {DIAS.map((dia, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  const newDia = i + 1
-                  if (newDia === diaActivo || animating.current) return
-                  changeDia(newDia, newDia > diaActivo ? 'left' : 'right')
-                }}
-                className={`shrink-0 px-3 py-2 rounded-btn text-xs transition-colors ${
-                  diaActivo === i + 1
-                    ? 'bg-lucy-accent text-white'
-                    : 'bg-lucy-white border border-lucy-border text-lucy-muted hover:border-lucy-soft'
-                }`}
-              >
-                {dia.slice(0, 3)}
-              </button>
-            ))}
+            {DIAS.map((dia, i) => {
+              const diaNum = i + 1
+              const esProblematico = diasProblematicos.has(diaNum)
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (diaNum === diaActivo || animating.current) return
+                    changeDia(diaNum, diaNum > diaActivo ? 'left' : 'right')
+                  }}
+                  className={`relative shrink-0 px-3 py-2 rounded-btn text-xs transition-colors ${
+                    diaActivo === diaNum
+                      ? 'bg-lucy-accent text-white'
+                      : 'bg-lucy-white border border-lucy-border text-lucy-muted hover:border-lucy-soft'
+                  }`}
+                >
+                  {dia.slice(0, 3)}
+                  {esProblematico && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-lucy-bg" aria-label="Día fuera de meta" />
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -457,6 +535,14 @@ export default function MiCalendarioPage() {
           </button>
         </div>
       </div>
+
+      {/* Banner análisis día */}
+      {(() => {
+        const diaDato = getDiaDato(diaActivo)
+        return diaDato ? (
+          <BannerAnalisisDia diaDato={diaDato} onAplicarSugerencia={aplicarSugerencia} />
+        ) : null
+      })()}
 
       {/* Day macros modal */}
       {showDayMacros && (() => {
