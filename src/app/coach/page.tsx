@@ -198,7 +198,7 @@ export default function CoachPage() {
       // Refresh calendar + historial
       setSelected({ ...selected, calorias_objetivo: parseInt(calorias) })
       setClientas(prev => prev.map(c => c.id === selected.id ? { ...c, calorias_objetivo: parseInt(calorias) } : c))
-      // Re-fetch historial
+      // Re-fetch calendario + historial
       if (session?.access_token) {
         fetch('/api/coach/clientas', {
           method: 'POST',
@@ -206,7 +206,16 @@ export default function CoachPage() {
           body: JSON.stringify({ clientaId: selected.id }),
         })
           .then(r => r.json())
-          .then(d => { if (d.historial) setHistorial(d.historial) })
+          .then(d => {
+            if (d.historial) setHistorial(d.historial)
+            if (d.calendario) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              setCalItems(d.calendario.map((r: any) => ({
+                ...r,
+                alimento: Array.isArray(r.alimento) ? r.alimento[0] : r.alimento,
+              })))
+            }
+          })
           .catch(() => {})
       }
     } else {

@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     await sb.from('lista_compras').delete().eq('user_id', clientaUserId)
 
     try {
+      console.log('[ajustar-plan] Calling generar-plan for clienta:', clientaUserId)
       const genRes = await fetch(`${siteUrl}/api/generar-plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,9 +108,11 @@ export async function POST(req: NextRequest) {
       const genData = await genRes.json()
       if (genData.error) {
         console.error('[ajustar-plan] generar-plan error:', genData.error)
+      } else {
+        console.log('[ajustar-plan] generar-plan OK:', genData.dias, 'dias,', genData.items, 'items')
       }
     } catch (genErr) {
-      console.error('[ajustar-plan] generar-plan fetch failed:', genErr)
+      console.error('[ajustar-plan] generar-plan fetch failed:', genErr instanceof Error ? genErr.message : genErr)
     }
 
     // Insert Lucy message in clienta's chat
