@@ -71,6 +71,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error updating: ' + updateErr.message }, { status: 500 })
     }
 
+    // Insert historial BEFORE generar-plan (which can take 30+ sec and cause timeout)
+    const { data: insertData, error: insertErr } = await sb.from('historial_coach').insert({
+      coach_id: verified.coach.id,
+      clienta_user_id: clientaUserId,
+      calorias_antes: clienta.calorias_objetivo,
+      calorias_despues: caloriasNuevas,
+      proteina_antes: clienta.proteina_objetivo,
+      proteina_despues: proteinaG,
+      carbs_antes: clienta.carbs_objetivo,
+      carbs_despues: carbsG,
+      grasas_antes: clienta.grasas_objetivo,
+      grasas_despues: grasasG,
+      nota: nota ?? null,
+    }).select()
+
+    if (insertErr) {
+      console.error('[historial] INSERT FAILED:', insertErr.message, insertErr.details, insertErr.hint, insertErr.code)
+    } else {
+      console.log('[historial] INSERT OK, id:', insertData?.[0]?.id)
+    }
+
     // Regenerate calendar for the clienta
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
 
@@ -103,40 +124,6 @@ export async function POST(req: NextRequest) {
       role: 'assistant',
       content: lucyMsg,
     })
-
-    // Insert historial — at the end so logs don't get truncated by generar-plan
-    console.log('[historial] Attempting INSERT with:', JSON.stringify({
-      coach_id: verified.coach.id,
-      clienta_user_id: clientaUserId,
-      calorias_antes: clienta.calorias_objetivo,
-      calorias_despues: caloriasNuevas,
-      proteina_antes: clienta.proteina_objetivo,
-      proteina_despues: proteinaG,
-      carbs_antes: clienta.carbs_objetivo,
-      carbs_despues: carbsG,
-      grasas_antes: clienta.grasas_objetivo,
-      grasas_despues: grasasG,
-      nota: nota ?? null,
-    }))
-    const { data: insertData, error: insertErr } = await sb.from('historial_coach').insert({
-      coach_id: verified.coach.id,
-      clienta_user_id: clientaUserId,
-      calorias_antes: clienta.calorias_objetivo,
-      calorias_despues: caloriasNuevas,
-      proteina_antes: clienta.proteina_objetivo,
-      proteina_despues: proteinaG,
-      carbs_antes: clienta.carbs_objetivo,
-      carbs_despues: carbsG,
-      grasas_antes: clienta.grasas_objetivo,
-      grasas_despues: grasasG,
-      nota: nota ?? null,
-    }).select()
-
-    console.log('[historial] resultado INSERT:', JSON.stringify({ insertData, insertErr }))
-
-    if (insertErr) {
-      console.error('[historial] ERROR:', insertErr.message, insertErr.details, insertErr.hint)
-    }
 
     return NextResponse.json({ success: true })
   } catch (err) {
