@@ -937,7 +937,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       }
     }
 
-    // Post-generation calorie verification (safety net)
+    // Post-generation analysis + personalized Lucy message
     const { data: calWithFood } = await supabase
       .from('calendario')
       .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
@@ -954,10 +954,32 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         dailyTotals[row.dia].cal += a.calorias_por_unidad * ratio
         dailyTotals[row.dia].prot += (a.proteina_por_unidad || 0) * ratio
       }
+
       const days = Object.values(dailyTotals)
       const avgCal = days.reduce((s, d) => s + d.cal, 0) / (days.length || 1)
       const avgProt = days.reduce((s, d) => s + d.prot, 0) / (days.length || 1)
       console.log('[plan] Verificación post-generación — cal promedio:', Math.round(avgCal), 'prot promedio:', Math.round(avgProt))
+
+      const diasBajosProteina = days.filter(d => d.prot < protTarget * 0.85).length
+      const diasFueraCalorias = days.filter(d => Math.abs(d.cal - calTarget) > calTarget * 0.10).length
+
+      let lucyPostMsg: string
+      if (diasBajosProteina >= 5) {
+        lucyPostMsg = `¡Hola! Acabo de revisar tu plan y quiero contarte algo importante 💜 Veo que en la mayoría de los días te va a faltar proteína para llegar a tu meta. Esto no significa que el plan esté mal — significa que los alimentos que escogiste no alcanzan para cubrir tus ${protTarget}g de proteína diaria. Te recomiendo añadir una fuente de proteína a tu desayuno: Yogur Griego, Clara de Huevo o Proteína en Polvo funcionan perfecto. ¿Quieres que ajustemos el plan juntas?`
+      } else if (diasBajosProteina >= 2) {
+        lucyPostMsg = `¡Hola! Ya tengo tu plan listo 🎉 Solo quiero avisarte que ${diasBajosProteina} días de tu semana van a quedar un poco bajos en proteína — específicamente los días con tu Desayuno 2. Nada que no se pueda resolver: puedes pedirme que te sugiera un snack proteico para esos días o ajustamos las porciones. Estoy aquí cuando me necesites 💜`
+      } else {
+        lucyPostMsg = `¡Hola! Tu plan de la semana está listo y se ve muy bien 🎉 Tus calorías y proteína están alineadas con tu meta. Recuerda que puedes pedirme cualquier cambio — swap de alimentos, recetas, snacks — cuando quieras. ¡Vamos con todo esta semana! 💜`
+      }
+
+      console.log('[plan] Post-msg:', diasBajosProteina, 'días bajos proteína,', diasFueraCalorias, 'días fuera calorías')
+
+      await supabase.from('conversaciones').insert({
+        user_id: userId,
+        role: 'assistant',
+        content: lucyPostMsg,
+        leido: false,
+      })
     }
 
     return NextResponse.json({ success: true, dias: plan.dias.length, items: calendarioRows.length })

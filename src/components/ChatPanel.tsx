@@ -23,7 +23,16 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [showHint, setShowHint] = useState(false)
+  const [tieneNoLeidos, setTieneNoLeidos] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const historyLoaded = useRef(false)
+
+  // Get userId from session (independent of useAuth timing)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUserId(data.session?.user?.id ?? null)
+    })
+  }, [])
 
   // Load chat history when panel opens for the first time
   const loadHistory = useCallback(async () => {
@@ -58,9 +67,41 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
     }
   }, [user])
 
+  // Check for unread messages
+  const checkNoLeidos = useCallback(async () => {
+    if (!userId) return
+    const { count, error } = await supabase
+      .from('conversaciones')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('role', 'assistant')
+      .eq('leido', false)
+    setTieneNoLeidos((count ?? 0) > 0)
+  }, [userId])
+
+  // Check on mount + when userId becomes available
   useEffect(() => {
-    if (open) loadHistory()
-  }, [open, loadHistory])
+    checkNoLeidos()
+  }, [checkNoLeidos])
+
+  useEffect(() => {
+    if (open) {
+      loadHistory()
+      // Mark ALL unread messages as read when chat opens (don't gate on tieneNoLeidos)
+      if (userId) {
+        supabase
+          .from('conversaciones')
+          .update({ leido: true })
+          .eq('user_id', userId)
+          .eq('role', 'assistant')
+          .eq('leido', false)
+          .then(() => setTieneNoLeidos(false))
+      }
+    } else if (userId) {
+      // Re-check for unread when chat closes
+      checkNoLeidos()
+    }
+  }, [open, loadHistory, userId, checkNoLeidos])
 
   // Show badge every time component mounts
   useEffect(() => {
@@ -165,6 +206,9 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
           className="relative w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center hover:opacity-90 transition-opacity"
         >
           <span className="font-logo text-white text-xl">L</span>
+          {tieneNoLeidos && (
+            <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white" />
+          )}
         </button>
       </div>
 
