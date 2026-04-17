@@ -15,6 +15,7 @@ export interface AlimentoCalendario {
   proteina_por_unidad: number;
   comida: "desayuno" | "almuerzo" | "cena";
   dia: number;
+  rol_permitido: string[];
 }
 
 export interface MacrosDia {
@@ -176,28 +177,42 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
 
   if (hayDeficit) {
     const aumentables = ordenados
-      .filter((a) => a.cantidad < a.porcion_max)
+      .filter((a) => {
+        if (a.cantidad >= a.porcion_max) return false;
+        if (hayDeficitProteina) return (a.rol_permitido || []).includes("Proteina");
+        return true;
+      })
       .sort((a, b) => {
         if (hayDeficitProteina) return b.proteina_por_unidad - a.proteina_por_unidad;
         const densA = a.unidad_medida === "unidad" ? a.calorias_por_unidad : a.calorias_por_unidad / a.porcion_base;
         const densB = b.unidad_medida === "unidad" ? b.calorias_por_unidad : b.calorias_por_unidad / b.porcion_base;
         return densB - densA;
       });
-    for (const alimento of aumentables) {
-      if (sugerencias.length >= 3) break;
-      const cals_actuales = calcularCalorias(alimento);
-      const cals_nueva = Math.min(calcularCaloriasParaCantidad(alimento, alimento.porcion_max), cals_actuales + Math.abs(diferencia_calorias));
-      const cantidad_nueva = calcularCantidadParaCalorias(alimento, cals_nueva);
-      if (cantidad_nueva <= alimento.porcion_max && cantidad_nueva > alimento.cantidad) {
-        const impacto_cal = calcularCaloriasParaCantidad(alimento, cantidad_nueva) - cals_actuales;
-        const impacto_prot = calcularProteinaParaCantidad(alimento, cantidad_nueva) - calcularProteina(alimento);
-        sugerencias.push({
-          tipo: "aumentar", alimento_id: alimento.alimento_id, nombre: alimento.nombre, comida: alimento.comida,
-          cantidad_actual: alimento.cantidad, cantidad_nueva: Math.round(cantidad_nueva * 10) / 10,
-          unidad_medida: alimento.unidad_medida, impacto_calorias: Math.round(impacto_cal),
-          impacto_proteina: Math.round(impacto_prot * 10) / 10,
-          descripcion: formatearSugerencia("aumentar", alimento, alimento.cantidad, Math.round(cantidad_nueva * 10) / 10, Math.round(impacto_cal)),
-        });
+
+    if (hayDeficitProteina && aumentables.length === 0) {
+      sugerencias.push({
+        tipo: "agregar_snack", alimento_id: "", nombre: "Snack proteico", comida: "cena",
+        cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
+        impacto_calorias: 150, impacto_proteina: Math.round(Math.abs(diferencia_proteina)),
+        descripcion: `Ningún alimento de tu plan tiene margen para aumentar proteína. Pregúntale a Lucy en el chat — puede sugerirte un snack proteico personalizado para este día.`,
+      });
+    } else {
+      for (const alimento of aumentables) {
+        if (sugerencias.length >= 3) break;
+        const cals_actuales = calcularCalorias(alimento);
+        const cals_nueva = Math.min(calcularCaloriasParaCantidad(alimento, alimento.porcion_max), cals_actuales + Math.abs(diferencia_calorias));
+        const cantidad_nueva = calcularCantidadParaCalorias(alimento, cals_nueva);
+        if (cantidad_nueva <= alimento.porcion_max && cantidad_nueva > alimento.cantidad) {
+          const impacto_cal = calcularCaloriasParaCantidad(alimento, cantidad_nueva) - cals_actuales;
+          const impacto_prot = calcularProteinaParaCantidad(alimento, cantidad_nueva) - calcularProteina(alimento);
+          sugerencias.push({
+            tipo: "aumentar", alimento_id: alimento.alimento_id, nombre: alimento.nombre, comida: alimento.comida,
+            cantidad_actual: alimento.cantidad, cantidad_nueva: Math.round(cantidad_nueva * 10) / 10,
+            unidad_medida: alimento.unidad_medida, impacto_calorias: Math.round(impacto_cal),
+            impacto_proteina: Math.round(impacto_prot * 10) / 10,
+            descripcion: formatearSugerencia("aumentar", alimento, alimento.cantidad, Math.round(cantidad_nueva * 10) / 10, Math.round(impacto_cal)),
+          });
+        }
       }
     }
     if (sugerencias.length < 3) {

@@ -243,6 +243,7 @@ export default function MiCalendarioPage() {
       proteina_por_unidad: i.alimento.proteina_por_unidad,
       comida: i.comida as 'desayuno' | 'almuerzo' | 'cena',
       dia: i.dia,
+      rol_permitido: i.alimento.rol_permitido ?? [],
     }))
 
   console.log('[analisis] Objetivos:', { objetivo_calorias: objetivos.cal, objetivo_proteina: objetivos.prot, alimentos_count: alimentosParaAnalisis.length })
