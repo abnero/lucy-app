@@ -45,7 +45,7 @@ function GenerandoContent() {
       setMsgIndex(prev => (prev + 1) % mensajes.length)
     }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [mensajes.length])
 
   // Animate progress gradually up to 90%
   useEffect(() => {
