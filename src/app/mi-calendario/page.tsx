@@ -246,8 +246,6 @@ export default function MiCalendarioPage() {
       rol_permitido: i.alimento.rol_permitido ?? [],
     }))
 
-  console.log('[analisis] Objetivos:', { objetivo_calorias: objetivos.cal, objetivo_proteina: objetivos.prot, alimentos_count: alimentosParaAnalisis.length })
-
   const { resultado, diasProblematicos, getDiaDato, aplicarSugerencia } = useAnalisisCalorico({
     alimentos: alimentosParaAnalisis,
     objetivo_calorias: objetivos.cal,
@@ -669,7 +667,9 @@ export default function MiCalendarioPage() {
                       <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} />
                       <div>
                         <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
-                        <p className="text-xs text-lucy-muted">{item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}</p>
+                        <p className="text-xs text-lucy-muted">
+                          {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
+                        </p>
                       </div>
                     </button>
                   ))}
@@ -773,7 +773,9 @@ export default function MiCalendarioPage() {
                           <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-lucy-text leading-tight" style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>{item.alimento?.nombre}</p>
-                            <p className="text-[9px] text-lucy-muted leading-tight">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
+                            <p className="text-[9px] text-lucy-muted leading-tight">
+                              {item.alimento ? toImperial(item.cantidad, item.alimento) : ''}
+                            </p>
                           </div>
                         </div>
                       ))}

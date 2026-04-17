@@ -38,30 +38,31 @@ export function toImperial(cantidad: number, alimento: Alimento): string {
   }
 
   const displayValue = cantidad / factor
+  const gramSuffix = baseUnit === 'ml' ? ` (${Math.round(cantidad)}ml)` : ` (${Math.round(cantidad)}g)`
 
   switch (display) {
     case 'oz': {
       const rounded = Math.round(displayValue * 10) / 10
-      return `${rounded} oz`
+      return `${rounded} oz${gramSuffix}`
     }
     case 'fl_oz': {
       const rounded = Math.round(displayValue * 10) / 10
-      return `${rounded} fl oz`
+      return `${rounded} fl oz${gramSuffix}`
     }
     case 'cup': {
-      return `${toFraction(displayValue)} ${displayValue > 1 ? 'tazas' : 'taza'}`
+      return `${toFraction(displayValue)} ${displayValue > 1 ? 'tazas' : 'taza'}${gramSuffix}`
     }
     case 'tbsp': {
       const rounded = Math.max(1, Math.round(displayValue))
-      return `${rounded} ${rounded === 1 ? 'cda' : 'cdas'}`
+      return `${rounded} ${rounded === 1 ? 'cda' : 'cdas'}${gramSuffix}`
     }
     case 'scoop': {
       const rounded = Math.max(1, Math.round(displayValue))
-      return `${rounded} scoop`
+      return `${rounded} scoop${gramSuffix}`
     }
     case 'tajada': {
       const n = Math.max(1, Math.round(displayValue))
-      return `${n} ${n === 1 ? 'tajada' : 'tajadas'}`
+      return `${n} ${n === 1 ? 'tajada' : 'tajadas'}${gramSuffix}`
     }
     case 'unidad': {
       const n = Math.round(displayValue)
