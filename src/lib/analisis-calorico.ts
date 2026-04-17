@@ -140,8 +140,8 @@ function formatearSugerencia(tipo: "reducir" | "aumentar", alimento: AlimentoCal
 
 function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | null): Sugerencia[] {
   const sugerencias: Sugerencia[] = [];
-  const hayExceso = diferencia_calorias > 0;
-  const hayDeficit = diferencia_calorias < 0;
+  const hayExceso = diferencia_calorias > 20;
+  const hayDeficit = diferencia_calorias < -20;
   const hayDeficitProteina = diferencia_proteina < -10;
   const ordenados = comida_problematica
     ? [...alimentosDia.filter((a) => a.comida === comida_problematica), ...alimentosDia.filter((a) => a.comida !== comida_problematica)]
@@ -162,6 +162,8 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
       const cals_objetivo = Math.max(calcularCaloriasParaCantidad(alimento, alimento.porcion_min), cals_actuales - Math.abs(diferencia_calorias));
       const cantidad_nueva = calcularCantidadParaCalorias(alimento, cals_objetivo);
       if (cantidad_nueva >= alimento.porcion_min && cantidad_nueva < alimento.cantidad) {
+        const minDiff = alimento.unidad_medida === "unidad" ? 0.5 : 2;
+        if (Math.abs(cantidad_nueva - alimento.cantidad) < minDiff) continue;
         const impacto_cal = calcularCaloriasParaCantidad(alimento, cantidad_nueva) - cals_actuales;
         const impacto_prot = calcularProteinaParaCantidad(alimento, cantidad_nueva) - calcularProteina(alimento);
         sugerencias.push({
@@ -190,11 +192,12 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
       });
 
     if (hayDeficitProteina && aumentables.length === 0) {
+      const protFaltante = Math.round(Math.abs(diferencia_proteina));
       sugerencias.push({
         tipo: "agregar_snack", alimento_id: "", nombre: "Snack proteico", comida: "cena",
         cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
-        impacto_calorias: 150, impacto_proteina: Math.round(Math.abs(diferencia_proteina)),
-        descripcion: `Ningún alimento de tu plan tiene margen para aumentar proteína. Pregúntale a Lucy en el chat — puede sugerirte un snack proteico personalizado para este día.`,
+        impacto_calorias: 0, impacto_proteina: protFaltante,
+        descripcion: `Agrega un snack proteico para cubrir ~${protFaltante}g de proteína. Por ejemplo: 1 taza de Yogur Griego (+10g prot), ½ lata de Atún (+14g prot), o 3 claras de huevo (+11g prot). Pregúntale a Lucy en el chat cuál encaja mejor con tu plan.`,
       });
     } else {
       for (const alimento of aumentables) {
@@ -203,6 +206,8 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
         const cals_nueva = Math.min(calcularCaloriasParaCantidad(alimento, alimento.porcion_max), cals_actuales + Math.abs(diferencia_calorias));
         const cantidad_nueva = calcularCantidadParaCalorias(alimento, cals_nueva);
         if (cantidad_nueva <= alimento.porcion_max && cantidad_nueva > alimento.cantidad) {
+          const minDiff = alimento.unidad_medida === "unidad" ? 0.5 : 2;
+          if (Math.abs(cantidad_nueva - alimento.cantidad) < minDiff) continue;
           const impacto_cal = calcularCaloriasParaCantidad(alimento, cantidad_nueva) - cals_actuales;
           const impacto_prot = calcularProteinaParaCantidad(alimento, cantidad_nueva) - calcularProteina(alimento);
           sugerencias.push({
@@ -216,13 +221,66 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
       }
     }
     if (sugerencias.length < 3) {
-      sugerencias.push({
-        tipo: "agregar_snack", alimento_id: "", nombre: "Snack", comida: "cena",
-        cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
-        impacto_calorias: Math.round(Math.abs(diferencia_calorias)), impacto_proteina: 0,
-        descripcion: `Agregar un snack de ~${Math.round(Math.abs(diferencia_calorias))} kcal para completar tu meta. Pregúntale a Lucy qué snack encaja mejor con tu plan.`,
-      });
+      if (hayDeficitProteina) {
+        const protFalt = Math.round(Math.abs(diferencia_proteina));
+        sugerencias.push({
+          tipo: "agregar_snack", alimento_id: "", nombre: "Snack proteico", comida: "cena",
+          cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
+          impacto_calorias: 0, impacto_proteina: protFalt,
+          descripcion: `Agrega un snack proteico para cubrir ~${protFalt}g de proteína. Por ejemplo: 1 taza de Yogur Griego (+10g prot), ½ lata de Atún (+14g prot), o 3 claras de huevo (+11g prot). Pregúntale a Lucy en el chat cuál encaja mejor con tu plan.`,
+        });
+      } else {
+        sugerencias.push({
+          tipo: "agregar_snack", alimento_id: "", nombre: "Snack", comida: "cena",
+          cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
+          impacto_calorias: Math.round(Math.abs(diferencia_calorias)), impacto_proteina: 0,
+          descripcion: `Agregar un snack de ~${Math.round(Math.abs(diferencia_calorias))} kcal para completar tu meta. Pregúntale a Lucy qué snack encaja mejor con tu plan.`,
+        });
+      }
     }
+  }
+
+  // Handle protein-only deficit (no caloric deficit)
+  if (hayDeficitProteina && !hayDeficit && !hayExceso && sugerencias.length === 0) {
+    // Try to increase protein foods
+    const protFoods = alimentosDia
+      .filter((a) => (a.rol_permitido || []).includes("Proteina") && a.cantidad < a.porcion_max)
+      .sort((a, b) => {
+        const ppuA = a.unidad_medida === "unidad" ? a.proteina_por_unidad : a.proteina_por_unidad / a.porcion_base;
+        const ppuB = b.unidad_medida === "unidad" ? b.proteina_por_unidad : b.proteina_por_unidad / b.porcion_base;
+        return ppuB - ppuA;
+      });
+
+    for (const alimento of protFoods) {
+      if (sugerencias.length >= 2) break;
+      const ppu = alimento.unidad_medida === "unidad" ? alimento.proteina_por_unidad : alimento.proteina_por_unidad / alimento.porcion_base;
+      if (ppu <= 0) continue;
+      const extraNeeded = Math.abs(diferencia_proteina);
+      const extraQty = extraNeeded / ppu;
+      const cantidad_nueva = Math.min(alimento.porcion_max, Math.round((alimento.cantidad + extraQty) * 10) / 10);
+      if (cantidad_nueva > alimento.cantidad) {
+        const minDiff = alimento.unidad_medida === "unidad" ? 0.5 : 2;
+        if (Math.abs(cantidad_nueva - alimento.cantidad) < minDiff) continue;
+        const impacto_prot = calcularProteinaParaCantidad(alimento, cantidad_nueva) - calcularProteina(alimento);
+        const impacto_cal = calcularCaloriasParaCantidad(alimento, cantidad_nueva) - calcularCalorias(alimento);
+        sugerencias.push({
+          tipo: "aumentar", alimento_id: alimento.alimento_id, nombre: alimento.nombre, comida: alimento.comida,
+          cantidad_actual: alimento.cantidad, cantidad_nueva,
+          unidad_medida: alimento.unidad_medida, impacto_calorias: Math.round(impacto_cal),
+          impacto_proteina: Math.round(impacto_prot * 10) / 10,
+          descripcion: formatearSugerencia("aumentar", alimento, alimento.cantidad, cantidad_nueva, Math.round(impacto_cal)),
+        });
+      }
+    }
+
+    // Always add protein snack suggestion
+    const protFaltante = Math.round(Math.abs(diferencia_proteina));
+    sugerencias.push({
+      tipo: "agregar_snack", alimento_id: "", nombre: "Snack proteico", comida: "cena",
+      cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
+      impacto_calorias: 0, impacto_proteina: protFaltante,
+      descripcion: `Agrega un snack proteico para cubrir ~${protFaltante}g de proteína. Por ejemplo: 1 taza de Yogur Griego (+10g prot), ½ lata de Atún (+14g prot), o 3 claras de huevo (+11g prot). Pregúntale a Lucy en el chat cuál encaja mejor con tu plan.`,
+    });
   }
 
   return sugerencias.slice(0, 3);
