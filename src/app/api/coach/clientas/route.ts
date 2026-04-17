@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         .order('comida'),
       sb
         .from('historial_coach')
-        .select('id, created_at, coach_email, calorias_antes, calorias_despues, proteina_antes, proteina_despues, carbs_antes, carbs_despues, grasas_antes, grasas_despues, nota')
+        .select('id, created_at, coach_id, calorias_antes, calorias_despues, proteina_antes, proteina_despues, carbs_antes, carbs_despues, grasas_antes, grasas_despues, nota, coach:coaches!coach_id(email)')
         .eq('clienta_user_id', clientaId)
         .order('created_at', { ascending: false })
         .limit(10),

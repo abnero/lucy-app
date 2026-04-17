@@ -40,7 +40,7 @@ interface CalItem {
 interface HistorialItem {
   id: string
   created_at: string
-  coach_email: string
+  coach?: { email: string } | null
   calorias_antes: number
   calorias_despues: number
   proteina_antes: number
@@ -195,9 +195,20 @@ export default function CoachPage() {
     if (data.success) {
       setAdjustMsg('Plan actualizado exitosamente')
       setNota('')
-      // Refresh calendar
+      // Refresh calendar + historial
       setSelected({ ...selected, calorias_objetivo: parseInt(calorias) })
       setClientas(prev => prev.map(c => c.id === selected.id ? { ...c, calorias_objetivo: parseInt(calorias) } : c))
+      // Re-fetch historial
+      if (session?.access_token) {
+        fetch('/api/coach/clientas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ clientaId: selected.id }),
+        })
+          .then(r => r.json())
+          .then(d => { if (d.historial) setHistorial(d.historial) })
+          .catch(() => {})
+      }
     } else {
       setAdjustMsg('Error: ' + (data.error || 'Intenta de nuevo'))
     }
@@ -460,7 +471,7 @@ export default function CoachPage() {
                         <div key={h.id} className="border border-lucy-border/50 rounded-xl p-3 text-xs">
                           <div className="flex justify-between mb-1">
                             <span className="text-lucy-muted">{new Date(h.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            <span className="text-lucy-soft">{h.coach_email}</span>
+                            <span className="text-lucy-soft">{h.coach?.email}</span>
                           </div>
                           <p className="text-lucy-text">
                             Cal: {h.calorias_antes} → {h.calorias_despues} | Prot: {h.proteina_antes}g → {h.proteina_despues}g | Carbs: {h.carbs_antes}g → {h.carbs_despues}g | Grasas: {h.grasas_antes}g → {h.grasas_despues}g
