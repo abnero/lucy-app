@@ -50,23 +50,6 @@ function inferCategoria(comida: string, alimentoCategoria: string): string {
   return 'carbohidrato'
 }
 
-// Convert display units (cups, oz, tbsp) to base units (gramos, ml)
-// If cantidad looks like it's in display units (small number for a gram-based food), convert
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertToBaseUnit(cantidad: number, alimento: any): number {
-  if (!alimento.factor_conversion || !alimento.unidad_display) return cantidad
-  if (alimento.unidad_medida === 'unidad') return cantidad
-  // Heuristic: if cantidad is suspiciously small for a gram-based food, it's likely in display units
-  // e.g., 1 cup = factor_conversion grams. If someone passes "1" for arroz (factor=185), they mean 1 cup = 185g
-  const fc = alimento.factor_conversion
-  if (cantidad <= 10 && fc > 10) {
-    // Almost certainly in display units
-    return Math.round(cantidad * fc)
-  }
-  // If cantidad is already in a reasonable gram range, leave it
-  return cantidad
-}
-
 const META_LABELS: Record<string, string> = {
   perder_peso: 'Bajar de peso',
   mantener_peso: 'Mantener peso',
@@ -86,7 +69,7 @@ const tools: Anthropic.Tool[] = [
         comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
         alimento_actual: { type: 'string', description: 'Nombre del alimento a modificar' },
         alimento_nuevo: { type: 'string', description: 'Nombre del nuevo alimento (mismo nombre si solo cambias cantidad)' },
-        nueva_cantidad: { type: 'number', description: 'Cantidad específica deseada (ej. 1 para 1 rebanada, 150 para 150g). Si no se pasa, se calcula automáticamente.' },
+        nueva_cantidad: { type: 'number', description: 'Cantidad en la unidad base del alimento (gramos, ml, o unidades). Si el alimento se muestra en cups/oz/tbsp, convierte a gramos antes de pasar el valor. Si no se pasa, se calcula automáticamente.' },
       },
       required: ['dia', 'comida', 'alimento_actual', 'alimento_nuevo'],
     },
@@ -99,7 +82,7 @@ const tools: Anthropic.Tool[] = [
       properties: {
         dia: { type: 'string', description: 'Día (1-7) o "todos" para añadir a todos los días' },
         alimento: { type: 'string', description: 'Nombre del alimento (para snack de 1 ingrediente)' },
-        cantidad: { type: 'number', description: 'Cantidad del alimento individual' },
+        cantidad: { type: 'number', description: 'Cantidad en gramos/ml/unidades (unidad base del alimento). Convierte de cups/oz/tbsp a gramos antes de pasar.' },
         ingredientes: {
           type: 'array',
           items: {
@@ -169,7 +152,7 @@ const tools: Anthropic.Tool[] = [
         dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
         comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
         alimento: { type: 'string', description: 'Nombre del alimento a añadir (debe existir en el catálogo)' },
-        cantidad: { type: 'number', description: 'Cantidad del ingrediente nuevo' },
+        cantidad: { type: 'number', description: 'Cantidad en gramos/ml/unidades (unidad base del alimento). Convierte de cups/oz/tbsp a gramos antes de pasar.' },
       },
       required: ['dia', 'comida', 'alimento', 'cantidad'],
     },
@@ -347,8 +330,7 @@ async function executeCambiarAlimento(
 
   // If same food or nueva_cantidad provided → just update quantity
   if (input.nueva_cantidad !== undefined || newAlimento.id === targetEntry.alimento_id) {
-    const rawQty = input.nueva_cantidad ?? targetEntry.cantidad
-    const newQty = input.nueva_cantidad !== undefined ? convertToBaseUnit(rawQty, newAlimento) : rawQty
+    const newQty = input.nueva_cantidad ?? targetEntry.cantidad
     const revertData: RevertData = {
       type: 'cambiar',
       originalRows: [{ rowId: targetEntry.id, alimento_id: targetEntry.alimento_id, cantidad: targetEntry.cantidad, unidad: targetEntry.unidad }],
@@ -544,7 +526,7 @@ async function executeAgregarSnack(
 
       continue
     }
-    let qty = convertToBaseUnit(item.cantidad, found)
+    let qty = item.cantidad
     if (found.unidad_medida === 'unidad' && qty > 20) {
       qty = Math.max(1, Math.round(qty / (found.porcion_base || 100)))
     }
@@ -869,8 +851,6 @@ async function executeAgregarIngredienteAComida(
     return { result: `"${alimento}" no está en el catálogo.${sugText} Usa buscar_o_crear_alimento para crearlo primero.` }
   }
 
-  // Convert display units to base units (e.g. 1 cup → 185g)
-  cantidad = convertToBaseUnit(cantidad, newFood)
 
   // Get existing items in that meal
   const { data: existingItems } = await supabase
@@ -1518,6 +1498,9 @@ NUNCA digas "USDA", "base de datos", "catálogo", "busqué en". Tú simplemente 
 
 ═══ UNIDADES IMPERIALES ═══
 Siempre habla en unidades imperiales con la usuaria. Usa oz para proteínas y tubérculos, cups para granos, vegetales y frutas, tbsp para aceites y semillas, fl oz para bebidas empacadas. Cuando la usuaria pida un cambio en cualquier unidad (gramos, tazas, oz, libras), convierte internamente a gramos usando factor_conversion antes de ejecutar el tool. Confirma siempre en la unidad imperial correspondiente al alimento.
+
+═══ CANTIDADES EN TOOLS ═══
+Cuando uses cualquier tool que requiera una cantidad (cantidad, nueva_cantidad, etc.), SIEMPRE pasa la cantidad en la unidad base del alimento (gramos o ml), NUNCA en cups, oz, tazas o cucharadas. Convierte mentalmente antes de llamar el tool. Por ejemplo: si quieres añadir 1 cup de espinacas y 1 cup = 185g, pasa cantidad = 185. Si quieres añadir 2 oz de pollo y 1 oz = 28.35g, pasa cantidad = 57.
 
 ═══ PORCIONES ESTÁNDAR (cuando no se especifica) ═══
 Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arroz/pasta: 150g | Carnes: 120g | Quesos: 30g | Frutos secos: 28g | Aceites: 10g
