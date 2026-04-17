@@ -12,6 +12,44 @@ function createAuthenticatedClient(accessToken: string) {
   )
 }
 
+function getServiceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
+// Sync preferencias_usuario when Lucy changes foods via chat
+async function syncPreferencia(action: 'add' | 'remove', userId: string, alimentoId: string, categoriaComida?: string) {
+  const sb = getServiceSupabase()
+  try {
+    if (action === 'add' && categoriaComida) {
+      const { data: exists } = await sb.from('preferencias_usuario').select('id').eq('user_id', userId).eq('alimento_id', alimentoId).single()
+      if (!exists) {
+        await sb.from('preferencias_usuario').insert({ user_id: userId, alimento_id: alimentoId, categoria_comida: categoriaComida })
+      }
+    } else if (action === 'remove') {
+      // Only remove if alimento doesn't appear in any other calendar day
+      const { count } = await sb.from('calendario').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('alimento_id', alimentoId)
+      if ((count ?? 0) === 0) {
+        await sb.from('preferencias_usuario').delete().eq('user_id', userId).eq('alimento_id', alimentoId)
+      }
+    }
+  } catch (err) {
+    console.error('[syncPreferencia] Error:', action, alimentoId, err instanceof Error ? err.message : err)
+  }
+}
+
+// Map comida type to preferencia categoria
+function inferCategoria(comida: string, alimentoCategoria: string): string {
+  if (comida === 'desayuno') return 'desayuno_1'
+  if (alimentoCategoria === 'proteina') return 'proteina'
+  if (alimentoCategoria === 'carbohidrato') return 'carbohidrato'
+  if (alimentoCategoria === 'vegetal') return 'fibra'
+  if (alimentoCategoria === 'grasa') return 'grasa'
+  return 'carbohidrato'
+}
+
 const META_LABELS: Record<string, string> = {
   perder_peso: 'Bajar de peso',
   mantener_peso: 'Mantener peso',
@@ -443,6 +481,11 @@ async function executeCambiarAlimento(
       }
     }
   }
+
+  // Sync preferencias: add new, remove old if no longer in calendar
+  const oldCat = inferCategoria(comida, oldAlimento?.categoria_comida || 'carbohidrato')
+  await syncPreferencia('add', userId, newAlimento.id, oldCat)
+  await syncPreferencia('remove', userId, targetEntry.alimento_id)
 
   return {
     result: `Cambié ${oldAlimento?.nombre || alimento_actual} por ${newCantidad}${newAlimento.unidad_medida} de ${newAlimento.nombre} en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.${extraMsg} El cambio mantiene tus macros equilibrados.`,
@@ -933,6 +976,10 @@ async function executeAgregarIngredienteAComida(
     return { result: `Error añadiendo ingrediente: ${insertErr.message}` }
   }
 
+  // Sync preferencias: add new ingredient
+  const addCat = inferCategoria(comida, newFood.categoria_comida || 'carbohidrato')
+  await syncPreferencia('add', userId, newFood.id, addCat)
+
   return {
     result: `Añadí ${cantidad}${newFood.unidad_medida} de ${newFood.nombre} al ${comida} del ${DIAS_NOMBRES[dia - 1]} (~${Math.round(newCalories)} kcal). Compensación:${compensationMsg}`,
     revertData,
@@ -1037,6 +1084,9 @@ async function executeEliminarIngredienteDeComida(
     console.error('Delete matched 0 rows. ID:', target.id, 'userId:', userId)
     return { result: `No se pudo eliminar — el registro no se encontró o no tienes permiso. Verifica que la política DELETE existe en la tabla calendario.` }
   }
+
+  // Sync preferencias: remove if no longer in any calendar day
+  await syncPreferencia('remove', userId, target.alimento_id)
 
   return {
     result: `Eliminé ${target.cantidad}${target.unidad} de ${targetFood?.nombre || alimento} del ${comida} del ${DIAS_NOMBRES[dia - 1]}.`,
