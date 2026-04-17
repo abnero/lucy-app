@@ -70,7 +70,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
   // Check for unread messages
   const checkNoLeidos = useCallback(async () => {
     if (!userId) return
-    const { count, error } = await supabase
+    const { count } = await supabase
       .from('conversaciones')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
