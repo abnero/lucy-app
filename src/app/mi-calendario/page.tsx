@@ -100,6 +100,7 @@ export default function MiCalendarioPage() {
   const [loadingData, setLoadingData] = useState(true)
   const [nombre, setNombre] = useState('')
   const [showHint, setShowHint] = useState(true)
+  const [mostrarBannerResumen, setMostrarBannerResumen] = useState(true)
   const [macroPopup, setMacroPopup] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<CalendarioItem | null>(null)
   const [showDayMacros, setShowDayMacros] = useState(false)
@@ -118,6 +119,7 @@ export default function MiCalendarioPage() {
   const fetchCalendar = useCallback(() => {
     if (!user) return
     console.log('[Calendar] fetchCalendar triggered')
+    setMostrarBannerResumen(true)
     supabase
       .from('calendario')
       .select('id, alimento_id, dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
@@ -189,6 +191,7 @@ export default function MiCalendarioPage() {
   const changeDia = useCallback((newDia: number, direction: 'left' | 'right') => {
     if (animating.current) return
     animating.current = true
+    setMostrarBannerResumen(false)
     // Exit: slide current content out
     setSlideClass(direction === 'left' ? '-translate-x-full opacity-0' : 'translate-x-full opacity-0')
     setTimeout(() => {
@@ -487,7 +490,7 @@ export default function MiCalendarioPage() {
 
       {vista === 'dia' && (<>
       {/* Banner resumen análisis calórico */}
-      {resultado && <BannerResumen resultado={resultado} onVerDetalle={() => {
+      {resultado && mostrarBannerResumen && <BannerResumen resultado={resultado} onVerDetalle={() => {
         if (!resultado.dias_problematicos.length || animating.current) return
         // Find first problematic day that is NOT the current day, fallback to first
         const target = resultado.dias_problematicos.find(d => d.dia !== diaActivo) ?? resultado.dias_problematicos[0]
