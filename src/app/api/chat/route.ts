@@ -50,6 +50,23 @@ function inferCategoria(comida: string, alimentoCategoria: string): string {
   return 'carbohidrato'
 }
 
+// Convert display units (cups, oz, tbsp) to base units (gramos, ml)
+// If cantidad looks like it's in display units (small number for a gram-based food), convert
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertToBaseUnit(cantidad: number, alimento: any): number {
+  if (!alimento.factor_conversion || !alimento.unidad_display) return cantidad
+  if (alimento.unidad_medida === 'unidad') return cantidad
+  // Heuristic: if cantidad is suspiciously small for a gram-based food, it's likely in display units
+  // e.g., 1 cup = factor_conversion grams. If someone passes "1" for arroz (factor=185), they mean 1 cup = 185g
+  const fc = alimento.factor_conversion
+  if (cantidad <= 10 && fc > 10) {
+    // Almost certainly in display units
+    return Math.round(cantidad * fc)
+  }
+  // If cantidad is already in a reasonable gram range, leave it
+  return cantidad
+}
+
 const META_LABELS: Record<string, string> = {
   perder_peso: 'Bajar de peso',
   mantener_peso: 'Mantener peso',
@@ -214,7 +231,7 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, porcion_min, porcion_max, es_personalizado, creado_por'
+const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, porcion_min, porcion_max, unidad_display, factor_conversion, es_personalizado, creado_por'
 
 async function findAlimento(supabase: SupabaseClient, nombre: string, userId?: string) {
   const normalized = removeAccents(nombre.toLowerCase().trim())
@@ -330,7 +347,8 @@ async function executeCambiarAlimento(
 
   // If same food or nueva_cantidad provided → just update quantity
   if (input.nueva_cantidad !== undefined || newAlimento.id === targetEntry.alimento_id) {
-    const newQty = input.nueva_cantidad ?? targetEntry.cantidad
+    const rawQty = input.nueva_cantidad ?? targetEntry.cantidad
+    const newQty = input.nueva_cantidad !== undefined ? convertToBaseUnit(rawQty, newAlimento) : rawQty
     const revertData: RevertData = {
       type: 'cambiar',
       originalRows: [{ rowId: targetEntry.id, alimento_id: targetEntry.alimento_id, cantidad: targetEntry.cantidad, unidad: targetEntry.unidad }],
@@ -523,9 +541,10 @@ async function executeAgregarSnack(
     const found = await findAlimento(supabase, item.alimento, userId)
     if (!found) {
       notFound.push(item.alimento)
+
       continue
     }
-    let qty = item.cantidad
+    let qty = convertToBaseUnit(item.cantidad, found)
     if (found.unidad_medida === 'unidad' && qty > 20) {
       qty = Math.max(1, Math.round(qty / (found.porcion_base || 100)))
     }
@@ -839,7 +858,8 @@ async function executeAgregarIngredienteAComida(
   userId: string,
   input: { dia: number; comida: string; alimento: string; cantidad: number }
 ): Promise<{ result: string; revertData?: RevertData }> {
-  const { dia, comida, alimento, cantidad } = input
+  const { dia, comida, alimento } = input
+  let cantidad = input.cantidad
 
   // Find the ingredient in catalog
   const newFood = await findAlimento(supabase, alimento, userId)
@@ -848,6 +868,9 @@ async function executeAgregarIngredienteAComida(
     const sugText = suggestions.length > 0 ? ` Similares: ${suggestions.join(', ')}.` : ''
     return { result: `"${alimento}" no está en el catálogo.${sugText} Usa buscar_o_crear_alimento para crearlo primero.` }
   }
+
+  // Convert display units to base units (e.g. 1 cup → 185g)
+  cantidad = convertToBaseUnit(cantidad, newFood)
 
   // Get existing items in that meal
   const { data: existingItems } = await supabase
