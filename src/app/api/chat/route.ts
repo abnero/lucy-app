@@ -841,7 +841,7 @@ async function executeAgregarIngredienteAComida(
   input: { dia: number; comida: string; alimento: string; cantidad: number }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia, comida, alimento } = input
-  let cantidad = input.cantidad
+  const cantidad = input.cantidad
 
   // Find the ingredient in catalog
   const newFood = await findAlimento(supabase, alimento, userId)
