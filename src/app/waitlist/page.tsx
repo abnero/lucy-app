@@ -454,54 +454,31 @@ function WaitlistContent() {
         </section>
 
         {/* ═══ SECCIÓN 4 — TESTIMONIOS ═══ */}
-        <section style={{ padding: '64px 20px' }}>
-          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '24px' }}>
-            Camina libre de estrés y segura de ti misma... con Lucy
-          </h3>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/testimonio-mujer-caminando.png"
-            alt="Mujer caminando con confianza"
-            style={{
-              width: '100%',
-              maxHeight: '250px',
-              objectFit: 'cover',
-              borderRadius: '16px',
-              marginBottom: '32px',
-            }}
-          />
+        <section style={{ padding: '64px 20px', backgroundColor: '#F8F7FC' }}>
           <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '32px' }}>
-            Las primeras en probarlo ya lo aman.
+            Esto es lo que dicen las primeras en usarla 💜
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {TESTIMONIOS.map((t, i) => (
-              <div key={i} style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #EAE9F4',
-                borderRadius: '16px',
-                padding: '24px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    backgroundColor: '#EAE9F4',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <span style={{ fontWeight: 600, color: '#7B7FC4', fontSize: '16px' }}>
-                      {t.nombre.charAt(0)}
-                    </span>
-                  </div>
-                  <p style={{ fontWeight: 600, fontSize: '14px', color: '#2D2B45' }}>{t.nombre}</p>
-                </div>
-                <p style={{ fontSize: '14px', color: '#6B6889', lineHeight: 1.6, fontStyle: 'italic' }}>
-                  &ldquo;{t.texto}&rdquo;
-                </p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: '16px' }}>
+            {[
+              { src: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa' },
+              { src: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene' },
+              { src: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima' },
+              { src: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla' },
+              { src: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana' },
+              { src: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima' },
+            ].map((img, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={img.src}
+                alt={img.alt}
+                style={{
+                  width: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 20px rgba(123, 127, 196, 0.15)',
+                }}
+              />
             ))}
           </div>
         </section>
