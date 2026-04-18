@@ -36,18 +36,37 @@ export async function GET(req: NextRequest) {
 
     const sb = getServiceSupabase()
 
-    // Fetch all data in parallel
-    const [usersRes, convosRes, calRes, histRes] = await Promise.all([
-      sb.from('usuarios').select('id, email, nombre, created_at, onboarding_completado, calorias_objetivo'),
-      sb.from('conversaciones').select('user_id, role, created_at'),
-      sb.from('calendario').select('user_id'),
-      sb.from('historial_coach').select('clienta_user_id'),
-    ])
+    // Paginated fetch helper — handles Supabase 1000 row default limit
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fetchAll = async (table: string, select: string): Promise<any[]> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const all: any[] = []
+      let from = 0
+      const PAGE = 1000
+      let iterations = 0
+      while (true) {
+        iterations++
+        if (iterations > 50) {
+          console.warn(`[metricas] fetchAll('${table}') exceeded 50 iterations — aborting`)
+          break
+        }
+        const { data } = await sb.from(table).select(select).range(from, from + PAGE - 1)
+        if (!data || data.length === 0) break
+        all.push(...data)
+        if (data.length < PAGE) break
+        from += PAGE
+      }
+      console.log(`[metricas] ${table}: ${all.length} rows in ${iterations} page(s)`)
+      return all
+    }
 
-    const usuarios = usersRes.data || []
-    const convos = convosRes.data || []
-    const calRows = calRes.data || []
-    const histRows = histRes.data || []
+    // Fetch all data with pagination
+    const [usuarios, convos, calRows, histRows] = await Promise.all([
+      fetchAll('usuarios', 'id, email, nombre, created_at, onboarding_completado, calorias_objetivo'),
+      fetchAll('conversaciones', 'user_id, role, created_at'),
+      fetchAll('calendario', 'user_id'),
+      fetchAll('historial_coach', 'clienta_user_id'),
+    ])
 
     const now = new Date()
 
