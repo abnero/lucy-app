@@ -413,13 +413,14 @@ async function executeCambiarAlimento(
     userId,
   }
 
-  // Update the calendar entry
+  // Update the calendar entry (mark as chat personalization since alimento changed)
   const { error: updateError } = await supabase
     .from('calendario')
     .update({
       alimento_id: newAlimento.id,
       cantidad: newCantidad,
       unidad: newAlimento.unidad_medida,
+      origen: 'chat',
     })
     .eq('id', targetEntry.id)
 
@@ -464,6 +465,9 @@ async function executeCambiarAlimento(
           unidad: matchingAlmuerzo.unidad,
         })
 
+        // NOTA: Este UPDATE es compensación automática de macros (no intención explícita del usuario).
+        // Por eso NO actualiza 'origen'. Si en el futuro se añade un tool donde el usuario pide
+        // cambio de cantidad directo (ej: "dame 150g en vez de 100g"), ese tool SÍ debe marcar origen='chat'.
         const { error: nextDayError } = await supabase
           .from('calendario')
           .update({
@@ -538,7 +542,7 @@ async function executeAgregarSnack(
   }
 
   const dias = dia === 'todos' ? [1, 2, 3, 4, 5, 6, 7] : [parseInt(dia)]
-  const allRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string }[] = []
+  const allRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
 
   for (const { food, cantidad } of resolved) {
     if (!food) continue
@@ -548,7 +552,7 @@ async function executeAgregarSnack(
       qty = Math.max(1, Math.round(qty / (food.porcion_base || 100)))
     }
     for (const d of dias) {
-      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad: qty, unidad: food.unidad_medida })
+      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad: qty, unidad: food.unidad_medida, origen: 'chat' })
     }
   }
 
@@ -814,7 +818,7 @@ async function executeReemplazarComidaCompleta(
 
   for (const { ing, cantidad } of planned) {
     const { error: insErr } = await supabase.from('calendario').insert({
-      user_id: userId, dia, comida, alimento_id: ing.id, cantidad, unidad: ing.unidad_medida,
+      user_id: userId, dia, comida, alimento_id: ing.id, cantidad, unidad: ing.unidad_medida, origen: 'chat',
     })
     if (insErr) {
       insertErrors.push(`${ing.nombre}: ${insErr.message}`)
@@ -959,6 +963,9 @@ async function executeAgregarIngredienteAComida(
         newQty = Math.max(10, Math.round((targetCal / a.calorias_por_unidad) * (a.porcion_base || 100)))
       }
 
+      // NOTA: Este UPDATE es compensación automática de macros (no intención explícita del usuario).
+      // Por eso NO actualiza 'origen'. Si en el futuro se añade un tool donde el usuario pide
+      // cambio de cantidad directo (ej: "dame 150g en vez de 100g"), ese tool SÍ debe marcar origen='chat'.
       const { error: compErr } = await supabase.from('calendario').update({ cantidad: newQty }).eq('id', item.id)
       if (compErr) {
         console.error('[agregar_ingrediente] Compensation update failed:', compErr.message)
@@ -973,7 +980,7 @@ async function executeAgregarIngredienteAComida(
   // Insert the new ingredient
   const { error: insertErr } = await supabase
     .from('calendario')
-    .insert({ user_id: userId, dia, comida, alimento_id: newFood.id, cantidad, unidad: newFood.unidad_medida })
+    .insert({ user_id: userId, dia, comida, alimento_id: newFood.id, cantidad, unidad: newFood.unidad_medida, origen: 'chat' })
 
   if (insertErr) {
     return { result: `Error añadiendo ingrediente: ${insertErr.message}` }
