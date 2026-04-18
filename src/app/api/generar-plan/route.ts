@@ -752,44 +752,99 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
 
-    // ═══ Clear existing data ═══
-    await supabase.from('calendario').delete().eq('user_id', userId)
+    // ═══ Detect first generation vs regeneration ═══
+    // "Primera generación" = the system has NEVER done anything for this user yet
+    // (no calendar rows AND no conversation rows of any kind)
+    const { count: calendarioCount } = await supabase
+      .from('calendario')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    const { count: convosCount } = await supabase
+      .from('conversaciones')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    const esPrimeraGeneracion = ((calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0)
+    console.log('[plan] esPrimeraGeneracion:', esPrimeraGeneracion, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
+
+    // ═══ Check for existing personalizations (independent of first/regen) ═══
+    const { data: personalizaciones } = await supabase
+      .from('calendario')
+      .select('cantidad, unidad, dia, comida, alimento_id, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
+      .eq('user_id', userId)
+      .in('origen', ['chat', 'coach'])
+
+    const tienePersonalizaciones = personalizaciones && personalizaciones.length > 0
+
+    let extrasCal = 0
+    const alimentosPersonalizados: string[] = []
+    if (tienePersonalizaciones) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const seen = new Map<string, Set<number>>()
+      for (const p of personalizaciones) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const a = (Array.isArray(p.alimento) ? (p.alimento as any)[0] : p.alimento) as any
+        if (!a) continue
+        const ratio = a.unidad_medida === 'unidad' ? p.cantidad : p.cantidad / (a.porcion_base || 100)
+        extrasCal += a.calorias_por_unidad * ratio
+        const nombre = a.nombre
+        if (!seen.has(nombre)) seen.set(nombre, new Set())
+        seen.get(nombre)!.add(p.dia)
+      }
+      const DIA_NOMBRES_LOCAL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+      for (const [nombre, dias] of Array.from(seen.entries())) {
+        if (dias.size >= 7) {
+          alimentosPersonalizados.push(`${nombre} todos los días`)
+        } else {
+          const diasNames = Array.from(dias).sort().map((d: number) => DIA_NOMBRES_LOCAL[d - 1] || `día ${d}`)
+          alimentosPersonalizados.push(`${nombre} en ${diasNames.join(', ')}`)
+        }
+      }
+      console.log(`[plan] Personalizaciones: ${personalizaciones.length} rows, ${alimentosPersonalizados.length} alimentos, +${Math.round(extrasCal)} kcal`)
+    }
+
+    // ═══ Clear only auto-generated data (preserve chat/coach personalizations) ═══
+    await supabase.from('calendario').delete().eq('user_id', userId).eq('origen', 'generado')
     await supabase.from('lista_compras').delete().eq('user_id', userId)
-    await supabase.from('conversaciones').delete().eq('user_id', userId)
+    // DO NOT delete conversaciones — chat history is permanent
 
-    // ═══ Intro message (TDEE-based) ═══
-    const FACTORES_ACTIVIDAD: Record<string, number> = {
-      sedentario: 1.2, ligero: 1.375, moderado: 1.55, activo: 1.725, muy_activo: 1.9,
-    }
-    const pesoKg = Number(usuario.peso_kg) || 0
-    const alturaCm = Number(usuario.altura_cm) || 0
-    const edad = Number(usuario.edad) || 0
-    const factor = FACTORES_ACTIVIDAD[usuario.nivel_actividad] ?? 1.2
-    const generoOffset = usuario.genero === 'masculino' ? 5 : -161
-    const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + generoOffset
-    const tdee = Math.round(bmr * factor)
+    // ═══ Messages: conditional on first generation vs regeneration ═══
+    if (esPrimeraGeneracion) {
+      // First generation — full welcome messages
+      const FACTORES_ACTIVIDAD: Record<string, number> = {
+        sedentario: 1.2, ligero: 1.375, moderado: 1.55, activo: 1.725, muy_activo: 1.9,
+      }
+      const pesoKg = Number(usuario.peso_kg) || 0
+      const alturaCm = Number(usuario.altura_cm) || 0
+      const edad = Number(usuario.edad) || 0
+      const factor = FACTORES_ACTIVIDAD[usuario.nivel_actividad] ?? 1.2
+      const generoOffset = usuario.genero === 'masculino' ? 5 : -161
+      const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + generoOffset
+      const tdee = Math.round(bmr * factor)
 
-    let introMessage = ''
-    if (usuario.meta === 'perder_peso') {
-      introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 10% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
-    } else if (usuario.meta === 'ganar_masa') {
-      introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del 20% — ${calTarget} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
-    } else {
-      introMessage = `Basado en tu perfil, tu cuerpo necesita aproximadamente ${tdee} calorías al día para mantenerse. Tu plan está calibrado exactamente en eso — ${calTarget} calorías — con la distribución correcta de proteína, carbohidratos y grasas para que te sientas con energía todo el día. ¡Aquí está tu plan! ✨`
-    }
+      let introMessage = ''
+      if (usuario.meta === 'perder_peso') {
+        introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 10% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
+      } else if (usuario.meta === 'ganar_masa') {
+        introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del 20% — ${calTarget} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
+      } else {
+        introMessage = `Basado en tu perfil, tu cuerpo necesita aproximadamente ${tdee} calorías al día para mantenerse. Tu plan está calibrado exactamente en eso — ${calTarget} calorías — con la distribución correcta de proteína, carbohidratos y grasas para que te sientas con energía todo el día. ¡Aquí está tu plan! ✨`
+      }
 
-    await supabase.from('conversaciones').insert({
-      user_id: userId, role: 'assistant', content: introMessage,
-    })
-
-    // Insert warning if some meals couldn't fit within budget
-    if (warnings.length > 0) {
-      const mealsTxt = warnings.join(', ')
-      const warningMsg = `Noté que algunos alimentos que escogiste son muy densos calóricamente. Para ${mealsTxt}, las porciones mínimas disponibles superan tu presupuesto calórico de esa comida. Considera cambiar algunos alimentos por opciones más ligeras (ej. menos aceites, frutos secos o quesos) para tener más flexibilidad. 💜`
       await supabase.from('conversaciones').insert({
-        user_id: userId, role: 'assistant', content: warningMsg,
+        user_id: userId, role: 'assistant', content: introMessage,
       })
+
+      if (warnings.length > 0) {
+        const mealsTxt = warnings.join(', ')
+        const warningMsg = `Noté que algunos alimentos que escogiste son muy densos calóricamente. Para ${mealsTxt}, las porciones mínimas disponibles superan tu presupuesto calórico de esa comida. Considera cambiar algunos alimentos por opciones más ligeras (ej. menos aceites, frutos secos o quesos) para tener más flexibilidad. 💜`
+        await supabase.from('conversaciones').insert({
+          user_id: userId, role: 'assistant', content: warningMsg,
+        })
+      }
     }
+    // Regeneration message is built AFTER post-generation analysis (see below)
 
     // ═══ PASO 4: Save calendar using backend-calculated quantities ═══
     // Build a lookup for calPerUnit by nombre (lowercase)
@@ -798,7 +853,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
     }
 
-    const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string }[] = []
+    const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
     const comprasTotals = new Map<string, { alimentoId: string; cantidad: number; unidad: string }>()
 
     for (const dia of plan.dias) {
@@ -824,6 +879,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
             alimento_id: match.id,
             cantidad,
             unidad,
+            origen: 'generado',
           })
 
           const key = match.id
@@ -937,12 +993,13 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       }
     }
 
-    // Post-generation analysis + personalized Lucy message
+    // Post-generation analysis
     const { data: calWithFood } = await supabase
       .from('calendario')
       .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
       .eq('user_id', userId)
 
+    let diasBajosProteina = 0
     if (calWithFood && calWithFood.length > 0) {
       const dailyTotals: Record<number, { cal: number; prot: number }> = {}
       for (const row of calWithFood) {
@@ -958,11 +1015,12 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       const days = Object.values(dailyTotals)
       const avgCal = days.reduce((s, d) => s + d.cal, 0) / (days.length || 1)
       const avgProt = days.reduce((s, d) => s + d.prot, 0) / (days.length || 1)
-      console.log('[plan] Verificación post-generación — cal promedio:', Math.round(avgCal), 'prot promedio:', Math.round(avgProt))
+      diasBajosProteina = days.filter(d => d.prot < protTarget * 0.85).length
+      console.log('[plan] Verificación post-generación — cal promedio:', Math.round(avgCal), 'prot promedio:', Math.round(avgProt), 'días bajos prot:', diasBajosProteina)
+    }
 
-      const diasBajosProteina = days.filter(d => d.prot < protTarget * 0.85).length
-      const diasFueraCalorias = days.filter(d => Math.abs(d.cal - calTarget) > calTarget * 0.10).length
-
+    if (esPrimeraGeneracion) {
+      // First generation — insert PASO 5 analysis message
       let lucyPostMsg: string
       if (diasBajosProteina >= 5) {
         lucyPostMsg = `¡Hola ${usuario.nombre}! Acabo de revisar tu plan y quiero contarte algo importante 💜 Veo que en la mayoría de los días te va a faltar proteína para llegar a tu meta. Esto no significa que el plan esté mal — significa que los alimentos que escogiste no alcanzan para cubrir tus ${protTarget}g de proteína diaria. Te recomiendo añadir una fuente de proteína a tu desayuno: Yogur Griego, Clara de Huevo o Proteína en Polvo funcionan perfecto. ¿Quieres que ajustemos el plan juntas?`
@@ -971,14 +1029,31 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       } else {
         lucyPostMsg = `¡Hola ${usuario.nombre}! Tu plan de la semana está listo y se ve muy bien 🎉 Tus calorías y proteína están alineadas con tu meta. Recuerda que puedes pedirme cualquier cambio — swap de alimentos, recetas, snacks — cuando quieras. ¡Vamos con todo esta semana! 💜`
       }
+      await supabase.from('conversaciones').insert({
+        user_id: userId, role: 'assistant', content: lucyPostMsg, leido: false,
+      })
+    } else {
+      // Regeneration — single fused message
+      let regenMsg = 'Tu plan se regeneró con tus nuevos macros.'
 
-      console.log('[plan] Post-msg:', diasBajosProteina, 'días bajos proteína,', diasFueraCalorias, 'días fuera calorías')
+      // Add personalization mention if any
+      if (tienePersonalizaciones) {
+        const extrasKcalRound = Math.round(extrasCal / 7)
+        const listaAlimentos = alimentosPersonalizados.join(', ')
+        regenMsg += ` Mantuve las personalizaciones que habías pedido: ${listaAlimentos}.\n\nCon esos extras estás aproximadamente ${extrasKcalRound} kcal por encima de tu target diario. ¿Quieres que ajuste las cantidades del plan para compensar, o prefieres mantenerlo así?`
+      }
+
+      // Fuse protein warning if needed
+      if (diasBajosProteina >= 5) {
+        regenMsg += `\n\nImportante: la mayoría de los días te va a faltar proteína con los alimentos que escogiste. ¿Quieres que te sugiera snacks proteicos para completar? Es importante que lo ajustemos juntas. 💜`
+      } else if (diasBajosProteina >= 2) {
+        regenMsg += `\n\nAdemás, noté que ${diasBajosProteina} días te van a quedar un poco bajos en proteína. ¿Quieres que añada un snack proteico esos días, o ajustamos las cantidades? 💜`
+      } else {
+        regenMsg += ' 💜'
+      }
 
       await supabase.from('conversaciones').insert({
-        user_id: userId,
-        role: 'assistant',
-        content: lucyPostMsg,
-        leido: false,
+        user_id: userId, role: 'assistant', content: regenMsg, leido: false,
       })
     }
 
