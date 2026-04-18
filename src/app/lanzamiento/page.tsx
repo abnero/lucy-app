@@ -386,6 +386,38 @@ function LanzamientoContent() {
           </div>
         </section>
 
+        {/* ═══ TRANSFORMACIONES ═══ */}
+        <section style={{ padding: '64px 20px' }}>
+          <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '12px' }}>
+            El método que usa Lucy ya ha transformado cientos de vidas 💜
+          </h3>
+          <p style={{ fontSize: '14px', color: '#6B6889', textAlign: 'center', lineHeight: 1.6, marginBottom: '32px' }}>
+            Estas mujeres usaron el Calendario Metabólico de Caribeño Fit Labs para saber exactamente qué comer y en qué cantidades. Sin dietas. Sin pasar hambre. Comiendo lo que les gusta.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
+            {[
+              { src: '/transformaciones/transformacion-karla.jpg', alt: 'Transformación de Karla' },
+              { src: '/transformaciones/transformacion-wanda.jpg', alt: 'Transformación de Wanda' },
+              { src: '/transformaciones/transformacion-minelly.jpg', alt: 'Transformación de Minelly' },
+              { src: '/transformaciones/transformacion-dalery.jpg', alt: 'Transformación de Dalery' },
+            ].map((img, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={img.src}
+                alt={img.alt}
+                style={{
+                  width: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 20px rgba(123, 127, 196, 0.15)',
+                  backgroundColor: '#FFFFFF',
+                }}
+              />
+            ))}
+          </div>
+        </section>
+
         {/* ═══ SECCIÓN 4 — TESTIMONIOS ═══ */}
         <section style={{ padding: '64px 20px', backgroundColor: '#F8F7FC' }}>
           <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#2D2B45', textAlign: 'center', lineHeight: 1.3, marginBottom: '32px' }}>
