@@ -10,26 +10,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// ─── Editable testimonials (Abner: reemplaza con fotos y comentarios reales) ───
-const TESTIMONIOS = [
-  {
-    nombre: 'Arlene',
-    texto: 'Nunca pensé que cambiar mis comidas fuera tan fácil. Le digo a Lucy lo que quiero y ella calcula todo.',
-  },
-  {
-    nombre: 'Zuleima',
-    texto: 'Por fin puedo ver mi plan de toda la semana e imprimirlo. Lo tengo en la nevera todos los días.',
-  },
-  {
-    nombre: 'Airdalery',
-    texto: 'Me explica exactamente cuántas calorías quemo y por qué mi plan es así. Eso me da confianza.',
-  },
-  {
-    nombre: 'Linette',
-    texto: 'Ahora por fin me siento segura porque sé qué comer y las cantidades para bajar de peso.',
-  },
-]
-
 const PROBLEMAS = [
   { emoji: '🤯', titulo: 'No sé qué comer ni en qué cantidades para bajar de peso', texto: 'El problema más común que escucho de mujeres que quieren bajar de peso es exactamente ese.' },
   { emoji: '😩', titulo: 'Contar calorías es agotador y no es sostenible', texto: 'Ninguna mujer con una vida ocupada tiene tiempo para calcular cada gramo de comida a mano.' },
