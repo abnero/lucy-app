@@ -93,10 +93,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Regenerate calendar for the clienta
+    // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
-
-    await sb.from('calendario').delete().eq('user_id', clientaUserId)
-    await sb.from('lista_compras').delete().eq('user_id', clientaUserId)
 
     try {
       console.log('[ajustar-plan] Calling generar-plan for clienta:', clientaUserId)

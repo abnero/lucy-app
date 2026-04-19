@@ -227,12 +227,7 @@ export default function MiPerfilPage() {
 
       if (dbError) { setError('Error al guardar: ' + dbError.message); setSaving(false); return }
 
-      // Clear calendar and shopping list — keep preferencias to reuse same foods
-      await Promise.all([
-        supabase.from('calendario').delete().eq('user_id', user!.id).select(),
-        supabase.from('lista_compras').delete().eq('user_id', user!.id).select(),
-      ])
-
+      // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
       router.push('/generando?modo=actualizacion')
     } else {
       // Only name changed — simple update, stay on page
