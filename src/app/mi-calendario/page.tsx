@@ -152,10 +152,14 @@ export default function MiCalendarioPage() {
           .order('comida'),
         supabase
           .from('usuarios')
-          .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+          .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, onboarding_completado')
           .eq('id', user.id)
           .single(),
       ]).then(([calRes, userRes]) => {
+        if (!userRes.data || !userRes.data.onboarding_completado) {
+          router.push('/onboarding')
+          return
+        }
         if (calRes.error) console.error('Calendar fetch error:', calRes.error.message)
         if (calRes.data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

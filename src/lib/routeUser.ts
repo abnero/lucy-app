@@ -7,7 +7,17 @@ export async function getDestination(userId: string): Promise<string> {
     .eq('id', userId)
     .single()
 
-  if (!usuario) return '/waitlist'
+  if (!usuario) {
+    // User exists in auth.users but not in public.usuarios
+    // Create a minimal row so onboarding can proceed
+    await supabase.from('usuarios').insert({
+      id: userId,
+      nombre: '',
+      onboarding_completado: false,
+      aprobado: false,
+    })
+    return '/onboarding'
+  }
 
   // If not approved, check if email is in emails_aprobados
   if (!usuario.aprobado && usuario.email) {
