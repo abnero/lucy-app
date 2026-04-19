@@ -13,7 +13,7 @@ export interface AlimentoCalendario {
   porcion_max: number;
   calorias_por_unidad: number;
   proteina_por_unidad: number;
-  comida: "desayuno" | "almuerzo" | "cena";
+  comida: "desayuno" | "almuerzo" | "cena" | "snack";
   dia: number;
   rol_permitido: string[];
 }
@@ -26,6 +26,7 @@ export interface MacrosDia {
     desayuno: { calorias: number; proteina: number };
     almuerzo: { calorias: number; proteina: number };
     cena: { calorias: number; proteina: number };
+    snack: { calorias: number; proteina: number };
   };
 }
 
@@ -35,7 +36,7 @@ export interface Sugerencia {
   tipo: "reducir" | "aumentar" | "agregar_snack";
   alimento_id: string;
   nombre: string;
-  comida: "desayuno" | "almuerzo" | "cena";
+  comida: "desayuno" | "almuerzo" | "cena" | "snack";
   cantidad_actual: number;
   cantidad_nueva: number;
   unidad_medida: string;
@@ -52,7 +53,7 @@ export interface DiaProblemático {
   diferencia_calorias: number;
   diferencia_proteina: number;
   problemas: TipoProblema[];
-  comida_problematica: "desayuno" | "almuerzo" | "cena" | null;
+  comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null;
   sugerencias: Sugerencia[];
 }
 
@@ -82,6 +83,7 @@ export function calcularMacrosDia(alimentos: AlimentoCalendario[], dia: number):
     desayuno: { calorias: 0, proteina: 0 },
     almuerzo: { calorias: 0, proteina: 0 },
     cena: { calorias: 0, proteina: 0 },
+    snack: { calorias: 0, proteina: 0 },
   };
   for (const alimento of delDia) {
     porComida[alimento.comida].calorias += calcularCalorias(alimento);
@@ -89,16 +91,16 @@ export function calcularMacrosDia(alimentos: AlimentoCalendario[], dia: number):
   }
   return {
     dia,
-    calorias: porComida.desayuno.calorias + porComida.almuerzo.calorias + porComida.cena.calorias,
-    proteina: porComida.desayuno.proteina + porComida.almuerzo.proteina + porComida.cena.proteina,
+    calorias: porComida.desayuno.calorias + porComida.almuerzo.calorias + porComida.cena.calorias + porComida.snack.calorias,
+    proteina: porComida.desayuno.proteina + porComida.almuerzo.proteina + porComida.cena.proteina + porComida.snack.proteina,
     porComida,
   };
 }
 
-function identificarComidaProblematica(macros: MacrosDia, objetivo_calorias: number): "desayuno" | "almuerzo" | "cena" | null {
+function identificarComidaProblematica(macros: MacrosDia, objetivo_calorias: number): "desayuno" | "almuerzo" | "cena" | "snack" | null {
   const targets = { desayuno: objetivo_calorias * 0.30, almuerzo: objetivo_calorias * 0.40, cena: objetivo_calorias * 0.30 };
   let maxDesviacion = 0;
-  let comidaProblematica: "desayuno" | "almuerzo" | "cena" | null = null;
+  let comidaProblematica: "desayuno" | "almuerzo" | "cena" | "snack" | null = null;
   for (const comida of ["desayuno", "almuerzo", "cena"] as const) {
     const desviacion = Math.abs(macros.porComida[comida].calorias - targets[comida]);
     if (desviacion > maxDesviacion) { maxDesviacion = desviacion; comidaProblematica = comida; }
@@ -138,7 +140,7 @@ function formatearSugerencia(tipo: "reducir" | "aumentar", alimento: AlimentoCal
   return `${verbo} el ${alimento.nombre} en ${comidaLabel} de ${cantidad_actual}${unidad} a ${cantidad_nueva}${unidad} (${signo}${impacto_calorias} kcal)`;
 }
 
-function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | null): Sugerencia[] {
+function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null): Sugerencia[] {
   const sugerencias: Sugerencia[] = [];
   const hayExceso = diferencia_calorias > 20;
   const hayDeficit = diferencia_calorias < -20;

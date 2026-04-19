@@ -237,7 +237,7 @@ export default function MiCalendarioPage() {
 
   // Map calendar items to AlimentoCalendario format for analysis hook
   const alimentosParaAnalisis: AlimentoCalendario[] = items
-    .filter(i => i.alimento && (i.comida === 'desayuno' || i.comida === 'almuerzo' || i.comida === 'cena'))
+    .filter(i => i.alimento)
     .map(i => ({
       alimento_id: i.alimento_id,
       nombre: i.alimento.nombre,
@@ -248,7 +248,7 @@ export default function MiCalendarioPage() {
       porcion_max: i.alimento.porcion_max,
       calorias_por_unidad: i.alimento.calorias_por_unidad,
       proteina_por_unidad: i.alimento.proteina_por_unidad,
-      comida: i.comida as 'desayuno' | 'almuerzo' | 'cena',
+      comida: i.comida as 'desayuno' | 'almuerzo' | 'cena' | 'snack',
       dia: i.dia,
       rol_permitido: i.alimento.rol_permitido ?? [],
     }))
