@@ -773,7 +773,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       .from('calendario')
       .select('cantidad, unidad, dia, comida, alimento_id, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
       .eq('user_id', userId)
-      .in('origen', ['chat', 'coach'])
+      .in('origen', ['chat', 'coach', 'sugerencia'])
 
     const tienePersonalizaciones = personalizaciones && personalizaciones.length > 0
 

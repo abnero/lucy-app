@@ -264,7 +264,7 @@ export default function MiCalendarioPage() {
 
       await supabase
         .from('calendario')
-        .update({ cantidad: cantidad_nueva })
+        .update({ cantidad: cantidad_nueva, origen: 'sugerencia' })
         .eq('id', target.id)
 
       const cpu = target.alimento.unidad_medida === 'unidad'
