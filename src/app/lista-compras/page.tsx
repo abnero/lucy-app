@@ -48,20 +48,28 @@ export default function ListaComprasPage() {
       return
     }
     if (!loading && user) {
-      supabase
-        .from('lista_compras')
-        .select('id, cantidad_total, unidad, comprado, alimento:alimentos(nombre, foto_url, categoria_supermercado, unidad_medida, unidad_display, factor_conversion)')
-        .eq('user_id', user.id)
-        .then(({ data }) => {
-          if (data) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            setItems(data.map((r: any) => ({
-              ...r,
-              alimento: Array.isArray(r.alimento) ? r.alimento[0] : r.alimento,
-            })))
-          }
-          setLoadingData(false)
-        })
+      // Verify user has completed onboarding BEFORE loading data
+      supabase.from('usuarios').select('onboarding_completado').eq('id', user.id).single().then(({ data: userData }) => {
+        if (!userData || !userData.onboarding_completado) {
+          router.push('/onboarding')
+          return
+        }
+        // Only fetch lista_compras after confirming onboarding is complete
+        supabase
+          .from('lista_compras')
+          .select('id, cantidad_total, unidad, comprado, alimento:alimentos(nombre, foto_url, categoria_supermercado, unidad_medida, unidad_display, factor_conversion)')
+          .eq('user_id', user.id)
+          .then(({ data }) => {
+            if (data) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              setItems(data.map((r: any) => ({
+                ...r,
+                alimento: Array.isArray(r.alimento) ? r.alimento[0] : r.alimento,
+              })))
+            }
+            setLoadingData(false)
+          })
+      })
     }
   }, [user, loading, router])
 

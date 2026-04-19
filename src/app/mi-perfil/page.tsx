@@ -117,10 +117,14 @@ export default function MiPerfilPage() {
     if (!loading && user) {
       supabase
         .from('usuarios')
-        .select('nombre, genero, avatar_url, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo')
+        .select('nombre, genero, avatar_url, peso_lbs, peso_kg, altura_pies, altura_cm, edad, nivel_actividad, meta, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, onboarding_completado')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
+          if (!data || !data.onboarding_completado) {
+            router.push('/onboarding')
+            return
+          }
           if (data) {
             const u = data as UsuarioData
             setUserData(u)
