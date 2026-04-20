@@ -4,42 +4,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
+import PreguntasActividad from '@/components/PreguntasActividad'
+import { calcularMacros, NivelActividad, Meta, Genero } from '@/lib/calculo-macros'
 
 type UnidadPeso = 'lbs' | 'kg'
 type UnidadAltura = 'ft' | 'cm'
-
-const NIVELES_ACTIVIDAD = [
-  { value: 'sedentario', label: 'Sedentaria', description: 'Poco o nada de ejercicio', factor: 1.2 },
-  { value: 'ligero', label: 'Ligeramente activa', description: 'Ejercicio 1-3 días/semana', factor: 1.375 },
-  { value: 'moderado', label: 'Moderadamente activa', description: 'Ejercicio 3-5 días/semana', factor: 1.55 },
-  { value: 'activo', label: 'Muy activa', description: 'Ejercicio 6-7 días/semana', factor: 1.725 },
-] as const
 
 const METAS = [
   { value: 'perder_peso', label: 'Bajar de peso' },
   { value: 'mantener_peso', label: 'Mantenerme' },
   { value: 'ganar_masa', label: 'Ganar masa muscular' },
 ] as const
-
-function calcularMacros(
-  pesoKg: number,
-  alturaCm: number,
-  edad: number,
-  factorActividad: number,
-  meta: string,
-  genero: string = 'femenino'
-) {
-  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + (genero === 'masculino' ? 5 : -161)
-  const tdee = bmr * factorActividad
-  let calorias: number
-  if (meta === 'perder_peso') calorias = Math.max(Math.round(tdee * 0.9), 1200)
-  else if (meta === 'ganar_masa') calorias = Math.round(tdee * 1.2)
-  else calorias = Math.round(tdee * 1.0)
-  const proteina = Math.round((calorias * 0.30) / 4)
-  const carbs = Math.round((calorias * 0.40) / 4)
-  const grasas = Math.round((calorias * 0.30) / 9)
-  return { calorias, proteina, carbs, grasas }
-}
 
 export default function OnboardingPage() {
   const { user, loading } = useAuth()
@@ -53,9 +28,9 @@ export default function OnboardingPage() {
   const [alturaCm, setAlturaCm] = useState('')
   const [unidadAltura, setUnidadAltura] = useState<UnidadAltura>('ft')
   const [edad, setEdad] = useState('')
-  const [genero, setGenero] = useState('femenino')
-  const [nivelActividad, setNivelActividad] = useState('')
-  const [meta, setMeta] = useState('')
+  const [genero, setGenero] = useState<Genero>('femenino')
+  const [nivel, setNivel] = useState<NivelActividad | null>(null)
+  const [meta, setMeta] = useState<Meta | ''>('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -80,7 +55,7 @@ export default function OnboardingPage() {
     e.preventDefault()
     setError('')
 
-    if (!nombre.trim() || !peso || !edad || !nivelActividad || !meta) {
+    if (!nombre.trim() || !peso || !edad || !nivel || !meta) {
       setError('Por favor completa todos los campos')
       return
     }
@@ -112,8 +87,7 @@ export default function OnboardingPage() {
       altPies = altCm / 30.48
     }
 
-    const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
-    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, meta, genero)
+    const macros = calcularMacros(pesoKg, altCm, edadNum, nivel!, meta as Meta, genero)
 
     setSaving(true)
 
@@ -127,7 +101,8 @@ export default function OnboardingPage() {
         altura_pies: altPies,
         altura_cm: altCm,
         edad: edadNum,
-        nivel_actividad: nivelActividad,
+        nivel_actividad: nivel,
+        re_onboarding_completado: true,
         meta,
         calorias_objetivo: macros.calorias,
         proteina_objetivo: macros.proteina,
@@ -316,10 +291,10 @@ export default function OnboardingPage() {
             <div>
               <label className="block text-xs text-lucy-muted mb-2">Género</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: 'femenino', label: 'Mujer' },
-                  { value: 'masculino', label: 'Hombre' },
-                ].map(g => (
+                {([
+                  { value: 'femenino' as Genero, label: 'Mujer' },
+                  { value: 'masculino' as Genero, label: 'Hombre' },
+                ]).map(g => (
                   <button
                     key={g.value}
                     type="button"
@@ -339,23 +314,9 @@ export default function OnboardingPage() {
             {/* Nivel de actividad */}
             <div>
               <label className="block text-xs text-lucy-muted mb-2">Nivel de actividad</label>
-              <div className="space-y-2">
-                {NIVELES_ACTIVIDAD.map(nivel => (
-                  <button
-                    key={nivel.value}
-                    type="button"
-                    onClick={() => setNivelActividad(nivel.value)}
-                    className={`w-full text-left px-4 py-3 rounded-btn border transition-colors ${
-                      nivelActividad === nivel.value
-                        ? 'border-lucy-accent bg-lucy-accent/5 text-lucy-text'
-                        : 'border-lucy-border text-lucy-text hover:border-lucy-soft'
-                    }`}
-                  >
-                    <span className="text-sm font-medium">{nivel.label}</span>
-                    <span className="text-xs text-lucy-muted ml-2">{nivel.description}</span>
-                  </button>
-                ))}
-              </div>
+              <PreguntasActividad
+                onChange={(_respuestas, nivelCalculado) => setNivel(nivelCalculado)}
+              />
             </div>
 
             {/* Meta */}

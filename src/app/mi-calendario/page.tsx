@@ -12,6 +12,9 @@ import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
 import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
 import { registrarCambioEnChat } from '@/lib/registrar-cambio-lucy'
 import { nombreDiaCompleto, type AlimentoCalendario } from '@/lib/analisis-calorico'
+import BannerReOnboarding from '@/components/BannerReOnboarding'
+import ModalReOnboarding from '@/components/ModalReOnboarding'
+import type { Meta, Genero } from '@/lib/calculo-macros'
 
 interface CalendarioItem {
   id: string
@@ -109,6 +112,9 @@ export default function MiCalendarioPage() {
   const [vista, setVista] = useState<'dia' | 'semana'>('dia')
   const [exportingPdf, setExportingPdf] = useState(false)
   const [wizardTarget, setWizardTarget] = useState<CalendarioItem | null>(null)
+  const [showReOnboarding, setShowReOnboarding] = useState(false)
+  const [needsReOnboarding, setNeedsReOnboarding] = useState(false)
+  const [reOnboardingUserData, setReOnboardingUserData] = useState<{ peso_kg: number; altura_cm: number; edad: number; meta: Meta; genero: Genero } | null>(null)
   const animating = useRef(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
@@ -152,13 +158,23 @@ export default function MiCalendarioPage() {
           .order('comida'),
         supabase
           .from('usuarios')
-          .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, onboarding_completado')
+          .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, onboarding_completado, re_onboarding_completado, peso_kg, altura_cm, edad, meta, genero')
           .eq('id', user.id)
           .single(),
       ]).then(([calRes, userRes]) => {
         if (!userRes.data || !userRes.data.onboarding_completado) {
           router.push('/onboarding')
           return
+        }
+        if (userRes.data && !userRes.data.re_onboarding_completado) {
+          setNeedsReOnboarding(true)
+          setReOnboardingUserData({
+            peso_kg: userRes.data.peso_kg || 60,
+            altura_cm: userRes.data.altura_cm || 160,
+            edad: userRes.data.edad || 30,
+            meta: (userRes.data.meta as Meta) || 'mantener_peso',
+            genero: (userRes.data.genero as Genero) || 'femenino',
+          })
         }
         if (calRes.error) console.error('Calendar fetch error:', calRes.error.message)
         if (calRes.data) {
@@ -456,6 +472,24 @@ export default function MiCalendarioPage() {
 
   return (
     <div className="min-h-screen pb-24">
+      {/* Re-onboarding banner */}
+      {needsReOnboarding && !showReOnboarding && (
+        <BannerReOnboarding onOpen={() => setShowReOnboarding(true)} />
+      )}
+
+      {/* Re-onboarding modal */}
+      {showReOnboarding && user && reOnboardingUserData && (
+        <ModalReOnboarding
+          userId={user.id}
+          userData={reOnboardingUserData}
+          onComplete={() => {
+            setShowReOnboarding(false)
+            setNeedsReOnboarding(false)
+            fetchCalendar()
+          }}
+        />
+      )}
+
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="max-w-lg mx-auto flex items-center justify-between gap-2">

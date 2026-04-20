@@ -813,6 +813,9 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     if (esPrimeraGeneracion) {
       // First generation — full welcome messages
       const FACTORES_ACTIVIDAD: Record<string, number> = {
+        // New levels (Bug #17)
+        A: 1.2, B: 1.3, C: 1.4,
+        // Legacy levels (pre-Bug #17 users)
         sedentario: 1.2, ligero: 1.375, moderado: 1.55, activo: 1.725, muy_activo: 1.9,
       }
       const pesoKg = Number(usuario.peso_kg) || 0
@@ -825,7 +828,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
       let introMessage = ''
       if (usuario.meta === 'perder_peso') {
-        introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 10% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
+        introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 15% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
       } else if (usuario.meta === 'ganar_masa') {
         introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del 20% — ${calTarget} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
       } else {

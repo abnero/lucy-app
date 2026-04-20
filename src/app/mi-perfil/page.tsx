@@ -6,35 +6,17 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
 import { APP_VERSION } from '@/lib/version'
 import ChatPanel from '@/components/ChatPanel'
+import PreguntasActividad from '@/components/PreguntasActividad'
+import { calcularMacros, NivelActividad, Meta, Genero, DESCRIPCIONES_NIVEL } from '@/lib/calculo-macros'
 
 type UnidadPeso = 'lbs' | 'kg'
 type UnidadAltura = 'ft' | 'cm'
 
-const NIVELES_ACTIVIDAD = [
-  { value: 'sedentario', label: 'Sedentaria', description: 'Poco o nada de ejercicio', factor: 1.2 },
-  { value: 'ligero', label: 'Ligeramente activa', description: 'Ejercicio 1-3 días/semana', factor: 1.375 },
-  { value: 'moderado', label: 'Moderadamente activa', description: 'Ejercicio 3-5 días/semana', factor: 1.55 },
-  { value: 'activo', label: 'Muy activa', description: 'Ejercicio 6-7 días/semana', factor: 1.725 },
-] as const
-
 const METAS = [
-  { value: 'perder_peso', label: 'Bajar de peso' },
-  { value: 'mantener_peso', label: 'Mantenerme' },
-  { value: 'ganar_masa', label: 'Ganar masa muscular' },
+  { value: 'perder_peso' as Meta, label: 'Bajar de peso' },
+  { value: 'mantener_peso' as Meta, label: 'Mantenerme' },
+  { value: 'ganar_masa' as Meta, label: 'Ganar masa muscular' },
 ] as const
-
-function calcularMacros(pesoKg: number, alturaCm: number, edad: number, factorActividad: number, meta: string, genero: string = 'femenino') {
-  const bmr = 10 * pesoKg + 6.25 * alturaCm - 5 * edad + (genero === 'masculino' ? 5 : -161)
-  const tdee = bmr * factorActividad
-  let calorias: number
-  if (meta === 'perder_peso') calorias = Math.max(Math.round(tdee * 0.9), 1200)
-  else if (meta === 'ganar_masa') calorias = Math.round(tdee * 1.2)
-  else calorias = Math.round(tdee * 1.0)
-  const proteina = Math.round((calorias * 0.30) / 4)
-  const carbs = Math.round((calorias * 0.40) / 4)
-  const grasas = Math.round((calorias * 0.30) / 9)
-  return { calorias, proteina, carbs, grasas }
-}
 
 interface UsuarioData {
   nombre: string
@@ -67,9 +49,9 @@ export default function MiPerfilPage() {
   const [alturaCm, setAlturaCm] = useState('')
   const [unidadAltura, setUnidadAltura] = useState<UnidadAltura>('ft')
   const [edad, setEdad] = useState('')
-  const [genero, setGenero] = useState('femenino')
-  const [nivelActividad, setNivelActividad] = useState('')
-  const [meta, setMeta] = useState('')
+  const [genero, setGenero] = useState<Genero>('femenino')
+  const [nivel, setNivel] = useState<NivelActividad | null>(null)
+  const [meta, setMeta] = useState<Meta | ''>('')
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [saving, setSaving] = useState(false)
@@ -77,7 +59,7 @@ export default function MiPerfilPage() {
   const [showRegenConfirm, setShowRegenConfirm] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const originalValues = useRef<{ nombre: string; peso: string; pies: string; pulgadas: string; edad: string; genero: string; nivelActividad: string; meta: string } | null>(null)
+  const originalValues = useRef<{ nombre: string; peso: string; pies: string; pulgadas: string; edad: string; genero: Genero; nivel: NivelActividad | null; meta: string } | null>(null)
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -129,12 +111,12 @@ export default function MiPerfilPage() {
             const u = data as UsuarioData
             setUserData(u)
             setNombre(u.nombre || '')
-            setGenero(u.genero || 'femenino')
+            setGenero((u.genero as Genero) || 'femenino')
             setAvatarUrl(u.avatar_url || user?.user_metadata?.avatar_url || null)
             setPeso(u.peso_lbs ? u.peso_lbs.toString() : '')
             setEdad(u.edad ? u.edad.toString() : '')
-            setNivelActividad(u.nivel_actividad || '')
-            setMeta(u.meta || '')
+            setNivel((u.nivel_actividad as NivelActividad) || null)
+            setMeta((u.meta as Meta) || '')
             let origPies = ''
             let origPulgadas = ''
             if (u.altura_pies) {
@@ -150,8 +132,8 @@ export default function MiPerfilPage() {
               pies: origPies,
               pulgadas: origPulgadas,
               edad: u.edad ? u.edad.toString() : '',
-              genero: u.genero || 'femenino',
-              nivelActividad: u.nivel_actividad || '',
+              genero: (u.genero as Genero) || 'femenino',
+              nivel: (u.nivel_actividad as NivelActividad) || null,
               meta: u.meta || '',
             }
           }
@@ -170,7 +152,7 @@ export default function MiPerfilPage() {
       return
     }
 
-    if (!nombre.trim() || !peso || !edad || !nivelActividad || !meta) {
+    if (!nombre.trim() || !peso || !edad || !nivel || !meta) {
       setError('Por favor completa todos los campos')
       return
     }
@@ -200,15 +182,14 @@ export default function MiPerfilPage() {
       round1(pesoKg) !== round1(userData?.peso_kg || 0) ||
       round1(altCm) !== round1(userData?.altura_cm || 0) ||
       edadNum !== (userData?.edad || 0) ||
-      nivelActividad !== (userData?.nivel_actividad || '') ||
+      nivel !== (userData?.nivel_actividad || '') ||
       meta !== (userData?.meta || '')
 
     setSaving(true)
 
     if (metricChanged) {
       // Recalculate macros
-      const nivel = NIVELES_ACTIVIDAD.find(n => n.value === nivelActividad)!
-      const macros = calcularMacros(pesoKg, altCm, edadNum, nivel.factor, meta, genero)
+      const macros = calcularMacros(pesoKg, altCm, edadNum, nivel!, meta as Meta, genero)
 
       const { error: dbError } = await supabase
         .from('usuarios')
@@ -217,7 +198,7 @@ export default function MiPerfilPage() {
           genero,
           peso_lbs: pesoLbs, peso_kg: pesoKg,
           altura_pies: altPies, altura_cm: altCm,
-          edad: edadNum, nivel_actividad: nivelActividad, meta,
+          edad: edadNum, nivel_actividad: nivel, meta,
           calorias_objetivo: macros.calorias,
           proteina_objetivo: macros.proteina,
           carbs_objetivo: macros.carbs,
@@ -265,7 +246,7 @@ export default function MiPerfilPage() {
     pulgadas !== originalValues.current.pulgadas ||
     edad !== originalValues.current.edad ||
     genero !== originalValues.current.genero ||
-    nivelActividad !== originalValues.current.nivelActividad ||
+    nivel !== originalValues.current.nivel ||
     meta !== originalValues.current.meta
   ) : true // default to true while loading
 
@@ -437,10 +418,10 @@ export default function MiPerfilPage() {
             <div>
               <label className="block text-xs text-lucy-muted mb-2">Género</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: 'femenino', label: 'Mujer' },
-                  { value: 'masculino', label: 'Hombre' },
-                ].map(g => (
+                {([
+                  { value: 'femenino' as Genero, label: 'Mujer' },
+                  { value: 'masculino' as Genero, label: 'Hombre' },
+                ]).map(g => (
                   <button key={g.value} type="button" onClick={() => setGenero(g.value)}
                     className={`px-4 py-3 rounded-btn border transition-colors text-sm font-medium ${
                       genero === g.value ? 'border-lucy-accent bg-lucy-accent/5 text-lucy-text' : 'border-lucy-border text-lucy-text hover:border-lucy-soft'
@@ -454,17 +435,15 @@ export default function MiPerfilPage() {
             {/* Nivel de actividad */}
             <div>
               <label className="block text-xs text-lucy-muted mb-2">Nivel de actividad</label>
-              <div className="space-y-2">
-                {NIVELES_ACTIVIDAD.map(nivel => (
-                  <button key={nivel.value} type="button" onClick={() => setNivelActividad(nivel.value)}
-                    className={`w-full text-left px-4 py-3 rounded-btn border transition-colors ${
-                      nivelActividad === nivel.value ? 'border-lucy-accent bg-lucy-accent/5 text-lucy-text' : 'border-lucy-border text-lucy-text hover:border-lucy-soft'
-                    }`}>
-                    <span className="text-sm font-medium">{nivel.label}</span>
-                    <span className="text-xs text-lucy-muted ml-2">{nivel.description}</span>
-                  </button>
-                ))}
-              </div>
+              {nivel && (
+                <div className="bg-lucy-bg rounded-card border border-lucy-border p-3 mb-3">
+                  <p className="text-xs text-lucy-muted">Nivel actual:</p>
+                  <p className="text-sm text-lucy-text font-medium">{DESCRIPCIONES_NIVEL[nivel]}</p>
+                </div>
+              )}
+              <PreguntasActividad
+                onChange={(_respuestas, nivelCalculado) => setNivel(nivelCalculado)}
+              />
             </div>
 
             {/* Meta */}
