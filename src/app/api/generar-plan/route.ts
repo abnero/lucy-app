@@ -189,16 +189,30 @@ export async function POST(req: NextRequest) {
       const emptySlots: string[] = []
       const impossibleSlots: string[] = []
 
+      // Pre-calculate current daily totals for snack budget scaling
+      const currentDayCal: Record<number, number> = {}
+      for (const rows of Object.values(slots)) {
+        for (const r of rows) {
+          if (!currentDayCal[r.dia]) currentDayCal[r.dia] = 0
+          currentDayCal[r.dia] += calPerUnit(r.alimentoData) * r.cantidad
+        }
+      }
+
       // 4. Recalculate per slot
       for (const [key, rows] of Object.entries(slots)) {
         const [diaStr, comida] = key.split('|')
         const dia = parseInt(diaStr)
         const label = `${DIA_NOMBRES[dia - 1] || `día ${dia}`} ${comida}`
 
-        // Skip snacks — keep quantities as-is
-        if (comida === 'snack') continue
-
-        const budget = REGEN_CAL[comida]
+        // For snacks: budget = current snack kcal × (calTarget / current day total)
+        let budget: number
+        if (comida === 'snack') {
+          const dayTotal = currentDayCal[dia] || calTarget
+          const snackCal = rows.reduce((s: number, r: RegenRow) => s + calPerUnit(r.alimentoData) * r.cantidad, 0)
+          budget = dayTotal > 0 ? snackCal * (calTarget / dayTotal) : snackCal
+        } else {
+          budget = REGEN_CAL[comida]
+        }
         if (!budget) continue
 
         if (rows.length === 0) {
@@ -314,7 +328,6 @@ export async function POST(req: NextRequest) {
       const updates: { id: string; cantidad: number }[] = []
       for (const rows of Object.values(slots)) {
         for (const r of rows) {
-          if (r.comida === 'snack') continue
           if (r.cantidad !== r.cantidadOriginal) {
             updates.push({ id: r.id, cantidad: r.cantidad })
           }
