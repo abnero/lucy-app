@@ -18,6 +18,12 @@ interface ModalReOnboardingProps {
 }
 
 export default function ModalReOnboarding({ userId, userData, onComplete }: ModalReOnboardingProps) {
+  const [nivel, setNivel] = useState<NivelActividad | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [planError, setPlanError] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+
   if (process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true') {
     return (
       <div className="fixed inset-0 z-50 bg-lucy-bg overflow-y-auto">
@@ -35,12 +41,6 @@ export default function ModalReOnboarding({ userId, userData, onComplete }: Moda
       </div>
     )
   }
-
-  const [nivel, setNivel] = useState<NivelActividad | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [planError, setPlanError] = useState(false)
-  const [retrying, setRetrying] = useState(false)
 
   const handlePreguntasChange = (_respuestas: RespuestasActividad, nivelCalculado: NivelActividad) => {
     setNivel(nivelCalculado)
