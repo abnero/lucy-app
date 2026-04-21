@@ -97,8 +97,8 @@ export default function SeleccionAlimentosPage() {
   const mostrarWarningProteina = requiereProteina && selected.size > 0 && !tieneProteinaSeleccionada
 
   // Si es opcional y no seleccionó nada, puede saltar
-  const puedesSaltar = config.opcional && selected.size === 0
-  const canAdvance = puedesSaltar || (selected.size >= config.min && cumpleProteina)
+  const puedeSaltar = config.opcional && selected.size === 0
+  const canAdvance = puedeSaltar || (selected.size >= config.min && cumpleProteina)
   const isLastStep = paso === PASOS.length - 1
 
   const handleNext = async () => {
@@ -218,14 +218,6 @@ export default function SeleccionAlimentosPage() {
             <p className="text-lucy-soft text-[9px] tracking-[0.25em] uppercase">calendario metabólico</p>
           </div>
           <div className="flex items-center gap-3">
-            {config.opcional && (
-              <button
-                onClick={handleNext}
-                className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors"
-              >
-                Saltar
-              </button>
-            )}
             <span className="text-xs text-lucy-muted">Paso {paso + 1} de 6</span>
           </div>
         </div>
@@ -367,7 +359,7 @@ export default function SeleccionAlimentosPage() {
             disabled={!canAdvance || saving}
             className="flex-1 bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {saving ? 'Guardando...' : isLastStep ? '¡Generar!' : '→'}
+            {saving ? 'Guardando...' : isLastStep ? '¡Generar!' : puedeSaltar ? 'Saltar este paso →' : '→'}
           </button>
         </div>
       </div>
