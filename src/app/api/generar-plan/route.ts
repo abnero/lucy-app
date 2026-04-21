@@ -80,6 +80,345 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // ═══ Target macros ═══
+    const testCal = process.env.NODE_ENV === 'development' ? url.searchParams.get('test_calorias') : null
+    const testProt = process.env.NODE_ENV === 'development' ? url.searchParams.get('test_proteina') : null
+    const calTarget = testCal ? parseInt(testCal) : (usuario.calorias_objetivo || 1800)
+    const protTarget = testProt ? parseInt(testProt) : (usuario.proteina_objetivo || 100)
+    console.log('[objetivo]', testCal ? '⚠️ TEST OVERRIDE' : 'leído desde DB:', 'calorias:', calTarget, 'proteina:', protTarget, 'nombre:', usuario.nombre)
+
+    // ═══ Detect first generation vs regeneration ═══
+    const { count: calendarioCount } = await supabase
+      .from('calendario')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    const { count: convosCount } = await supabase
+      .from('conversaciones')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    const esPrimeraGeneracion = ((calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0)
+    console.log('[plan] esPrimeraGeneracion:', esPrimeraGeneracion, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
+
+    // ═══ Kill switch: block regeneration while Bug #18 is being fixed ═══
+    if (!esPrimeraGeneracion && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
+      console.log('[plan] BLOCKED by kill switch (regen paused). userId:', userId)
+      return NextResponse.json(
+        { error: 'Lucy está en mantenimiento. Tu plan actual sigue activo. Vuelve más tarde.', maintenance: true },
+        { status: 503 }
+      )
+    }
+
+    // ═══ REGENERATION MODE: Recalculate quantities only (no Claude, no DELETE/INSERT) ═══
+    if (!esPrimeraGeneracion) {
+      console.log('[regen] Modo recálculo — sin Claude, sin DELETE/INSERT. userId:', userId)
+
+      // 1. Read ALL calendar rows with food info
+      const { data: calRows, error: calErr } = await supabase
+        .from('calendario')
+        .select(`
+          id, dia, comida, cantidad, unidad, origen, alimento_id,
+          alimento:alimentos(
+            id, nombre, categoria_comida,
+            calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad,
+            unidad_medida, porcion_base, porcion_min, porcion_max, rol_permitido
+          )
+        `)
+        .eq('user_id', userId)
+        .order('dia')
+        .order('comida')
+
+      if (calErr || !calRows || calRows.length === 0) {
+        return NextResponse.json({ error: 'Error leyendo calendario: ' + (calErr?.message || 'calendario vacío') }, { status: 500 })
+      }
+
+      console.log('[regen] Calendar rows:', calRows.length)
+
+      // 2. Parse and group by (dia, comida)
+      type RegenRow = {
+        id: string
+        dia: number
+        comida: string
+        cantidad: number
+        cantidadOriginal: number
+        unidad: string
+        origen: string
+        alimento_id: string
+        alimentoData: AlimentoData
+      }
+
+      const slots: Record<string, RegenRow[]> = {}
+
+      for (const row of calRows) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const a = (Array.isArray(row.alimento) ? (row.alimento as any)[0] : row.alimento) as AlimentoData | null
+        if (!a) {
+          console.warn('[regen] Row sin alimento, skip:', row.id)
+          continue
+        }
+
+        const key = `${row.dia}|${row.comida}`
+        if (!slots[key]) slots[key] = []
+        slots[key].push({
+          id: row.id,
+          dia: row.dia,
+          comida: row.comida,
+          cantidad: row.cantidad,
+          cantidadOriginal: row.cantidad,
+          unidad: row.unidad,
+          origen: row.origen,
+          alimento_id: row.alimento_id,
+          alimentoData: a,
+        })
+      }
+
+      // 3. Budgets per meal type
+      const REGEN_CAL: Record<string, number> = {
+        desayuno: calTarget * 0.30,
+        almuerzo: calTarget * 0.40,
+        cena: calTarget * 0.30,
+      }
+      const REGEN_PROT: Record<string, number> = {
+        desayuno: protTarget * 0.30,
+        almuerzo: protTarget * 0.35,
+        cena: protTarget * 0.35,
+      }
+
+      const DIA_NOMBRES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+      const emptySlots: string[] = []
+      const impossibleSlots: string[] = []
+
+      // 4. Recalculate per slot
+      for (const [key, rows] of Object.entries(slots)) {
+        const [diaStr, comida] = key.split('|')
+        const dia = parseInt(diaStr)
+        const label = `${DIA_NOMBRES[dia - 1] || `día ${dia}`} ${comida}`
+
+        // Skip snacks — keep quantities as-is
+        if (comida === 'snack') continue
+
+        const budget = REGEN_CAL[comida]
+        if (!budget) continue
+
+        if (rows.length === 0) {
+          emptySlots.push(label)
+          continue
+        }
+
+        // Current total calories in this slot
+        const currentCal = rows.reduce((s: number, r: RegenRow) => s + calPerUnit(r.alimentoData) * r.cantidad, 0)
+        if (currentCal <= 0) continue
+
+        // ── Step 1: Proportional scale to hit budget ──
+        const factor = budget / currentCal
+        for (const r of rows) {
+          const a = r.alimentoData
+          const cpu = calPerUnit(a)
+          if (cpu <= 0) continue
+          const min = a.unidad_medida === 'unidad' ? (a.porcion_min || 1) : (a.porcion_min || 10)
+          const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+          r.cantidad = Math.max(min, Math.min(max, Math.round(r.cantidad * factor)))
+        }
+
+        const totalSlotCal = () => rows.reduce((s: number, r: RegenRow) => s + calPerUnit(r.alimentoData) * r.cantidad, 0)
+        let total = totalSlotCal()
+        console.log(`[regen] ${label}: scale(${factor.toFixed(2)})=${Math.round(total)} budget=${Math.round(budget)}`)
+
+        // ── Step 2: Bidirectional fine-tuning if >10% off ──
+        if (Math.abs(total - budget) > budget * 0.10) {
+          if (total > budget) {
+            // Reduce highest-density food toward porcion_min
+            const sorted = [...rows].sort((a, b) => calPerUnit(b.alimentoData) - calPerUnit(a.alimentoData))
+            for (const r of sorted) {
+              const a = r.alimentoData
+              const min = a.unidad_medida === 'unidad' ? (a.porcion_min || 1) : (a.porcion_min || 10)
+              if (r.cantidad > min) {
+                r.cantidad = min
+                total = totalSlotCal()
+                if (total <= budget * 1.05) break
+              }
+            }
+          } else {
+            // Increase lowest-density food toward porcion_max
+            const sorted = [...rows].sort((a, b) => calPerUnit(a.alimentoData) - calPerUnit(b.alimentoData))
+            for (const r of sorted) {
+              const a = r.alimentoData
+              const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+              if (r.cantidad < max) {
+                const deficit = budget - total
+                const extra = calPerUnit(a) > 0 ? deficit / calPerUnit(a) : 0
+                r.cantidad = Math.min(max, Math.round(r.cantidad + extra))
+                total = totalSlotCal()
+                if (total >= budget * 0.95) break
+              }
+            }
+          }
+        }
+
+        if (Math.abs(totalSlotCal() - budget) > budget * 0.10) {
+          impossibleSlots.push(label)
+        }
+
+        // ── Step 3: Protein enforcement ──
+        const protBudget = REGEN_PROT[comida] || protTarget * 0.30
+        const currentProt = rows.reduce((s: number, r: RegenRow) => s + protPerUnit(r.alimentoData) * r.cantidad, 0)
+
+        if (currentProt < protBudget * 0.85) {
+          const protRows = rows
+            .filter((r: RegenRow) => (r.alimentoData.rol_permitido || []).includes('Proteina'))
+            .sort((a: RegenRow, b: RegenRow) => protPerUnit(b.alimentoData) - protPerUnit(a.alimentoData))
+
+          let remaining = protBudget - currentProt
+          for (const r of protRows) {
+            if (remaining <= 0) break
+            const a = r.alimentoData
+            const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+            if (r.cantidad >= max) continue
+            const ppu = protPerUnit(a)
+            if (ppu <= 0) continue
+            const extraQty = remaining / ppu
+            const newQty = Math.min(max, Math.round(r.cantidad + extraQty))
+            const actual = newQty - r.cantidad
+            if (actual <= 0) continue
+
+            // If pushing calories over budget, compensate by reducing non-protein foods
+            const extraCals = calPerUnit(a) * actual
+            if (totalSlotCal() + extraCals > budget * 1.10) {
+              const nonProt = rows
+                .filter((nr: RegenRow) => !(nr.alimentoData.rol_permitido || []).includes('Proteina'))
+                .sort((x: RegenRow, y: RegenRow) => calPerUnit(y.alimentoData) - calPerUnit(x.alimentoData))
+              let calReduce = totalSlotCal() + extraCals - budget
+              for (const np of nonProt) {
+                if (calReduce <= 0) break
+                const npa = np.alimentoData
+                const npMin = npa.unidad_medida === 'unidad' ? (npa.porcion_min || 1) : (npa.porcion_min || 10)
+                if (np.cantidad <= npMin) continue
+                const maxR = np.cantidad - npMin
+                const rForCal = calPerUnit(npa) > 0 ? calReduce / calPerUnit(npa) : 0
+                const rQty = Math.min(maxR, rForCal)
+                np.cantidad = Math.max(npMin, Math.round(np.cantidad - rQty))
+                calReduce -= calPerUnit(npa) * rQty
+              }
+            }
+
+            r.cantidad = newQty
+            remaining -= ppu * actual
+          }
+
+          console.log(`[regen] ${label}: prot ${Math.round(currentProt)}g → ${Math.round(rows.reduce((s: number, r: RegenRow) => s + protPerUnit(r.alimentoData) * r.cantidad, 0))}g (target ${Math.round(protBudget)}g)`)
+        }
+      }
+
+      // 5. Collect updates (only changed quantities)
+      const updates: { id: string; cantidad: number }[] = []
+      for (const rows of Object.values(slots)) {
+        for (const r of rows) {
+          if (r.comida === 'snack') continue
+          if (r.cantidad !== r.cantidadOriginal) {
+            updates.push({ id: r.id, cantidad: r.cantidad })
+          }
+        }
+      }
+
+      console.log('[regen] Rows to update:', updates.length, 'of', calRows.length)
+
+      // 6. Apply updates (parallel batches of 10)
+      for (let i = 0; i < updates.length; i += 10) {
+        const batch = updates.slice(i, i + 10)
+        const results = await Promise.all(
+          batch.map(u => supabase.from('calendario').update({ cantidad: u.cantidad }).eq('id', u.id))
+        )
+        for (const { error: e } of results) {
+          if (e) console.error('[regen] Update error:', e.message)
+        }
+      }
+
+      // 7. Rebuild shopping list
+      await supabase.from('lista_compras').delete().eq('user_id', userId)
+
+      const comprasMap = new Map<string, { alimentoId: string; cantidad: number; unidad: string }>()
+      for (const rows of Object.values(slots)) {
+        for (const r of rows) {
+          const existing = comprasMap.get(r.alimento_id)
+          if (existing) {
+            existing.cantidad += r.cantidad
+          } else {
+            comprasMap.set(r.alimento_id, { alimentoId: r.alimento_id, cantidad: r.cantidad, unidad: r.unidad })
+          }
+        }
+      }
+
+      const comprasRows = Array.from(comprasMap.values()).map(c => ({
+        user_id: userId,
+        alimento_id: c.alimentoId,
+        cantidad_total: c.cantidad,
+        unidad: c.unidad,
+        comprado: false,
+      }))
+
+      if (comprasRows.length > 0) {
+        const { error: shopErr } = await supabase.from('lista_compras').insert(comprasRows)
+        if (shopErr) console.error('[regen] lista_compras error:', shopErr.message)
+      }
+
+      // 8. Post-analysis + logging
+      const dailyTotals: Record<number, { cal: number; prot: number }> = {}
+      for (const rows of Object.values(slots)) {
+        for (const r of rows) {
+          if (!dailyTotals[r.dia]) dailyTotals[r.dia] = { cal: 0, prot: 0 }
+          dailyTotals[r.dia].cal += calPerUnit(r.alimentoData) * r.cantidad
+          dailyTotals[r.dia].prot += protPerUnit(r.alimentoData) * r.cantidad
+        }
+      }
+
+      for (let d = 1; d <= 7; d++) {
+        const dt = dailyTotals[d]
+        if (dt) console.log(`[regen] día ${d}: cal=${Math.round(dt.cal)} prot=${Math.round(dt.prot)} target=(${calTarget}/${protTarget})`)
+      }
+
+      const regenDays = Object.values(dailyTotals)
+      const avgCal = regenDays.length > 0 ? regenDays.reduce((s, d) => s + d.cal, 0) / regenDays.length : 0
+      const avgProt = regenDays.length > 0 ? regenDays.reduce((s, d) => s + d.prot, 0) / regenDays.length : 0
+      const diasBajosProteina = regenDays.filter(d => d.prot < protTarget * 0.85).length
+
+      console.log('[regen] Promedio: cal=', Math.round(avgCal), 'prot=', Math.round(avgProt), 'días bajos prot:', diasBajosProteina)
+
+      // 9. Message to user
+      let regenMsg = `Actualicé las cantidades de tu plan con tus nuevos macros (${calTarget} kcal, ${protTarget}g proteína). Todo lo demás sigue igual.`
+
+      if (emptySlots.length > 0) {
+        regenMsg += `\n\nTu plan tiene algunas comidas vacías (${emptySlots.join(', ')}). Para completarlas, usa "Cambiar alimentos" en tu perfil o pídeme cambios por aquí.`
+      }
+
+      if (impossibleSlots.length > 0) {
+        regenMsg += `\n\nAlgunas comidas no pudieron alcanzar el target calórico con los alimentos actuales. Considera cambiar algunos alimentos por opciones con menos calorías por porción.`
+      }
+
+      if (diasBajosProteina >= 5) {
+        regenMsg += `\n\nImportante: la mayoría de los días te va a faltar proteína con los alimentos actuales. ¿Quieres que te sugiera snacks proteicos para completar? 💜`
+      } else if (diasBajosProteina >= 2) {
+        regenMsg += `\n\nNoté que ${diasBajosProteina} días quedan un poco bajos en proteína. ¿Quieres que ajustemos con un snack proteico? 💜`
+      } else {
+        regenMsg += ' 💜'
+      }
+
+      await supabase.from('conversaciones').insert({
+        user_id: userId, role: 'assistant', content: regenMsg, leido: false,
+      })
+
+      return NextResponse.json({
+        success: true,
+        mode: 'recalculation',
+        updates: updates.length,
+        dias: Object.keys(dailyTotals).length,
+        avgCal: Math.round(avgCal),
+        avgProt: Math.round(avgProt),
+      })
+    }
+
+    // ═══ FIRST GENERATION FLOW (existing code below) ═══
+
     // ═══ 2. Fetch user preferences with food details ═══
     const { data: preferencias, error: prefErr } = await supabase
       .from('preferencias_usuario')
@@ -117,14 +456,6 @@ export async function POST(req: NextRequest) {
 
     // ═══ PASO 1: Calculate optimal quantities (backend arithmetic) ═══
     console.log('[nueva-arquitectura] v2 iniciando...', 'userId:', userId)
-    // Dev-only test overrides via query params
-    const testCal = process.env.NODE_ENV === 'development' ? url.searchParams.get('test_calorias') : null
-    const testProt = process.env.NODE_ENV === 'development' ? url.searchParams.get('test_proteina') : null
-
-    const calTarget = testCal ? parseInt(testCal) : (usuario.calorias_objetivo || 1800)
-    const protTarget = testProt ? parseInt(testProt) : (usuario.proteina_objetivo || 100)
-
-    console.log('[objetivo]', testCal ? '⚠️ TEST OVERRIDE' : 'leído desde DB:', 'calorias:', calTarget, 'proteina:', protTarget, 'nombre:', usuario.nombre)
 
     // Group foods by meal role
     const breakfastFoods = [
@@ -752,32 +1083,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
 
-    // ═══ Detect first generation vs regeneration ═══
-    // "Primera generación" = the system has NEVER done anything for this user yet
-    // (no calendar rows AND no conversation rows of any kind)
-    const { count: calendarioCount } = await supabase
-      .from('calendario')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-
-    const { count: convosCount } = await supabase
-      .from('conversaciones')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-
-    const esPrimeraGeneracion = ((calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0)
-    console.log('[plan] esPrimeraGeneracion:', esPrimeraGeneracion, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
-
-    // ═══ Kill switch: block regeneration while Bug #18 is being fixed ═══
-    if (!esPrimeraGeneracion && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
-      console.log('[plan] BLOCKED by kill switch (regen paused). userId:', userId)
-      return NextResponse.json(
-        { error: 'Lucy está en mantenimiento. Tu plan actual sigue activo. Vuelve más tarde.', maintenance: true },
-        { status: 503 }
-      )
-    }
-
-    // ═══ Check for existing personalizations (independent of first/regen) ═══
+    // ═══ Check for existing personalizations (for first-gen messages) ═══
     const { data: personalizaciones } = await supabase
       .from('calendario')
       .select('cantidad, unidad, dia, comida, alimento_id, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
