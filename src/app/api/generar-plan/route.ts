@@ -768,6 +768,15 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     const esPrimeraGeneracion = ((calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0)
     console.log('[plan] esPrimeraGeneracion:', esPrimeraGeneracion, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
 
+    // ═══ Kill switch: block regeneration while Bug #18 is being fixed ═══
+    if (!esPrimeraGeneracion && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
+      console.log('[plan] BLOCKED by kill switch (regen paused). userId:', userId)
+      return NextResponse.json(
+        { error: 'Lucy está en mantenimiento. Tu plan actual sigue activo. Vuelve más tarde.', maintenance: true },
+        { status: 503 }
+      )
+    }
+
     // ═══ Check for existing personalizations (independent of first/regen) ═══
     const { data: personalizaciones } = await supabase
       .from('calendario')

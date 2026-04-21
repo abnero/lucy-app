@@ -5,6 +5,8 @@ interface BannerReOnboardingProps {
 }
 
 export default function BannerReOnboarding({ onOpen }: BannerReOnboardingProps) {
+  if (process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true') return null
+
   return (
     <div style={{ backgroundColor: '#B8B5E0' }} className="px-4 py-3 text-center">
       <div className="max-w-lg mx-auto">

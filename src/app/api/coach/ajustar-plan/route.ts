@@ -92,30 +92,39 @@ export async function POST(req: NextRequest) {
       console.log('[historial] INSERT OK, id:', insertData?.[0]?.id)
     }
 
-    // Regenerate calendar for the clienta
-    // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
+    // Regenerate calendar for the clienta (skip if regen paused)
+    const regenPaused = process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true'
 
-    try {
-      console.log('[ajustar-plan] Calling generar-plan for clienta:', clientaUserId)
-      const genRes = await fetch(`${siteUrl}/api/generar-plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: clientaUserId, serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY }),
-      })
-      const genData = await genRes.json()
-      if (genData.error) {
-        console.error('[ajustar-plan] generar-plan error:', genData.error)
-      } else {
-        console.log('[ajustar-plan] generar-plan OK:', genData.dias, 'dias,', genData.items, 'items')
+    if (!regenPaused) {
+      // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lucy.fit'
+
+      try {
+        console.log('[ajustar-plan] Calling generar-plan for clienta:', clientaUserId)
+        const genRes = await fetch(`${siteUrl}/api/generar-plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: clientaUserId, serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY }),
+        })
+        const genData = await genRes.json()
+        if (genData.error) {
+          console.error('[ajustar-plan] generar-plan error:', genData.error)
+        } else {
+          console.log('[ajustar-plan] generar-plan OK:', genData.dias, 'dias,', genData.items, 'items')
+        }
+      } catch (genErr) {
+        console.error('[ajustar-plan] generar-plan fetch failed:', genErr instanceof Error ? genErr.message : genErr)
       }
-    } catch (genErr) {
-      console.error('[ajustar-plan] generar-plan fetch failed:', genErr instanceof Error ? genErr.message : genErr)
+    } else {
+      console.log('[ajustar-plan] SKIPPED generar-plan (regen paused). Macros updated, plan unchanged.')
     }
 
     // Insert Lucy message in clienta's chat
     const coachName = verified.coach.nombre || 'Tu coach'
     let lucyMsg = `Tu coach ${coachName} actualizó tu plan 💜\n\nNuevos macros:\n• Calorías: ${caloriasNuevas} kcal\n• Proteína: ${proteinaPct}% (${proteinaG}g)\n• Carbohidratos: ${carbsPct}% (${carbsG}g)\n• Grasas: ${grasasPct}% (${grasasG}g)`
+    if (regenPaused) {
+      lucyMsg += '\n\nTus nuevos macros están guardados. Tu calendario se actualizará pronto con estas nuevas cantidades.'
+    }
     if (nota) {
       lucyMsg += `\n\nNota de tu coach: ${nota}`
     }

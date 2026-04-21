@@ -18,6 +18,24 @@ interface ModalReOnboardingProps {
 }
 
 export default function ModalReOnboarding({ userId, userData, onComplete }: ModalReOnboardingProps) {
+  if (process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true') {
+    return (
+      <div className="fixed inset-0 z-50 bg-lucy-bg overflow-y-auto">
+        <div className="max-w-md mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="font-logo text-2xl text-lucy-text">Lucy</h1>
+            <p className="text-lucy-soft text-[10px] tracking-[0.25em] uppercase mt-1">calendario metabólico</p>
+          </div>
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-sm text-lucy-text font-medium mb-2">Lucy está en mantenimiento</p>
+            <p className="text-xs text-lucy-muted text-center mb-6 max-w-xs">Estamos haciendo mejoras. Tu plan actual sigue activo. Vuelve pronto.</p>
+            <button onClick={onComplete} className="text-xs text-lucy-accent hover:opacity-80 transition-opacity">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const [nivel, setNivel] = useState<NivelActividad | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')

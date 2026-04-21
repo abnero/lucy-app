@@ -148,6 +148,10 @@ export default function MiPerfilPage() {
     setSuccessMsg('')
 
     if (!hasChanges) {
+      if (regenPaused) {
+        setError('Lucy está en mantenimiento. La regeneración de planes estará disponible pronto.')
+        return
+      }
       setShowRegenConfirm(true)
       return
     }
@@ -207,6 +211,14 @@ export default function MiPerfilPage() {
         .eq('id', user!.id)
 
       if (dbError) { setError('Error al guardar: ' + dbError.message); setSaving(false); return }
+
+      if (regenPaused) {
+        // Save macros but don't regenerate plan
+        setUserData(prev => prev ? { ...prev, calorias_objetivo: macros.calorias, proteina_objetivo: macros.proteina, carbs_objetivo: macros.carbs, grasas_objetivo: macros.grasas } : prev)
+        setSuccessMsg('Tus macros se guardaron. Tu plan se actualizará cuando Lucy termine su mantenimiento.')
+        setSaving(false)
+        return
+      }
 
       // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
       router.push('/generando?modo=actualizacion')
@@ -272,6 +284,8 @@ export default function MiPerfilPage() {
       setRegenerating(false)
     }
   }
+
+  const regenPaused = process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true'
 
   if (!user || !userData) return null
 
@@ -464,9 +478,9 @@ export default function MiPerfilPage() {
             {error && <p className="text-red-500 text-xs bg-red-50 rounded-btn p-3">{error}</p>}
             {successMsg && <p className="text-lucy-accent text-xs bg-lucy-accent/5 border border-lucy-accent/20 rounded-btn p-3">{successMsg}</p>}
 
-            <button type="submit" disabled={saving || regenerating}
+            <button type="submit" disabled={saving || regenerating || (regenPaused && !hasChanges)}
               className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-              {saving ? 'Guardando...' : regenerating ? 'Regenerando...' : hasChanges ? 'Guardar cambios' : 'Regenerar mi plan'}
+              {saving ? 'Guardando...' : regenerating ? 'Regenerando...' : hasChanges ? 'Guardar cambios' : regenPaused ? 'Mantenimiento — vuelve pronto' : 'Regenerar mi plan'}
             </button>
           </form>
 
