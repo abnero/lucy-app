@@ -92,9 +92,11 @@ export default function SeleccionAlimentosPage() {
   const tieneProteinaSeleccionada = Array.from(selected).some(
     id => rolesAlimentos[id]?.includes('Proteina')
   )
-  const mostrarWarningProteina = (paso === 0 || paso === 1) && selected.size > 0 && !tieneProteinaSeleccionada
+  const requiereProteina = (paso === 0 || paso === 1)
+  const cumpleProteina = !requiereProteina || tieneProteinaSeleccionada
+  const mostrarWarningProteina = requiereProteina && selected.size > 0 && !tieneProteinaSeleccionada
 
-  const canAdvance = selected.size >= config.min
+  const canAdvance = selected.size >= config.min && cumpleProteina
   const isLastStep = paso === PASOS.length - 1
 
   const handleNext = async () => {
@@ -302,6 +304,8 @@ export default function SeleccionAlimentosPage() {
           <div className="grid grid-cols-2 gap-3 mb-8">
             {alimentosFiltrados.map(alimento => {
               const isSelected = selected.has(alimento.id)
+              const esProteina = alimento.rol_permitido?.includes('Proteina')
+              const mostrarBadge = esProteina && requiereProteina
               return (
                 <button
                   key={alimento.id}
@@ -318,6 +322,11 @@ export default function SeleccionAlimentosPage() {
                   }`}>
                     {alimento.nombre}
                   </span>
+                  {mostrarBadge && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-lucy-accent/10 text-lucy-accent text-[10px] font-medium">
+                      Proteína
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -333,16 +342,12 @@ export default function SeleccionAlimentosPage() {
 
         {/* Protein warning for breakfast steps */}
         {mostrarWarningProteina && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4 mb-4">
-            <p className="text-sm font-medium text-yellow-800 mb-1">
-              ⚠️ No has escogido una fuente de proteína para este desayuno
+          <div className="bg-amber-50 border border-amber-300 rounded-card p-4 mb-4">
+            <p className="text-sm font-medium text-amber-900 mb-1">
+              Necesitas escoger al menos 1 proteína
             </p>
-            <p className="text-xs text-yellow-700 leading-relaxed mb-2">
-              Considera escoger Huevo, Clara de Huevo, Yogur Griego o Proteína en Polvo para balancear tu plan.
-              Sin proteína en el desayuno, Lucy tendrá que compensar en otras comidas.
-            </p>
-            <p className="text-[11px] text-yellow-600">
-              Puedes continuar sin proteína o seguir escogiendo opciones.
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Un desayuno sin proteína te deja con hambre antes del almuerzo. Busca las opciones marcadas con &ldquo;Proteína&rdquo; (Huevo, Yogur Griego, Queso Cottage, Tocineta, etc).
             </p>
           </div>
         )}
