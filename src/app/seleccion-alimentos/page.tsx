@@ -96,12 +96,14 @@ export default function SeleccionAlimentosPage() {
   const cumpleProteina = !requiereProteina || tieneProteinaSeleccionada
   const mostrarWarningProteina = requiereProteina && selected.size > 0 && !tieneProteinaSeleccionada
 
-  const canAdvance = selected.size >= config.min && cumpleProteina
+  // Si es opcional y no seleccionó nada, puede saltar
+  const puedesSaltar = config.opcional && selected.size === 0
+  const canAdvance = puedesSaltar || (selected.size >= config.min && cumpleProteina)
   const isLastStep = paso === PASOS.length - 1
 
   const handleNext = async () => {
     setError('')
-    if (!canAdvance && !config.opcional) return
+    if (!canAdvance) return
 
     if (isLastStep) {
       setSaving(true)
@@ -323,8 +325,8 @@ export default function SeleccionAlimentosPage() {
                     {alimento.nombre}
                   </span>
                   {mostrarBadge && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-lucy-accent/10 text-lucy-accent text-[10px] font-medium">
-                      Proteína
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200">
+                      🥩 Proteína
                     </span>
                   )}
                 </button>
@@ -362,7 +364,7 @@ export default function SeleccionAlimentosPage() {
           </button>
           <button
             onClick={handleNext}
-            disabled={!canAdvance && !config.opcional || saving}
+            disabled={!canAdvance || saving}
             className="flex-1 bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? 'Guardando...' : isLastStep ? '¡Generar!' : '→'}
