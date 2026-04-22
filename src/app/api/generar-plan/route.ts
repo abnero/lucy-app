@@ -49,6 +49,16 @@ function protPerUnit(a: AlimentoData): number {
   return a.unidad_medida === 'unidad' ? a.proteina_por_unidad : a.proteina_por_unidad / (a.porcion_base || 100)
 }
 
+// Portion limits — use food's declared min/max, with sensible fallbacks
+function getMin(a: AlimentoData): number {
+  if (a.porcion_min && a.porcion_min > 0) return a.porcion_min
+  return a.unidad_medida === 'unidad' ? 1 : 10
+}
+function getMax(a: AlimentoData): number {
+  if (a.porcion_max && a.porcion_max > 0) return a.porcion_max
+  return a.unidad_medida === 'unidad' ? 10 : 500
+}
+
 // Meal distribution constants
 const MEAL_CAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, cena: 0.30 }
 // Protein distribution reserved for future protein-aware scaling
@@ -230,8 +240,8 @@ export async function POST(req: NextRequest) {
           const a = r.alimentoData
           const cpu = calPerUnit(a)
           if (cpu <= 0) continue
-          const min = a.unidad_medida === 'unidad' ? (a.porcion_min || 1) : (a.porcion_min || 10)
-          const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+          const min = getMin(a)
+          const max = getMax(a)
           r.cantidad = Math.max(min, Math.min(max, Math.round(r.cantidad * factor)))
         }
 
@@ -246,7 +256,7 @@ export async function POST(req: NextRequest) {
             const sorted = [...rows].sort((a, b) => calPerUnit(b.alimentoData) - calPerUnit(a.alimentoData))
             for (const r of sorted) {
               const a = r.alimentoData
-              const min = a.unidad_medida === 'unidad' ? (a.porcion_min || 1) : (a.porcion_min || 10)
+              const min = getMin(a)
               if (r.cantidad > min) {
                 r.cantidad = min
                 total = totalSlotCal()
@@ -258,7 +268,7 @@ export async function POST(req: NextRequest) {
             const sorted = [...rows].sort((a, b) => calPerUnit(a.alimentoData) - calPerUnit(b.alimentoData))
             for (const r of sorted) {
               const a = r.alimentoData
-              const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+              const max = getMax(a)
               if (r.cantidad < max) {
                 const deficit = budget - total
                 const extra = calPerUnit(a) > 0 ? deficit / calPerUnit(a) : 0
@@ -287,7 +297,7 @@ export async function POST(req: NextRequest) {
           for (const r of protRows) {
             if (remaining <= 0) break
             const a = r.alimentoData
-            const max = a.unidad_medida === 'unidad' ? (a.porcion_max || 10) : (a.porcion_max || 300)
+            const max = getMax(a)
             if (r.cantidad >= max) continue
             const ppu = protPerUnit(a)
             if (ppu <= 0) continue
@@ -306,7 +316,7 @@ export async function POST(req: NextRequest) {
               for (const np of nonProt) {
                 if (calReduce <= 0) break
                 const npa = np.alimentoData
-                const npMin = npa.unidad_medida === 'unidad' ? (npa.porcion_min || 1) : (npa.porcion_min || 10)
+                const npMin = getMin(npa)
                 if (np.cantidad <= npMin) continue
                 const maxR = np.cantidad - npMin
                 const rForCal = calPerUnit(npa) > 0 ? calReduce / calPerUnit(npa) : 0
@@ -324,7 +334,18 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 5. Collect updates (only changed quantities)
+      // 5. Final safety: enforce porcion_min as absolute floor
+      for (const rows of Object.values(slots)) {
+        for (const r of rows) {
+          const min = getMin(r.alimentoData)
+          if (r.cantidad < min) {
+            console.warn(`[regen] Clamping ${r.alimentoData.nombre} from ${r.cantidad} to min ${min}`)
+            r.cantidad = min
+          }
+        }
+      }
+
+      // 6. Collect updates (only changed quantities)
       const updates: { id: string; cantidad: number }[] = []
       for (const rows of Object.values(slots)) {
         for (const r of rows) {
@@ -518,10 +539,10 @@ export async function POST(req: NextRequest) {
           let qty: number
           if (f.unidad_medida === 'unidad') {
             qty = Math.max(1, Math.round(foodBudget / cpu))
-            qty = Math.max(f.porcion_min || 1, Math.min(f.porcion_max || 10, qty))
+            qty = Math.max(getMin(f), Math.min(getMax(f), qty))
           } else {
             qty = Math.round(foodBudget / cpu)
-            qty = Math.max(f.porcion_min || 10, Math.min(f.porcion_max || 300, qty))
+            qty = Math.max(getMin(f), Math.min(getMax(f), qty))
           }
           cantidadMap.set(f.nombre.toLowerCase(), { cantidad: qty, unidad: f.unidad_medida })
         }
@@ -537,10 +558,10 @@ export async function POST(req: NextRequest) {
           let qty: number
           if (f.unidad_medida === 'unidad') {
             qty = Math.max(1, Math.round(catBudget / cpu))
-            qty = Math.max(f.porcion_min || 1, Math.min(f.porcion_max || 10, qty))
+            qty = Math.max(getMin(f), Math.min(getMax(f), qty))
           } else {
             qty = Math.round(catBudget / cpu)
-            qty = Math.max(f.porcion_min || 10, Math.min(f.porcion_max || 300, qty))
+            qty = Math.max(getMin(f), Math.min(getMax(f), qty))
           }
           cantidadMap.set(f.nombre.toLowerCase(), { cantidad: qty, unidad: f.unidad_medida })
         }
@@ -601,7 +622,7 @@ export async function POST(req: NextRequest) {
         const adjustable = mealFoods.filter(({ food, key }) => {
           const entry = cantidadMap.get(key)
           if (!entry) return false
-          const max = food.unidad_medida === 'unidad' ? (food.porcion_max || 10) : (food.porcion_max || 300)
+          const max = getMax(food)
           return entry.cantidad < max
         })
 
@@ -619,8 +640,8 @@ export async function POST(req: NextRequest) {
           const extraQty = calPerUnit(food) > 0 ? extraCal / calPerUnit(food) : 0
 
           let newQty = entry.cantidad + extraQty
-          const max = food.unidad_medida === 'unidad' ? (food.porcion_max || 10) : (food.porcion_max || 300)
-          const min = food.unidad_medida === 'unidad' ? (food.porcion_min || 1) : (food.porcion_min || 10)
+          const max = getMax(food)
+          const min = getMin(food)
 
           if (food.unidad_medida === 'unidad') {
             newQty = Math.max(min, Math.min(max, Math.round(newQty)))
@@ -637,8 +658,8 @@ export async function POST(req: NextRequest) {
               const fKey = f.nombre.toLowerCase()
               const fEntry = cantidadMap.get(fKey)
               if (!fEntry) continue
-              const fMax = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
-              const fMin = f.unidad_medida === 'unidad' ? (f.porcion_min || 1) : (f.porcion_min || 10)
+              const fMax = getMax(f)
+              const fMin = getMin(f)
               const fExtraQty = calPerUnit(f) > 0 ? extraCal / calPerUnit(f) : 0
               let fNewQty = fEntry.cantidad + fExtraQty
               if (f.unidad_medida === 'unidad') {
@@ -689,8 +710,8 @@ export async function POST(req: NextRequest) {
       for (const f of foods) {
         const entry = cantidadMap.get(f.nombre.toLowerCase())
         if (!entry) continue
-        const min = f.unidad_medida === 'unidad' ? (f.porcion_min || 1) : (f.porcion_min || 10)
-        const max = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
+        const min = getMin(f)
+        const max = getMax(f)
         let newQty: number
         if (scalingUp) {
           newQty = Math.min(max, Math.round(entry.cantidad * factor))
@@ -711,7 +732,7 @@ export async function POST(req: NextRequest) {
           for (const f of sorted) {
             const entry = cantidadMap.get(f.nombre.toLowerCase())
             if (!entry) continue
-            const min = f.unidad_medida === 'unidad' ? (f.porcion_min || 1) : (f.porcion_min || 10)
+            const min = getMin(f)
             if (entry.cantidad > min) {
               cantidadMap.set(f.nombre.toLowerCase(), { cantidad: min, unidad: entry.unidad })
               total = totalCalsOfFoods(foods)
@@ -725,7 +746,7 @@ export async function POST(req: NextRequest) {
           for (const f of sorted) {
             const entry = cantidadMap.get(f.nombre.toLowerCase())
             if (!entry) continue
-            const max = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
+            const max = getMax(f)
             if (entry.cantidad < max) {
               // Calculate how much we need
               const deficit = budget - total
@@ -779,8 +800,8 @@ export async function POST(req: NextRequest) {
           for (const f of foods) {
             const entry = cantidadMap.get(f.nombre.toLowerCase())
             if (!entry) continue
-            const min = f.unidad_medida === 'unidad' ? (f.porcion_min || 1) : (f.porcion_min || 10)
-            const max = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
+            const min = getMin(f)
+            const max = getMax(f)
             const newQty = scalingUp
               ? Math.min(max, Math.round(entry.cantidad * factor))
               : Math.max(min, Math.round(entry.cantidad * factor))
@@ -803,7 +824,7 @@ export async function POST(req: NextRequest) {
               for (const ff of catForFood[1]) {
                 const entry = cantidadMap.get(ff.nombre.toLowerCase())
                 if (!entry) continue
-                const min = ff.unidad_medida === 'unidad' ? (ff.porcion_min || 1) : (ff.porcion_min || 10)
+                const min = getMin(ff)
                 if (entry.cantidad > min) cantidadMap.set(ff.nombre.toLowerCase(), { cantidad: min, unidad: entry.unidad })
               }
               newTotal = totalCalsOfFoods(repFoods)
@@ -820,7 +841,7 @@ export async function POST(req: NextRequest) {
               for (const ff of catForFood[1]) {
                 const entry = cantidadMap.get(ff.nombre.toLowerCase())
                 if (!entry) continue
-                const max = ff.unidad_medida === 'unidad' ? (ff.porcion_max || 10) : (ff.porcion_max || 300)
+                const max = getMax(ff)
                 if (entry.cantidad < max) {
                   const extraQty = calPerUnit(ff) > 0 ? deficit / calPerUnit(ff) : 0
                   cantidadMap.set(ff.nombre.toLowerCase(), { cantidad: Math.min(max, Math.round(entry.cantidad + extraQty)), unidad: entry.unidad })
@@ -916,7 +937,7 @@ export async function POST(req: NextRequest) {
         const entry = cantidadMap.get(pf.nombre.toLowerCase())
         if (!entry) continue
 
-        const max = pf.unidad_medida === 'unidad' ? (pf.porcion_max || 10) : (pf.porcion_max || 300)
+        const max = getMax(pf)
         if (entry.cantidad >= max) continue // already maxed
 
         // Calculate how much to increase for the deficit
@@ -945,7 +966,7 @@ export async function POST(req: NextRequest) {
             if (calToReduce <= 0) break
             const npEntry = cantidadMap.get(np.nombre.toLowerCase())
             if (!npEntry) continue
-            const npMin = np.unidad_medida === 'unidad' ? (np.porcion_min || 1) : (np.porcion_min || 10)
+            const npMin = getMin(np)
             if (npEntry.cantidad <= npMin) continue
 
             const maxReduce = npEntry.cantidad - npMin
@@ -966,7 +987,7 @@ export async function POST(req: NextRequest) {
                 for (const ff of catForFood[1]) {
                   const ffEntry = cantidadMap.get(ff.nombre.toLowerCase())
                   if (!ffEntry) continue
-                  const ffMin = ff.unidad_medida === 'unidad' ? (ff.porcion_min || 1) : (ff.porcion_min || 10)
+                  const ffMin = getMin(ff)
                   const ffReduced = Math.max(ffMin, Math.round(ffEntry.cantidad - reduceQty * (calPerUnit(np) / calPerUnit(ff) || 1)))
                   cantidadMap.set(ff.nombre.toLowerCase(), { cantidad: ffReduced, unidad: ffEntry.unidad })
                 }
@@ -987,7 +1008,7 @@ export async function POST(req: NextRequest) {
             if (ff.nombre.toLowerCase() === pf.nombre.toLowerCase()) continue
             const ffEntry = cantidadMap.get(ff.nombre.toLowerCase())
             if (!ffEntry) continue
-            const ffMax = ff.unidad_medida === 'unidad' ? (ff.porcion_max || 10) : (ff.porcion_max || 300)
+            const ffMax = getMax(ff)
             const ffPpu = protPerUnit(ff)
             if (ffPpu <= 0) continue
             const ffExtraQty = remainingDeficit / ffPpu
@@ -1012,7 +1033,7 @@ export async function POST(req: NextRequest) {
     // Max breakfast
     let bfMaxCal = 0, bfMaxProt = 0
     for (const f of breakfastFoods) {
-      const maxQty = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
+      const maxQty = getMax(f)
       bfMaxCal += calPerUnit(f) * maxQty
       bfMaxProt += protPerUnit(f) * maxQty
     }
@@ -1020,7 +1041,7 @@ export async function POST(req: NextRequest) {
     // Max main meal (use all main foods at porcion_max)
     let mainMaxCal = 0, mainMaxProt = 0
     for (const f of mainFoods) {
-      const maxQty = f.unidad_medida === 'unidad' ? (f.porcion_max || 10) : (f.porcion_max || 300)
+      const maxQty = getMax(f)
       mainMaxCal += calPerUnit(f) * maxQty
       mainMaxProt += protPerUnit(f) * maxQty
     }
@@ -1200,8 +1221,18 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
           // Use backend-calculated quantity, NOT Claude's
           const entry = cantidadMap.get(item.alimento.toLowerCase())
-          const cantidad = entry?.cantidad ?? item.cantidad
+          let cantidad = entry?.cantidad ?? item.cantidad
           const unidad = entry?.unidad ?? item.unidad
+
+          // Final safety: enforce porcion_min as absolute floor
+          const foodData = allFoodsLookup.get(item.alimento.toLowerCase())
+          if (foodData) {
+            const min = getMin(foodData)
+            if (cantidad < min) {
+              console.warn(`[plan] Clamping ${item.alimento} from ${cantidad} to min ${min}`)
+              cantidad = min
+            }
+          }
 
           calendarioRows.push({
             user_id: userId,

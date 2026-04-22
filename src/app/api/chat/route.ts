@@ -731,7 +731,7 @@ async function executeReemplazarComidaCompleta(
   }
 
   // Resolve all ingredients from catalog or USDA
-  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; unidad_medida: string; categoria: string }[] = []
+  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; porcion_min: number; unidad_medida: string; categoria: string }[] = []
   const notFound: string[] = []
   const substituted: string[] = []
 
@@ -743,6 +743,7 @@ async function executeReemplazarComidaCompleta(
         nombre: found.nombre,
         cal: found.calorias_por_unidad,
         porcion_base: found.porcion_base || 100,
+        porcion_min: found.porcion_min || 0,
         unidad_medida: found.unidad_medida,
         categoria: found.categoria_comida || 'otro',
       })
@@ -784,7 +785,7 @@ async function executeReemplazarComidaCompleta(
     } else {
       cantidad = Math.round((calPerIngredient / ing.cal) * ing.porcion_base)
       cantidad = Math.min(cantidad, maxQty)
-      cantidad = Math.max(10, cantidad)
+      cantidad = Math.max(ing.porcion_min || 10, cantidad)
     }
     const ratio = ing.unidad_medida === 'unidad' ? cantidad : cantidad / ing.porcion_base
     totalActualCal += ing.cal * ratio
