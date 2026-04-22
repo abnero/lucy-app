@@ -22,19 +22,24 @@ export async function GET(req: NextRequest) {
   try {
     // Auth check
     const authHeader = req.headers.get('authorization')
-    if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.replace('Bearer ', '')
 
-    const userClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
+    const sb = getServiceSupabase()
+    const { data: { user }, error: authError } = await sb.auth.getUser(token)
+
     if (authError || !user || user.id !== ADMIN_USER_ID) {
+      console.error('[admin/metricas] auth failed:', {
+        hasUser: !!user,
+        errorMessage: authError?.message,
+        userId: user?.id,
+      })
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const sb = getServiceSupabase()
+    // sb ya creado arriba, reutilizado para data queries
 
     // Paginated fetch helper — handles Supabase 1000 row default limit
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
