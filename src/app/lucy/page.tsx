@@ -150,7 +150,7 @@ export default function LandingPage() {
                 Por fin sabes qué comer — y en qué cantidades.
               </h1>
               <p style={{ fontSize: 22, color: '#555', marginBottom: 32, lineHeight: 1.5 }} className="landing-subhead">
-                Lucy es tu nutricionista con inteligencia artificial, diseñada específicamente para mujeres profesionales latinas. Elige tus alimentos favoritos. Lucy calcula las porciones exactas para tu cuerpo y te arma un plan de 7 días completo. En español. Sin contar calorías. Sin pesar comida. Sin ejercicio obligatorio.
+                Lucy es tu asistente nutricional con inteligencia artificial, diseñada específicamente para mujeres profesionales latinas. Elige tus alimentos favoritos. Lucy calcula las porciones exactas para tu cuerpo y te arma un plan de 7 días completo. En español. Sin contar calorías. Sin pesar comida. Sin ejercicio obligatorio.
               </p>
 
               <div id="cta-hero">
@@ -322,7 +322,7 @@ export default function LandingPage() {
             <Bullet><strong>Porciones calculadas específicamente para mujeres profesionales latinas.</strong> La mayoría de apps asumen que eres un hombre americano de 35 años que va al gimnasio 5 veces por semana. Lucy usa una fórmula ajustada a tu realidad: sedentaria la mayor parte del día, culturalmente latina, en tus 30s-50s, con hormonas que no son las de un tipo de 25 años.</Bullet>
             <Bullet><strong>En español natural del Caribe.</strong> Sin traducciones raras. Sin &ldquo;zucchini&rdquo; cuando tu mamá te enseñó &ldquo;calabacín&rdquo;. Sin &ldquo;butternut squash&rdquo; cuando es calabaza. Lucy habla como tú hablas.</Bullet>
             <Bullet><strong>Alimentos que SÍ consigues en PR y Estados Unidos.</strong> Arroz, habichuelas, pollo, plátano, huevo, queso fresco, aguacate. Si vas a un supermercado americano o un colmado boricua, encuentras todo lo que Lucy te recomienda.</Bullet>
-            <Bullet><strong>Tu nutricionista AI disponible 24/7.</strong> ¿Tienes hambre a las 10pm y dudas si comerte algo? Pregúntale a Lucy. Te recomienda una merienda específica que se ajusta a lo que queda de tus macros del día. ¿No te gustó una comida del plan? Lucy te la cambia al instante.</Bullet>
+            <Bullet><strong>Tu asistente nutricional AI disponible 24/7.</strong> ¿Tienes hambre a las 10pm y dudas si comerte algo? Pregúntale a Lucy. Te recomienda una merienda específica que se ajusta a lo que queda de tus macros del día. ¿No te gustó una comida del plan? Lucy te la cambia al instante.</Bullet>
             <Bullet><strong>Lista de compras semanal automática.</strong> Organizada por sección del supermercado (proteínas, vegetales, lácteos, granos). Entras, compras, sales. No piensas.</Bullet>
             <Bullet><strong>Cero tracking manual de lo que comes.</strong> Olvídate de pesar, medir, fotografiar platos, tachar casillas, sentirte culpable. Lucy asume que sigues el plan. Si un día te comiste pizza en un cumpleaños, mañana arrancas limpio — sin drama.</Bullet>
             <Bullet><strong>Recalculación automática cuando tu cuerpo cambia.</strong> ¿Bajaste 15 libras? Aprietas un botón y Lucy te recalcula las cantidades ajustadas a tu nuevo peso, con los mismos alimentos que ya te gustan. Sin rehacer el plan desde cero.</Bullet>
