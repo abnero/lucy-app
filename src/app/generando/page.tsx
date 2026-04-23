@@ -33,6 +33,7 @@ function GenerandoContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const modo = searchParams.get('modo')
+  const forceRegenerate = modo === 'wizard'
   const mensajes = modo === 'actualizacion' ? MENSAJES_ACTUALIZACION : MENSAJES_ONBOARDING
   const [msgIndex, setMsgIndex] = useState(0)
   const [progress, setProgress] = useState(0)
@@ -69,6 +70,7 @@ function GenerandoContent() {
       body: JSON.stringify({
         userId: user.id,
         accessToken: session.access_token,
+        ...(forceRegenerate && { forceRegenerate: true }),
       }),
     })
       .then(res => res.json())
