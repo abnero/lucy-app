@@ -9,15 +9,13 @@ function getServiceSupabase() {
 }
 
 async function verifyCoach(authHeader: string) {
-  const userClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: authHeader } } }
-  )
-  const { data: { user }, error } = await userClient.auth.getUser()
-  if (error || !user) return null
+  if (!authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
 
   const sb = getServiceSupabase()
+  const { data: { user }, error } = await sb.auth.getUser(token)
+  if (error || !user) return null
+
   const { data: coach } = await sb.from('coaches').select('id, nombre').eq('user_id', user.id).single()
   if (!coach) return null
 
