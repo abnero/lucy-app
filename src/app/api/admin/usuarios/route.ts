@@ -18,19 +18,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    if (!authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.replace('Bearer ', '')
 
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
+    const sb = getServiceSupabase()
+    const { data: { user }, error: authError } = await sb.auth.getUser(token)
     if (authError || !user || user.email !== ADMIN_EMAIL) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-
-    // Use service role to bypass RLS
-    const sb = getServiceSupabase()
     const { data, error } = await sb
       .from('usuarios')
       .select('id, email, nombre, aprobado, created_at, onboarding_completado')

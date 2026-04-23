@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    if (!authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.replace('Bearer ', '')
 
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
+    const sb = getServiceSupabase()
+    const { data: { user }, error: authError } = await sb.auth.getUser(token)
     if (authError || !user || user.email !== ADMIN_EMAIL) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'userId and email required' }, { status: 400 })
     }
 
-    const sb = getServiceSupabase()
     const { error } = await sb.from('coaches').upsert(
       { user_id: userId, email: email.toLowerCase(), nombre: nombre || '', asignado_por: ADMIN_EMAIL },
       { onConflict: 'user_id' }
