@@ -61,8 +61,6 @@ function getMax(a: AlimentoData): number {
 
 // Meal distribution constants
 const MEAL_CAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, cena: 0.30 }
-// Protein distribution reserved for future protein-aware scaling
-// const MEAL_PROT_PCT = { desayuno: 0.30, almuerzo: 0.35, cena: 0.35 }
 
 export async function POST(req: NextRequest) {
   try {
