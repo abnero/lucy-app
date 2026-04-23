@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     const protTarget = testProt ? parseInt(testProt) : (usuario.proteina_objetivo || 100)
     console.log('[objetivo]', testCal ? '⚠️ TEST OVERRIDE' : 'leído desde DB:', 'calorias:', calTarget, 'proteina:', protTarget, 'nombre:', usuario.nombre)
 
-    // ═══ Detect first generation vs regeneration ═══
+    // ═══ Detect flow mode ═══
     const { count: calendarioCount } = await supabase
       .from('calendario')
       .select('id', { count: 'exact', head: true })
@@ -108,11 +108,15 @@ export async function POST(req: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    const esPrimeraGeneracion = ((calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0)
-    console.log('[plan] esPrimeraGeneracion:', esPrimeraGeneracion, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
+    // Flow signal: calendario=0 → generate from preferences (Claude + INSERT)
+    //              calendario>0 → recalculate quantities only (UPDATE)
+    const necesitaGenerarDesdeCero = (calendarioCount ?? 0) === 0
+    // Message signal: first time ever → welcome messages; otherwise → regen messages
+    const esPrimeraVez = necesitaGenerarDesdeCero && (convosCount ?? 0) === 0
+    console.log('[plan] necesitaGenerarDesdeCero:', necesitaGenerarDesdeCero, 'esPrimeraVez:', esPrimeraVez, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
 
     // ═══ Kill switch: block regeneration while Bug #18 is being fixed ═══
-    if (!esPrimeraGeneracion && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
+    if (!necesitaGenerarDesdeCero && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
       console.log('[plan] BLOCKED by kill switch (regen paused). userId:', userId)
       return NextResponse.json(
         { error: 'Lucy está en mantenimiento. Tu plan actual sigue activo. Vuelve más tarde.', maintenance: true },
@@ -121,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ═══ REGENERATION MODE: Recalculate quantities only (no Claude, no DELETE/INSERT) ═══
-    if (!esPrimeraGeneracion) {
+    if (!necesitaGenerarDesdeCero) {
       console.log('[regen] Modo recálculo — sin Claude, sin DELETE/INSERT. userId:', userId)
 
       // 1. Read ALL calendar rows with food info
@@ -1159,7 +1163,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     // DO NOT delete conversaciones — chat history is permanent
 
     // ═══ Messages: conditional on first generation vs regeneration ═══
-    if (esPrimeraGeneracion) {
+    if (esPrimeraVez) {
       // First generation — full welcome messages
       const FACTORES_ACTIVIDAD: Record<string, number> = {
         // New levels (Bug #17)
@@ -1381,7 +1385,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       console.log('[plan] Verificación post-generación — cal promedio:', Math.round(avgCal), 'prot promedio:', Math.round(avgProt), 'días bajos prot:', diasBajosProteina)
     }
 
-    if (esPrimeraGeneracion) {
+    if (esPrimeraVez) {
       // First generation — insert PASO 5 analysis message
       let lucyPostMsg: string
       if (diasBajosProteina >= 5) {
