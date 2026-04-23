@@ -67,7 +67,7 @@ const MEAL_CAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, c
 export async function POST(req: NextRequest) {
   try {
     const url = new URL(req.url)
-    const { userId, accessToken, serviceRoleKey } = await req.json()
+    const { userId, accessToken, serviceRoleKey, forceRegenerate } = await req.json()
     if (!userId || (!accessToken && !serviceRoleKey)) {
       return NextResponse.json({ error: 'userId and accessToken (or serviceRoleKey) required' }, { status: 400 })
     }
@@ -108,12 +108,12 @@ export async function POST(req: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    // Flow signal: calendario=0 → generate from preferences (Claude + INSERT)
-    //              calendario>0 → recalculate quantities only (UPDATE)
-    const necesitaGenerarDesdeCero = (calendarioCount ?? 0) === 0
+    // Flow signal: calendario=0 OR forceRegenerate → generate from preferences (Claude + INSERT)
+    //              calendario>0 (no force) → recalculate quantities only (UPDATE)
+    const necesitaGenerarDesdeCero = (calendarioCount ?? 0) === 0 || forceRegenerate === true
     // Message signal: first time ever → welcome messages; otherwise → regen messages
-    const esPrimeraVez = necesitaGenerarDesdeCero && (convosCount ?? 0) === 0
-    console.log('[plan] necesitaGenerarDesdeCero:', necesitaGenerarDesdeCero, 'esPrimeraVez:', esPrimeraVez, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
+    const esPrimeraVez = (calendarioCount ?? 0) === 0 && (convosCount ?? 0) === 0
+    console.log('[plan] necesitaGenerarDesdeCero:', necesitaGenerarDesdeCero, 'esPrimeraVez:', esPrimeraVez, 'forceRegenerate:', !!forceRegenerate, '(calendario:', calendarioCount, 'convos:', convosCount, ')')
 
     // ═══ Kill switch: block regeneration while Bug #18 is being fixed ═══
     if (!necesitaGenerarDesdeCero && (process.env.LUCY_REGEN_PAUSED === 'true' || process.env.NEXT_PUBLIC_LUCY_REGEN_PAUSED === 'true')) {
@@ -1157,11 +1157,6 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       console.log(`[plan] Personalizaciones: ${personalizaciones.length} rows, ${alimentosPersonalizados.length} alimentos, +${Math.round(extrasCal)} kcal`)
     }
 
-    // ═══ Clear only auto-generated data (preserve chat/coach personalizations) ═══
-    await supabase.from('calendario').delete().eq('user_id', userId).eq('origen', 'generado')
-    await supabase.from('lista_compras').delete().eq('user_id', userId)
-    // DO NOT delete conversaciones — chat history is permanent
-
     // ═══ Messages: conditional on first generation vs regeneration ═══
     if (esPrimeraVez) {
       // First generation — full welcome messages
@@ -1285,6 +1280,10 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     }
 
     if (calendarioRows.length > 0) {
+      // Clear old data just before inserting new — minimizes window of empty calendar
+      await supabase.from('calendario').delete().eq('user_id', userId).eq('origen', 'generado')
+      await supabase.from('lista_compras').delete().eq('user_id', userId)
+
       const { error: calErr } = await supabase.from('calendario').insert(calendarioRows)
       if (calErr) {
         return NextResponse.json({ error: 'Error guardando el calendario: ' + calErr.message }, { status: 500 })

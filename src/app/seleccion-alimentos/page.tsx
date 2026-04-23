@@ -121,11 +121,10 @@ export default function SeleccionAlimentosPage() {
         })
       }
 
-      // Clear existing data (preferences, calendar, shopping list)
+      // Clear preferences and shopping list (calendar preserved until generar-plan succeeds)
       const uid = user!.id
       const [delPref] = await Promise.all([
         supabase.from('preferencias_usuario').delete().eq('user_id', uid).select(),
-        supabase.from('calendario').delete().eq('user_id', uid).select(),
         supabase.from('lista_compras').delete().eq('user_id', uid).select(),
       ])
 
@@ -144,7 +143,7 @@ export default function SeleccionAlimentosPage() {
         return
       }
 
-      router.push('/generando')
+      router.push('/generando?modo=wizard')
     } else {
       setPaso(paso + 1)
       setBusqueda('')
