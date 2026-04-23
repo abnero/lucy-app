@@ -65,9 +65,11 @@ const MEAL_CAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, c
 // const MEAL_PROT_PCT = { desayuno: 0.30, almuerzo: 0.35, cena: 0.35 }
 
 export async function POST(req: NextRequest) {
+  let lockUserId: string | null = null
   try {
     const url = new URL(req.url)
     const { userId, accessToken, serviceRoleKey, forceRegenerate } = await req.json()
+    lockUserId = userId
     if (!userId || (!accessToken && !serviceRoleKey)) {
       return NextResponse.json({ error: 'userId and accessToken (or serviceRoleKey) required' }, { status: 400 })
     }
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     // ═══ 1. Fetch user profile ═══
     const { data: usuario, error: userErr } = await supabase
       .from('usuarios')
-      .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, meta, peso_kg, altura_cm, edad, nivel_actividad, genero')
+      .select('nombre, calorias_objetivo, proteina_objetivo, carbs_objetivo, grasas_objetivo, meta, peso_kg, altura_cm, edad, nivel_actividad, genero, generando_plan_at')
       .eq('id', userId)
       .single()
 
@@ -89,6 +91,22 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       )
     }
+
+    // ═══ Concurrency lock: prevent parallel plan generation for same user ═══
+    const LOCK_TTL_MS = 5 * 60 * 1000 // 5 minutes
+    if (usuario.generando_plan_at) {
+      const lockAge = Date.now() - new Date(usuario.generando_plan_at).getTime()
+      if (lockAge < LOCK_TTL_MS) {
+        console.log('[plan] LOCKED — another generation in progress for', userId, 'age:', Math.round(lockAge / 1000), 's')
+        return NextResponse.json(
+          { error: 'Ya estamos generando tu plan. Espera unos segundos y recarga la página.', locked: true },
+          { status: 409 }
+        )
+      }
+    }
+
+    // Acquire lock
+    await supabase.from('usuarios').update({ generando_plan_at: new Date().toISOString() }).eq('id', userId)
 
     // ═══ Target macros ═══
     const testCal = process.env.NODE_ENV === 'development' ? url.searchParams.get('test_calorias') : null
@@ -444,6 +462,9 @@ export async function POST(req: NextRequest) {
       await supabase.from('conversaciones').insert({
         user_id: userId, role: 'assistant', content: regenMsg, leido: false,
       })
+
+      // Release lock
+      await supabase.from('usuarios').update({ generando_plan_at: null }).eq('id', userId)
 
       return NextResponse.json({
         success: true,
@@ -1422,9 +1443,19 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       })
     }
 
+    // Release lock
+    await supabase.from('usuarios').update({ generando_plan_at: null }).eq('id', userId)
+
     return NextResponse.json({ success: true, dias: plan.dias.length, items: calendarioRows.length })
   } catch (err) {
     console.error('generar-plan error:', err)
+    // Release lock on error (best effort)
+    if (lockUserId) {
+      try {
+        const sbCleanup = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+        await sbCleanup.from('usuarios').update({ generando_plan_at: null }).eq('id', lockUserId)
+      } catch { /* ignore */ }
+    }
     const message = err instanceof Error ? err.message : 'Error interno'
     return NextResponse.json({ error: message }, { status: 500 })
   }
