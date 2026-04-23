@@ -1299,14 +1299,20 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     }
 
     if (calendarioRows.length > 0) {
-      // Clear old data just before inserting new — minimizes window of empty calendar
-      await supabase.from('calendario').delete().eq('user_id', userId).eq('origen', 'generado')
-      await supabase.from('lista_compras').delete().eq('user_id', userId)
-
-      const { error: calErr } = await supabase.from('calendario').insert(calendarioRows)
-      if (calErr) {
-        return NextResponse.json({ error: 'Error guardando el calendario: ' + calErr.message }, { status: 500 })
+      // Atomic DELETE+INSERT via Postgres RPC (transactional — rollback on failure)
+      const rpcRows = calendarioRows.map(r => ({
+        dia: r.dia, comida: r.comida, alimento_id: r.alimento_id,
+        cantidad: r.cantidad, unidad: r.unidad,
+      }))
+      const { data: insertedCount, error: rpcErr } = await supabase.rpc('replace_calendario_generado', {
+        p_user_id: userId,
+        p_rows: rpcRows,
+      })
+      if (rpcErr) {
+        console.error('[plan] RPC replace_calendario_generado failed:', rpcErr.message)
+        return NextResponse.json({ error: 'Error guardando el calendario: ' + rpcErr.message }, { status: 500 })
       }
+      console.log('[plan] Atomic replace OK:', insertedCount, 'rows inserted')
     }
 
     // Save shopping list
