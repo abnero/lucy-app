@@ -136,7 +136,7 @@ export default function LandingPage() {
 
       <nav style={{ background: '#FFF', padding: '20px 0', borderBottom: '1px solid #EEE' }}>
         <div style={{ ...container, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 32, fontWeight: 700, color: '#2D2B45', letterSpacing: '-0.02em', lineHeight: 1 }} className="landing-logo">Lucy</span>
+          <span style={{ fontSize: 32, color: '#2D2B45', letterSpacing: '-0.02em', lineHeight: 1 }} className="font-logo landing-logo">Lucy</span>
           <a href="#cta-hero" style={{ background: '#2D2B45', color: '#FFF', padding: '10px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>Empezar →</a>
         </div>
       </nav>
