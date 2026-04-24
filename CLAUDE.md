@@ -159,6 +159,28 @@ Detalle completo en `01 - Lucy Producto/Filosofía y reglas.md` y `Workflow de d
 
 ---
 
+## REGLA — Supabase producción compartida
+
+Hasta que tengamos proyecto Supabase separado para staging, el proyecto `anbpsybyipvbczzuqkjw` **ES producción** para todos los efectos. La preview de Vercel comparte la misma DB que lucy.fit.
+
+Antes de ejecutar **CUALQUIER SQL** contra ese proyecto (migración, UPDATE, INSERT, DELETE, DDL, RPC creation, cambio de constraint, cambio de policy, o cualquier otra operación que escriba), tenés que:
+
+1. Flaggear explícitamente en el chat: _"Este SQL corre contra LA DB DE PRODUCCIÓN (misma que usan las usuarias reales). Es [aditivo / destructivo / mixto]. ¿Autorizás?"_
+2. Esperar **"sí" explícito** de Abner en el chat.
+3. **NO proceder** basado en interpretación de autorizaciones previas ambiguas. Ejemplo concreto: "ejecutar en preview" NO equivale a autorización para producción aunque técnicamente sea la misma DB. Si Abner dijo "preview" y no hay preview separada, eso es un bloqueador que hay que flaggear, no una luz verde.
+
+**Aplica sin excepción:**
+- Aplica aunque el cambio sea aditivo (agregar columna, agregar valor a enum, agregar row a tabla de config).
+- Aplica aunque sea urgente.
+- Aplica aunque la preview lo necesite para funcionar — en ese caso, el mensaje correcto es _"la preview necesita migración en prod, esto es bloqueador hasta que autorices"_ y esperar.
+- Aplica para SELECT si puede exponer PII de usuarias reales (raro, pero existe). Default: SELECT es libre salvo que toque datos sensibles.
+
+**Historia:** esta regla se agregó después del incidente del 24 abr 2026 donde las migraciones 013 y 014 se ejecutaron contra producción con autorización ambigua. Impacto real: cero (cambios aditivos, código consumidor no deployed). Pero el proceso estuvo mal.
+
+**Fix permanente pendiente post-launch:** crear proyecto Supabase staging separado (setup ~2-3 horas).
+
+---
+
 ## Cómo arrancar trabajo nuevo
 
 Cuando Abner te dé una tarea nueva:
