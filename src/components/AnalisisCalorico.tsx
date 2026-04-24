@@ -33,8 +33,8 @@ interface BannerAnalisisDiaProps {
 }
 
 interface SnackResultado {
-  alimento_id: string;
   nombre: string;
+  opcion: OpcionSnack;
   compensaciones: Compensacion[];
 }
 
@@ -84,8 +84,8 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
       setSnackResultados((prev) => {
         const next = new Map(prev);
         next.set(opcion.alimento_id, {
-          alimento_id: opcion.alimento_id,
           nombre: opcion.nombre,
+          opcion,
           compensaciones: result.compensaciones,
         });
         return next;
@@ -117,44 +117,47 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
             <span>💪 {Math.round(diaDato.macros.proteina)}g / {Math.round(diaDato.objetivo_proteina)}g prot</span>
           </div>
 
+          {/* Confirmation messages for applied snacks — persists across analysis recalculations */}
+          {snackResultados.size > 0 && (
+            <div className="space-y-2">
+              {Array.from(snackResultados.values()).map((res) => (
+                <div key={res.opcion.alimento_id} className="rounded-xl border border-green-200 bg-green-50 p-3">
+                  <p className="text-xs text-[#2D2B45]">
+                    <span className="font-medium">✓ Agregado {res.nombre}</span>
+                    {res.compensaciones.length > 0 && (
+                      <>
+                        {". Ajusté "}
+                        {res.compensaciones.slice(0, 3).map((c, ci) => (
+                          <span key={c.alimento_id}>
+                            {ci > 0 && " y "}
+                            {c.nombre} de {toImperial(c.cantidad_antes, res.opcion)} a {toImperial(c.cantidad_despues, res.opcion)}
+                          </span>
+                        ))}
+                        {" para balancear."}
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {diaDato.sugerencias.map((sug, i) => {
             const yaAplicado = aplicados.includes(i);
 
             // Snack suggestion with real options
             if (sug.tipo === "agregar_snack" && sug.opciones_snack && sug.opciones_snack.length > 0) {
+              // Filter out already-applied options
+              const opcionesPendientes = sug.opciones_snack.filter(
+                (o) => !snackResultados.has(o.alimento_id)
+              );
+              if (opcionesPendientes.length === 0) return null;
+
               return (
                 <div key={i} className="space-y-2">
                   <p className="text-xs font-medium text-[#2D2B45]">{sug.descripcion}</p>
-                  {sug.opciones_snack.map((opcion) => {
-                    const resultado = snackResultados.get(opcion.alimento_id);
+                  {opcionesPendientes.map((opcion) => {
                     const cargando = snackAgregando === opcion.alimento_id;
-
-                    // Show inline result after successful application
-                    if (resultado) {
-                      const comps = resultado.compensaciones;
-                      return (
-                        <div key={opcion.alimento_id} className="rounded-xl border border-green-200 bg-green-50 p-3">
-                          <p className="text-xs text-[#2D2B45]">
-                            <span className="font-medium">✓ Agregado {resultado.nombre}</span>
-                            {comps.length > 0 && (
-                              <>
-                                {". Ajusté "}
-                                {comps.slice(0, 3).map((c, ci) => (
-                                  <span key={c.alimento_id}>
-                                    {ci > 0 && " y "}
-                                    {c.nombre} de {toImperial(c.cantidad_antes, opcion)} a {toImperial(c.cantidad_despues, opcion)}
-                                  </span>
-                                ))}
-                                {" para balancear."}
-                              </>
-                            )}
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    // Disabled if any snack already applied for this suggestion
-                    const anyApplied = snackResultados.size > 0;
                     return (
                       <div
                         key={opcion.alimento_id}
@@ -163,8 +166,11 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                         <div className="flex items-center gap-3">
                           <FoodAvatar nombre={opcion.nombre} foto_url={opcion.foto_url} size="sm" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-[#2D2B45] truncate">
-                              {opcion.nombre}, {toImperial(opcion.cantidad, opcion)}
+                            <p className="text-xs font-medium text-[#2D2B45] leading-snug">
+                              {opcion.nombre}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {toImperial(opcion.cantidad, opcion)}
                             </p>
                             <p className="text-xs text-gray-400">
                               +{opcion.kcal_aporta} kcal{opcion.prot_aporta > 0 ? `, ${opcion.prot_aporta}g prot` : ""}
@@ -175,11 +181,9 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                           </div>
                           <button
                             onClick={() => handleAgregarSnack(opcion)}
-                            disabled={!!snackAgregando || anyApplied}
+                            disabled={!!snackAgregando}
                             className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                              anyApplied
-                                ? "bg-gray-100 text-gray-300 cursor-default"
-                                : cargando
+                              cargando
                                 ? "bg-gray-100 text-gray-400 cursor-wait"
                                 : "bg-[#7B7FC4] text-white active:scale-95"
                             }`}
