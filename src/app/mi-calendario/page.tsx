@@ -375,11 +375,11 @@ export default function MiCalendarioPage() {
     },
   })
 
-  const agregarSnack = useCallback(async (opcion: import('@/lib/analisis-calorico').OpcionSnack, dia: number) => {
-    if (!user) return
+  const agregarSnack = useCallback(async (opcion: import('@/lib/analisis-calorico').OpcionSnack, dia: number): Promise<{ compensaciones: import('@/lib/analisis-calorico').Compensacion[] }> => {
+    if (!user) return { compensaciones: [] }
     const { data: session } = await supabase.auth.getSession()
     const token = session?.session?.access_token
-    if (!token) return
+    if (!token) return { compensaciones: [] }
 
     const res = await fetch('/api/agregar-snack', {
       method: 'POST',
@@ -400,8 +400,13 @@ export default function MiCalendarioPage() {
       throw new Error(err.error || 'Error al agregar snack')
     }
 
-    // Refresh calendar to pick up the new snack row
+    const result = await res.json()
+    const compensaciones: import('@/lib/analisis-calorico').Compensacion[] = result.compensaciones || []
+
+    // Refresh calendar to pick up snack + compensation changes
     fetchCalendar()
+
+    return { compensaciones }
   }, [user, fetchCalendar])
 
   const exportarPdf = useCallback(async () => {

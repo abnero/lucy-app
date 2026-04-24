@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
+import { Compensacion, DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
 import FoodAvatar from "@/components/FoodAvatar";
 
 interface DayPillProps {
@@ -28,7 +28,13 @@ export function DayPill({ label, activo, problematico, onClick }: DayPillProps) 
 interface BannerAnalisisDiaProps {
   diaDato: DiaProblemático;
   onAplicarSugerencia: (sugerencia: Sugerencia, dia: number) => Promise<void>;
-  onAgregarSnack?: (opcion: OpcionSnack, dia: number) => Promise<void>;
+  onAgregarSnack?: (opcion: OpcionSnack, dia: number) => Promise<{ compensaciones: Compensacion[] }>;
+}
+
+interface SnackResultado {
+  alimento_id: string;
+  nombre: string;
+  compensaciones: Compensacion[];
 }
 
 export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack }: BannerAnalisisDiaProps) {
@@ -36,7 +42,7 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
   const [aplicando, setAplicando] = useState<number | null>(null);
   const [aplicados, setAplicados] = useState<number[]>([]);
   const [snackAgregando, setSnackAgregando] = useState<string | null>(null);
-  const [snackAgregados, setSnackAgregados] = useState<Set<string>>(new Set());
+  const [snackResultados, setSnackResultados] = useState<Map<string, SnackResultado>>(new Map());
 
   const tieneExcesoCal = diaDato.problemas.includes("exceso_calorias");
   const tieneDeficitCal = diaDato.problemas.includes("deficit_calorias");
@@ -73,8 +79,16 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
     if (!onAgregarSnack || snackAgregando) return;
     setSnackAgregando(opcion.alimento_id);
     try {
-      await onAgregarSnack(opcion, diaDato.dia);
-      setSnackAgregados((prev) => new Set(prev).add(opcion.alimento_id));
+      const result = await onAgregarSnack(opcion, diaDato.dia);
+      setSnackResultados((prev) => {
+        const next = new Map(prev);
+        next.set(opcion.alimento_id, {
+          alimento_id: opcion.alimento_id,
+          nombre: opcion.nombre,
+          compensaciones: result.compensaciones,
+        });
+        return next;
+      });
     } catch (e) {
       console.error("Error agregando snack:", e);
     } finally {
@@ -117,12 +131,39 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                 <div key={i} className="space-y-2">
                   <p className="text-xs font-medium text-[#2D2B45]">{sug.descripcion}</p>
                   {sug.opciones_snack.map((opcion) => {
-                    const agregado = snackAgregados.has(opcion.alimento_id);
+                    const resultado = snackResultados.get(opcion.alimento_id);
                     const cargando = snackAgregando === opcion.alimento_id;
+
+                    // Show inline result after successful application
+                    if (resultado) {
+                      const comps = resultado.compensaciones;
+                      return (
+                        <div key={opcion.alimento_id} className="rounded-xl border border-green-200 bg-green-50 p-3">
+                          <p className="text-xs text-[#2D2B45]">
+                            <span className="font-medium">✓ Agregado {resultado.nombre}</span>
+                            {comps.length > 0 && (
+                              <>
+                                {". Ajusté "}
+                                {comps.slice(0, 3).map((c, ci) => (
+                                  <span key={c.alimento_id}>
+                                    {ci > 0 && " y "}
+                                    {c.nombre} de {c.cantidad_antes}{formatearUnidadCorta(opcion.unidad_medida, c.cantidad_antes)} a {c.cantidad_despues}{formatearUnidadCorta(opcion.unidad_medida, c.cantidad_despues)}
+                                  </span>
+                                ))}
+                                {" para balancear."}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    // Disabled if any snack already applied for this suggestion
+                    const anyApplied = snackResultados.size > 0;
                     return (
                       <div
                         key={opcion.alimento_id}
-                        className={`rounded-xl border p-3 transition-all ${agregado ? "border-green-200 bg-green-50" : "border-red-200 bg-white"}`}
+                        className="rounded-xl border border-red-200 bg-white p-3 transition-all"
                       >
                         <div className="flex items-center gap-3">
                           <FoodAvatar nombre={opcion.nombre} foto_url={opcion.foto_url} size="sm" />
@@ -139,16 +180,16 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                           </div>
                           <button
                             onClick={() => handleAgregarSnack(opcion)}
-                            disabled={!!snackAgregando || agregado}
+                            disabled={!!snackAgregando || anyApplied}
                             className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                              agregado
-                                ? "bg-green-100 text-green-600 cursor-default"
+                              anyApplied
+                                ? "bg-gray-100 text-gray-300 cursor-default"
                                 : cargando
                                 ? "bg-gray-100 text-gray-400 cursor-wait"
                                 : "bg-[#7B7FC4] text-white active:scale-95"
                             }`}
                           >
-                            {agregado ? "✓" : cargando ? "..." : "Agregar"}
+                            {cargando ? "..." : "Agregar"}
                           </button>
                         </div>
                       </div>

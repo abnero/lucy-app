@@ -70,6 +70,15 @@ export interface Sugerencia {
   opciones_snack?: OpcionSnack[];
 }
 
+export interface Compensacion {
+  alimento_id: string;
+  nombre: string;
+  cantidad_antes: number;
+  cantidad_despues: number;
+  kcal_reducidas: number;
+  prot_reducidas: number;
+}
+
 export interface DiaProblemático {
   dia: number;
   macros: MacrosDia;
@@ -100,6 +109,129 @@ export function calcularProteina(alimento: AlimentoCalendario): number {
     return alimento.cantidad * alimento.proteina_por_unidad;
   }
   return (alimento.cantidad * alimento.proteina_por_unidad) / alimento.porcion_base;
+}
+
+export function calcularCompensaciones(
+  alimentosDia: AlimentoCalendario[],
+  snackKcal: number,
+  snackProt: number,
+  objetivo_calorias: number,
+  objetivo_proteina: number,
+): Compensacion[] {
+  const tolerancia_cal = objetivo_calorias * 0.10;
+  const tolerancia_prot = 10;
+
+  // Project totals after adding snack
+  const totalCalActual = alimentosDia.reduce((s, a) => s + calcularCalorias(a), 0);
+  const totalProtActual = alimentosDia.reduce((s, a) => s + calcularProteina(a), 0);
+  const calProyectado = totalCalActual + snackKcal;
+  const protProyectado = totalProtActual + snackProt;
+
+  let excesoCal = Math.max(0, calProyectado - (objetivo_calorias + tolerancia_cal));
+  let excesoProt = Math.max(0, protProyectado - (objetivo_proteina + tolerancia_prot));
+
+  if (excesoCal <= 0 && excesoProt <= 0) return [];
+
+  const compensaciones: Compensacion[] = [];
+
+  // Work on a mutable copy of quantities
+  const cantidades = new Map(alimentosDia.map((a) => [a.alimento_id + '|' + a.comida, a.cantidad]));
+
+  function getKey(a: AlimentoCalendario) { return a.alimento_id + '|' + a.comida; }
+
+  function cpuOf(a: AlimentoCalendario) {
+    return a.unidad_medida === "unidad" ? a.calorias_por_unidad : a.calorias_por_unidad / a.porcion_base;
+  }
+  function ppuOf(a: AlimentoCalendario) {
+    return a.unidad_medida === "unidad" ? a.proteina_por_unidad : a.proteina_por_unidad / a.porcion_base;
+  }
+
+  // Phase 1: reduce excess protein by cutting protein-heavy foods
+  if (excesoProt > 0) {
+    const protHeavy = [...alimentosDia]
+      .filter((a) => {
+        const cpu = cpuOf(a);
+        const ppu = ppuOf(a);
+        return cpu > 0 && ppu / cpu >= 0.08 && (cantidades.get(getKey(a))! > a.porcion_min);
+      })
+      .sort((a, b) => ppuOf(b) - ppuOf(a)); // highest protein density first
+
+    for (const alimento of protHeavy) {
+      if (excesoProt <= 0) break;
+      const key = getKey(alimento);
+      const cantActual = cantidades.get(key)!;
+      const margen = cantActual - alimento.porcion_min;
+      if (margen <= 0) continue;
+
+      const ppu = ppuOf(alimento);
+      const cpu = cpuOf(alimento);
+      const qtyReducir = Math.min(margen, ppu > 0 ? excesoProt / ppu : margen);
+      const cantNueva = alimento.unidad_medida === "unidad"
+        ? Math.max(alimento.porcion_min, Math.round((cantActual - qtyReducir) * 2) / 2)
+        : Math.max(alimento.porcion_min, Math.round(cantActual - qtyReducir));
+      const realReduccion = cantActual - cantNueva;
+      if (realReduccion <= 0) continue;
+
+      const kcalRed = cpu * realReduccion;
+      const protRed = ppu * realReduccion;
+      cantidades.set(key, cantNueva);
+      excesoProt -= protRed;
+      excesoCal -= kcalRed; // reducing protein food also reduces calories
+
+      compensaciones.push({
+        alimento_id: alimento.alimento_id,
+        nombre: alimento.nombre,
+        cantidad_antes: cantActual,
+        cantidad_despues: cantNueva,
+        kcal_reducidas: Math.round(kcalRed),
+        prot_reducidas: Math.round(protRed * 10) / 10,
+      });
+    }
+  }
+
+  // Phase 2: reduce excess calories by cutting cal-dense non-protein foods
+  if (excesoCal > 0) {
+    const calDense = [...alimentosDia]
+      .filter((a) => {
+        const cpu = cpuOf(a);
+        const ppu = ppuOf(a);
+        return cpu > 0 && (ppu / cpu < 0.08) && (cantidades.get(getKey(a))! > a.porcion_min);
+      })
+      .sort((a, b) => cpuOf(b) - cpuOf(a)); // highest caloric density first
+
+    for (const alimento of calDense) {
+      if (excesoCal <= 0) break;
+      const key = getKey(alimento);
+      const cantActual = cantidades.get(key)!;
+      const margen = cantActual - alimento.porcion_min;
+      if (margen <= 0) continue;
+
+      const cpu = cpuOf(alimento);
+      const ppu = ppuOf(alimento);
+      const qtyReducir = Math.min(margen, cpu > 0 ? excesoCal / cpu : margen);
+      const cantNueva = alimento.unidad_medida === "unidad"
+        ? Math.max(alimento.porcion_min, Math.round((cantActual - qtyReducir) * 2) / 2)
+        : Math.max(alimento.porcion_min, Math.round(cantActual - qtyReducir));
+      const realReduccion = cantActual - cantNueva;
+      if (realReduccion <= 0) continue;
+
+      const kcalRed = cpu * realReduccion;
+      const protRed = ppu * realReduccion;
+      cantidades.set(key, cantNueva);
+      excesoCal -= kcalRed;
+
+      compensaciones.push({
+        alimento_id: alimento.alimento_id,
+        nombre: alimento.nombre,
+        cantidad_antes: cantActual,
+        cantidad_despues: cantNueva,
+        kcal_reducidas: Math.round(kcalRed),
+        prot_reducidas: Math.round(protRed * 10) / 10,
+      });
+    }
+  }
+
+  return compensaciones;
 }
 
 export function calcularMacrosDia(alimentos: AlimentoCalendario[], dia: number): MacrosDia {

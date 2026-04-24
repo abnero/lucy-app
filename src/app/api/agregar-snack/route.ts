@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { calcularCompensaciones, type AlimentoCalendario, type Compensacion } from '@/lib/analisis-calorico'
 
 function createAuthenticatedClient(accessToken: string) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+  )
+}
+
+function getServiceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 
@@ -32,7 +40,7 @@ export async function POST(request: NextRequest) {
   // Validate alimento exists and has 'Snack' in rol_permitido
   const { data: alimento, error: aliErr } = await supabase
     .from('alimentos')
-    .select('id, nombre, porcion_min, porcion_max, unidad_medida, rol_permitido')
+    .select('id, nombre, porcion_min, porcion_max, unidad_medida, calorias_por_unidad, proteina_por_unidad, porcion_base, rol_permitido')
     .eq('id', alimento_id)
     .single()
 
@@ -76,10 +84,85 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Este snack ya está en ese día' }, { status: 409 })
   }
 
-  // INSERT
-  const { data: inserted, error: insertErr } = await supabase
+  // Fetch user objectives
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo, proteina_objetivo')
+    .eq('id', user_id)
+    .single()
+
+  if (!usuario) {
+    return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 400 })
+  }
+
+  // Fetch day's current foods for compensation calculation
+  const { data: dayFoods } = await supabase
     .from('calendario')
-    .insert({
+    .select('alimento_id, cantidad, unidad, comida, alimento:alimentos(nombre, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
+    .eq('user_id', user_id)
+    .eq('dia', dia)
+
+  // Calculate snack's caloric/protein contribution
+  const snackKcal = alimento.unidad_medida === 'unidad'
+    ? cantidad * alimento.calorias_por_unidad
+    : (cantidad * alimento.calorias_por_unidad) / alimento.porcion_base
+  const snackProt = alimento.unidad_medida === 'unidad'
+    ? cantidad * alimento.proteina_por_unidad
+    : (cantidad * alimento.proteina_por_unidad) / alimento.porcion_base
+
+  // Calculate compensations
+  let compensaciones: Compensacion[] = []
+  if (dayFoods && dayFoods.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const alimentosDia: AlimentoCalendario[] = dayFoods.map((f: any) => {
+      const a = Array.isArray(f.alimento) ? f.alimento[0] : f.alimento
+      return {
+        alimento_id: f.alimento_id,
+        nombre: a?.nombre ?? '',
+        cantidad: f.cantidad,
+        unidad_medida: a?.unidad_medida ?? 'gramos',
+        porcion_base: a?.porcion_base ?? 100,
+        porcion_min: a?.porcion_min ?? 0,
+        porcion_max: a?.porcion_max ?? 999,
+        calorias_por_unidad: a?.calorias_por_unidad ?? 0,
+        proteina_por_unidad: a?.proteina_por_unidad ?? 0,
+        comida: f.comida,
+        dia,
+        rol_permitido: a?.rol_permitido ?? [],
+      }
+    })
+
+    compensaciones = calcularCompensaciones(
+      alimentosDia,
+      snackKcal,
+      snackProt,
+      usuario.calorias_objetivo,
+      usuario.proteina_objetivo,
+    )
+  }
+
+  // Execute atomic transaction via RPC
+  const serviceSb = getServiceSupabase()
+  const { data: rpcResult, error: rpcErr } = await serviceSb.rpc('agregar_snack_con_compensacion', {
+    p_user_id: user_id,
+    p_dia: dia,
+    p_alimento_id: alimento_id,
+    p_cantidad: cantidad,
+    p_unidad: alimento.unidad_medida,
+    p_compensaciones: compensaciones.map(c => ({
+      alimento_id: c.alimento_id,
+      cantidad_despues: c.cantidad_despues,
+    })),
+  })
+
+  if (rpcErr) {
+    console.error('[agregar-snack] RPC error:', rpcErr)
+    return NextResponse.json({ error: 'Error al agregar snack' }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    snack: {
+      id: rpcResult?.snack_id,
       user_id,
       dia,
       comida: 'snack',
@@ -87,14 +170,8 @@ export async function POST(request: NextRequest) {
       cantidad,
       unidad: alimento.unidad_medida,
       origen: 'snack_sugerido',
-    })
-    .select('id, user_id, dia, comida, alimento_id, cantidad, unidad, origen')
-    .single()
-
-  if (insertErr) {
-    console.error('[agregar-snack] INSERT error:', insertErr)
-    return NextResponse.json({ error: 'Error al agregar snack' }, { status: 500 })
-  }
-
-  return NextResponse.json(inserted)
+      nombre: alimento.nombre,
+    },
+    compensaciones,
+  })
 }
