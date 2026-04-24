@@ -11,7 +11,7 @@ import { toImperial } from '@/lib/units'
 import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
 import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
 import { registrarCambioEnChat } from '@/lib/registrar-cambio-lucy'
-import { nombreDiaCompleto, type AlimentoCalendario } from '@/lib/analisis-calorico'
+import { nombreDiaCompleto, type AlimentoCalendario, type CandidatoSnack } from '@/lib/analisis-calorico'
 import BannerReOnboarding from '@/components/BannerReOnboarding'
 import ModalReOnboarding from '@/components/ModalReOnboarding'
 import type { Meta, Genero } from '@/lib/calculo-macros'
@@ -121,6 +121,74 @@ export default function MiCalendarioPage() {
   const mealsRef = useRef<HTMLDivElement>(null)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
   const weekDates = useRef(getWeekDates()).current
+  const [candidatosSnack, setCandidatosSnack] = useState<CandidatoSnack[]>([])
+
+  // Fetch snack candidates: pool personal first, fallback to catalog
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+
+    async function fetchSnackCandidates() {
+      // 1. Pool personal: alimentos in preferencias_usuario that have 'Snack' in rol_permitido
+      const { data: poolData } = await supabase
+        .from('preferencias_usuario')
+        .select('alimento:alimentos(id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
+        .eq('user_id', user.id)
+
+      const poolSnacks: CandidatoSnack[] = (poolData || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((r: any) => {
+          const a = Array.isArray(r.alimento) ? r.alimento[0] : r.alimento
+          if (!a || !(a.rol_permitido || []).includes('Snack')) return null
+          return {
+            alimento_id: a.id,
+            nombre: a.nombre,
+            foto_url: a.foto_url,
+            calorias_por_unidad: a.calorias_por_unidad,
+            proteina_por_unidad: a.proteina_por_unidad,
+            porcion_base: a.porcion_base,
+            porcion_min: a.porcion_min,
+            porcion_max: a.porcion_max,
+            unidad_medida: a.unidad_medida,
+            es_del_pool: true,
+          } as CandidatoSnack
+        })
+        .filter((x: CandidatoSnack | null): x is CandidatoSnack => x !== null)
+
+      // 2. Catalog fallback: if pool has <2 snack options, fill from general catalog
+      let catalogSnacks: CandidatoSnack[] = []
+      if (poolSnacks.length < 2) {
+        const poolIds = new Set(poolSnacks.map(s => s.alimento_id))
+        const { data: catData } = await supabase
+          .from('alimentos')
+          .select('id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido')
+          .contains('rol_permitido', ['Snack'])
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        catalogSnacks = (catData || [])
+          .filter((a: any) => !poolIds.has(a.id)) // eslint-disable-line @typescript-eslint/no-explicit-any
+          .map((a: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+            alimento_id: a.id,
+            nombre: a.nombre,
+            foto_url: a.foto_url,
+            calorias_por_unidad: a.calorias_por_unidad,
+            proteina_por_unidad: a.proteina_por_unidad,
+            porcion_base: a.porcion_base,
+            porcion_min: a.porcion_min,
+            porcion_max: a.porcion_max,
+            unidad_medida: a.unidad_medida,
+            es_del_pool: false,
+          } as CandidatoSnack))
+      }
+
+      if (!cancelled) {
+        setCandidatosSnack([...poolSnacks, ...catalogSnacks])
+      }
+    }
+
+    fetchSnackCandidates()
+    return () => { cancelled = true }
+  }, [user])
 
   const fetchCalendar = useCallback(() => {
     if (!user) return
@@ -273,6 +341,7 @@ export default function MiCalendarioPage() {
     alimentos: alimentosParaAnalisis,
     objetivo_calorias: objetivos.cal,
     objetivo_proteina: objetivos.prot,
+    candidatosSnack,
     onCambiarCantidad: async ({ alimento_id, nombre, comida, dia, cantidad_nueva }) => {
       if (!user) return
       const target = items.find(i => i.alimento_id === alimento_id && i.comida === comida && i.dia === dia)
@@ -304,6 +373,35 @@ export default function MiCalendarioPage() {
       ))
     },
   })
+
+  const agregarSnack = useCallback(async (opcion: import('@/lib/analisis-calorico').OpcionSnack, dia: number) => {
+    if (!user) return
+    const { data: session } = await supabase.auth.getSession()
+    const token = session?.session?.access_token
+    if (!token) return
+
+    const res = await fetch('/api/agregar-snack', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        alimento_id: opcion.alimento_id,
+        cantidad: opcion.cantidad,
+        dia,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Error al agregar snack')
+    }
+
+    // Refresh calendar to pick up the new snack row
+    fetchCalendar()
+  }, [user, fetchCalendar])
 
   const exportarPdf = useCallback(async () => {
     if (exportingPdf) return
@@ -580,7 +678,7 @@ export default function MiCalendarioPage() {
       {(() => {
         const diaDato = getDiaDato(diaActivo)
         return diaDato ? (
-          <BannerAnalisisDia diaDato={diaDato} onAplicarSugerencia={aplicarSugerencia} />
+          <BannerAnalisisDia diaDato={diaDato} onAplicarSugerencia={aplicarSugerencia} onAgregarSnack={agregarSnack} />
         ) : null
       })()}
 

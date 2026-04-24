@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { DiaProblemático, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
+import { DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
+import FoodAvatar from "@/components/FoodAvatar";
 
 interface DayPillProps {
   dia: number;
@@ -27,12 +28,15 @@ export function DayPill({ label, activo, problematico, onClick }: DayPillProps) 
 interface BannerAnalisisDiaProps {
   diaDato: DiaProblemático;
   onAplicarSugerencia: (sugerencia: Sugerencia, dia: number) => Promise<void>;
+  onAgregarSnack?: (opcion: OpcionSnack, dia: number) => Promise<void>;
 }
 
-export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalisisDiaProps) {
+export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack }: BannerAnalisisDiaProps) {
   const [abierto, setAbierto] = useState(false);
   const [aplicando, setAplicando] = useState<number | null>(null);
   const [aplicados, setAplicados] = useState<number[]>([]);
+  const [snackAgregando, setSnackAgregando] = useState<string | null>(null);
+  const [snackAgregados, setSnackAgregados] = useState<Set<string>>(new Set());
 
   const tieneExcesoCal = diaDato.problemas.includes("exceso_calorias");
   const tieneDeficitCal = diaDato.problemas.includes("deficit_calorias");
@@ -65,6 +69,25 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
     }
   }
 
+  async function handleAgregarSnack(opcion: OpcionSnack) {
+    if (!onAgregarSnack || snackAgregando) return;
+    setSnackAgregando(opcion.alimento_id);
+    try {
+      await onAgregarSnack(opcion, diaDato.dia);
+      setSnackAgregados((prev) => new Set(prev).add(opcion.alimento_id));
+    } catch (e) {
+      console.error("Error agregando snack:", e);
+    } finally {
+      setSnackAgregando(null);
+    }
+  }
+
+  function formatearUnidadCorta(unidad: string, cantidad: number): string {
+    if (unidad === "unidad") return cantidad === 1 ? "unidad" : "unidades";
+    if (unidad === "ml") return "ml";
+    return "g";
+  }
+
   return (
     <div className="mx-4 mb-4 rounded-2xl overflow-hidden border border-red-200 bg-red-50">
       <button onClick={() => setAbierto(!abierto)} className="w-full flex items-center justify-between px-4 py-3 text-left">
@@ -87,6 +110,64 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
 
           {diaDato.sugerencias.map((sug, i) => {
             const yaAplicado = aplicados.includes(i);
+
+            // Snack suggestion with real options
+            if (sug.tipo === "agregar_snack" && sug.opciones_snack && sug.opciones_snack.length > 0) {
+              return (
+                <div key={i} className="space-y-2">
+                  <p className="text-xs font-medium text-[#2D2B45]">{sug.descripcion}</p>
+                  {sug.opciones_snack.map((opcion) => {
+                    const agregado = snackAgregados.has(opcion.alimento_id);
+                    const cargando = snackAgregando === opcion.alimento_id;
+                    return (
+                      <div
+                        key={opcion.alimento_id}
+                        className={`rounded-xl border p-3 transition-all ${agregado ? "border-green-200 bg-green-50" : "border-red-200 bg-white"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FoodAvatar nombre={opcion.nombre} foto_url={opcion.foto_url} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-[#2D2B45] truncate">
+                              {opcion.nombre}, {opcion.cantidad}{formatearUnidadCorta(opcion.unidad_medida, opcion.cantidad)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              +{opcion.kcal_aporta} kcal{opcion.prot_aporta > 0 ? `, ${opcion.prot_aporta}g prot` : ""}
+                            </p>
+                            {!opcion.es_del_pool && (
+                              <p className="text-[10px] text-[#7B7FC4] mt-0.5">Nuevo alimento</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleAgregarSnack(opcion)}
+                            disabled={!!snackAgregando || agregado}
+                            className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                              agregado
+                                ? "bg-green-100 text-green-600 cursor-default"
+                                : cargando
+                                ? "bg-gray-100 text-gray-400 cursor-wait"
+                                : "bg-[#7B7FC4] text-white active:scale-95"
+                            }`}
+                          >
+                            {agregado ? "✓" : cargando ? "..." : "Agregar"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            // Snack suggestion without options (legacy fallback)
+            if (sug.tipo === "agregar_snack") {
+              return (
+                <div key={i} className="rounded-xl border border-red-200 bg-white p-3">
+                  <p className="text-xs font-medium text-[#2D2B45] leading-snug">{sug.descripcion}</p>
+                </div>
+              );
+            }
+
+            // Aumentar / Reducir suggestions (unchanged)
             return (
               <div key={i} className={`rounded-xl border p-3 transition-all ${yaAplicado ? "border-green-200 bg-green-50" : "border-red-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-2">
@@ -96,15 +177,13 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
                       <p className="text-xs text-gray-400 mt-1">Proteína: {sug.impacto_proteina > 0 ? "+" : ""}{sug.impacto_proteina}g</p>
                     )}
                   </div>
-                  {sug.tipo !== "agregar_snack" && (
-                    <button
-                      onClick={() => handleAplicar(sug, i)}
-                      disabled={aplicando !== null || yaAplicado}
-                      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
-                    >
-                      {yaAplicado ? "✓" : aplicando === i ? "..." : "Aplicar"}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleAplicar(sug, i)}
+                    disabled={aplicando !== null || yaAplicado}
+                    className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
+                  >
+                    {yaAplicado ? "✓" : aplicando === i ? "..." : "Aplicar"}
+                  </button>
                 </div>
               </div>
             );
