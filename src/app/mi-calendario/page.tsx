@@ -129,6 +129,7 @@ export default function MiCalendarioPage() {
     let cancelled = false
 
     async function fetchSnackCandidates() {
+      if (!user) return
       // 1. Pool personal: alimentos in preferencias_usuario that have 'Snack' in rol_permitido
       const { data: poolData } = await supabase
         .from('preferencias_usuario')
