@@ -127,7 +127,7 @@ const narrow = { maxWidth: 900, margin: '0 auto', padding: '0 20px' } as const
 
 export default function LandingPage() {
   return (
-    <div style={{ fontFamily: "'DM Sans', -apple-system, sans-serif", color: '#2D2B45', lineHeight: 1.6, fontSize: 18 }}>
+    <div style={{ color: '#2D2B45', lineHeight: 1.6, fontSize: 18 }}>
 
       {/* ═══ SECTION 1: PRE-HEADER ═══ */}
       <div style={{ background: '#7B7FC4', color: '#FFF', textAlign: 'center', padding: '12px 20px', fontSize: 14, fontWeight: 500 }}>
@@ -149,8 +149,27 @@ export default function LandingPage() {
               <h1 style={{ fontSize: 56, fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.02em', marginBottom: 24, color: '#2D2B45' }} className="landing-h1">
                 Por fin sabes qué comer — y en qué cantidades.
               </h1>
-              <p style={{ fontSize: 22, color: '#555', marginBottom: 32, lineHeight: 1.5 }} className="landing-subhead">
-                Lucy es tu asistente nutricional con inteligencia artificial, diseñada específicamente para mujeres profesionales latinas. Elige tus alimentos favoritos. Lucy calcula las porciones exactas para tu cuerpo y te arma un plan de 7 días completo. En español. Sin contar calorías. Sin pesar comida. Sin ejercicio obligatorio.
+              {/* Intro corto */}
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 24, lineHeight: 1.5 }} className="hero-intro">
+                Lucy es tu asistente nutricional con IA, diseñada para mujeres profesionales latinas.
+              </p>
+
+              {/* Bullets verbales */}
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
+                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Eliges tus alimentos favoritos
+                </li>
+                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
+                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Lucy calcula las porciones exactas para tu cuerpo
+                </li>
+                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
+                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Te arma un plan de 7 días completo en español
+                </li>
+              </ul>
+
+              {/* Línea de "sin" */}
+              <p style={{ fontSize: 16, color: '#7B7FC4', fontWeight: 500, marginBottom: 32, lineHeight: 1.6 }} className="hero-sin">
+                Sin contar calorías · Sin pesar comida · Sin ejercicio · Sin mensualidades
               </p>
 
               <div id="cta-hero">
@@ -562,7 +581,9 @@ export default function LandingPage() {
           .landing-logo { font-size: 28px !important; }
           .landing-h1 { font-size: 36px !important; }
           .landing-h2 { font-size: 28px !important; }
-          .landing-subhead { font-size: 18px !important; }
+          .hero-intro { font-size: 18px !important; }
+          .hero-bullet { font-size: 16px !important; }
+          .hero-sin { font-size: 14px !important; }
           .landing-section { padding: 60px 0 !important; }
           .landing-hero-grid,
           .landing-origin-grid,
