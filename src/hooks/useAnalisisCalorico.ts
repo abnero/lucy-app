@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { AlimentoCalendario, DiaProblemático, ResultadoAnalisis, Sugerencia, analizarCalendario } from "@/lib/analisis-calorico";
+import { AlimentoCalendario, CandidatoSnack, DiaProblemático, ResultadoAnalisis, Sugerencia, analizarCalendario } from "@/lib/analisis-calorico";
 
 interface UseAnalisisCaloricoProps {
   alimentos: AlimentoCalendario[];
   objetivo_calorias: number;
   objetivo_proteina: number;
+  candidatosSnack?: CandidatoSnack[];
   onCambiarCantidad: (params: {
     alimento_id: string;
     nombre: string;
@@ -21,11 +22,11 @@ interface UseAnalisisCaloricoResult {
   aplicarSugerencia: (sugerencia: Sugerencia, dia: number) => Promise<void>;
 }
 
-export function useAnalisisCalorico({ alimentos, objetivo_calorias, objetivo_proteina, onCambiarCantidad }: UseAnalisisCaloricoProps): UseAnalisisCaloricoResult {
+export function useAnalisisCalorico({ alimentos, objetivo_calorias, objetivo_proteina, candidatosSnack, onCambiarCantidad }: UseAnalisisCaloricoProps): UseAnalisisCaloricoResult {
   const resultado = useMemo<ResultadoAnalisis | null>(() => {
     if (!alimentos.length || !objetivo_calorias) return null;
-    return analizarCalendario(alimentos, objetivo_calorias, objetivo_proteina);
-  }, [alimentos, objetivo_calorias, objetivo_proteina]);
+    return analizarCalendario(alimentos, objetivo_calorias, objetivo_proteina, candidatosSnack);
+  }, [alimentos, objetivo_calorias, objetivo_proteina, candidatosSnack]);
 
   const diasProblematicos = useMemo(() => {
     if (!resultado) return new Set<number>();

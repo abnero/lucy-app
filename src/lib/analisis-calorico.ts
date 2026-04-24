@@ -32,6 +32,34 @@ export interface MacrosDia {
 
 export type TipoProblema = "exceso_calorias" | "deficit_calorias" | "deficit_proteina";
 
+export interface OpcionSnack {
+  alimento_id: string;
+  nombre: string;
+  foto_url: string | null;
+  cantidad: number;
+  unidad_medida: string;
+  unidad_display: string | null;
+  factor_conversion: number | null;
+  kcal_aporta: number;
+  prot_aporta: number;
+  es_del_pool: boolean;
+}
+
+export interface CandidatoSnack {
+  alimento_id: string;
+  nombre: string;
+  foto_url: string | null;
+  calorias_por_unidad: number;
+  proteina_por_unidad: number;
+  porcion_base: number;
+  porcion_min: number;
+  porcion_max: number;
+  unidad_display: string | null;
+  factor_conversion: number | null;
+  unidad_medida: "gramos" | "ml" | "unidad";
+  es_del_pool: boolean;
+}
+
 export interface Sugerencia {
   tipo: "reducir" | "aumentar" | "agregar_snack";
   alimento_id: string;
@@ -43,6 +71,16 @@ export interface Sugerencia {
   impacto_calorias: number;
   impacto_proteina: number;
   descripcion: string;
+  opciones_snack?: OpcionSnack[];
+}
+
+export interface Compensacion {
+  alimento_id: string;
+  nombre: string;
+  cantidad_antes: number;
+  cantidad_despues: number;
+  kcal_reducidas: number;
+  prot_reducidas: number;
 }
 
 export interface DiaProblemático {
@@ -75,6 +113,129 @@ export function calcularProteina(alimento: AlimentoCalendario): number {
     return alimento.cantidad * alimento.proteina_por_unidad;
   }
   return (alimento.cantidad * alimento.proteina_por_unidad) / alimento.porcion_base;
+}
+
+export function calcularCompensaciones(
+  alimentosDia: AlimentoCalendario[],
+  snackKcal: number,
+  snackProt: number,
+  objetivo_calorias: number,
+  objetivo_proteina: number,
+): Compensacion[] {
+  const tolerancia_cal = objetivo_calorias * 0.10;
+  const tolerancia_prot = 10;
+
+  // Project totals after adding snack
+  const totalCalActual = alimentosDia.reduce((s, a) => s + calcularCalorias(a), 0);
+  const totalProtActual = alimentosDia.reduce((s, a) => s + calcularProteina(a), 0);
+  const calProyectado = totalCalActual + snackKcal;
+  const protProyectado = totalProtActual + snackProt;
+
+  let excesoCal = Math.max(0, calProyectado - (objetivo_calorias + tolerancia_cal));
+  let excesoProt = Math.max(0, protProyectado - (objetivo_proteina + tolerancia_prot));
+
+  if (excesoCal <= 0 && excesoProt <= 0) return [];
+
+  const compensaciones: Compensacion[] = [];
+
+  // Work on a mutable copy of quantities
+  const cantidades = new Map(alimentosDia.map((a) => [a.alimento_id + '|' + a.comida, a.cantidad]));
+
+  function getKey(a: AlimentoCalendario) { return a.alimento_id + '|' + a.comida; }
+
+  function cpuOf(a: AlimentoCalendario) {
+    return a.unidad_medida === "unidad" ? a.calorias_por_unidad : a.calorias_por_unidad / a.porcion_base;
+  }
+  function ppuOf(a: AlimentoCalendario) {
+    return a.unidad_medida === "unidad" ? a.proteina_por_unidad : a.proteina_por_unidad / a.porcion_base;
+  }
+
+  // Phase 1: reduce excess protein by cutting protein-heavy foods
+  if (excesoProt > 0) {
+    const protHeavy = [...alimentosDia]
+      .filter((a) => {
+        const cpu = cpuOf(a);
+        const ppu = ppuOf(a);
+        return cpu > 0 && ppu / cpu >= 0.08 && (cantidades.get(getKey(a))! > a.porcion_min);
+      })
+      .sort((a, b) => ppuOf(b) - ppuOf(a)); // highest protein density first
+
+    for (const alimento of protHeavy) {
+      if (excesoProt <= 0) break;
+      const key = getKey(alimento);
+      const cantActual = cantidades.get(key)!;
+      const margen = cantActual - alimento.porcion_min;
+      if (margen <= 0) continue;
+
+      const ppu = ppuOf(alimento);
+      const cpu = cpuOf(alimento);
+      const qtyReducir = Math.min(margen, ppu > 0 ? excesoProt / ppu : margen);
+      const cantNueva = alimento.unidad_medida === "unidad"
+        ? Math.max(alimento.porcion_min, Math.round((cantActual - qtyReducir) * 2) / 2)
+        : Math.max(alimento.porcion_min, Math.round(cantActual - qtyReducir));
+      const realReduccion = cantActual - cantNueva;
+      if (realReduccion <= 0) continue;
+
+      const kcalRed = cpu * realReduccion;
+      const protRed = ppu * realReduccion;
+      cantidades.set(key, cantNueva);
+      excesoProt -= protRed;
+      excesoCal -= kcalRed; // reducing protein food also reduces calories
+
+      compensaciones.push({
+        alimento_id: alimento.alimento_id,
+        nombre: alimento.nombre,
+        cantidad_antes: cantActual,
+        cantidad_despues: cantNueva,
+        kcal_reducidas: Math.round(kcalRed),
+        prot_reducidas: Math.round(protRed * 10) / 10,
+      });
+    }
+  }
+
+  // Phase 2: reduce excess calories by cutting cal-dense non-protein foods
+  if (excesoCal > 0) {
+    const calDense = [...alimentosDia]
+      .filter((a) => {
+        const cpu = cpuOf(a);
+        const ppu = ppuOf(a);
+        return cpu > 0 && (ppu / cpu < 0.08) && (cantidades.get(getKey(a))! > a.porcion_min);
+      })
+      .sort((a, b) => cpuOf(b) - cpuOf(a)); // highest caloric density first
+
+    for (const alimento of calDense) {
+      if (excesoCal <= 0) break;
+      const key = getKey(alimento);
+      const cantActual = cantidades.get(key)!;
+      const margen = cantActual - alimento.porcion_min;
+      if (margen <= 0) continue;
+
+      const cpu = cpuOf(alimento);
+      const ppu = ppuOf(alimento);
+      const qtyReducir = Math.min(margen, cpu > 0 ? excesoCal / cpu : margen);
+      const cantNueva = alimento.unidad_medida === "unidad"
+        ? Math.max(alimento.porcion_min, Math.round((cantActual - qtyReducir) * 2) / 2)
+        : Math.max(alimento.porcion_min, Math.round(cantActual - qtyReducir));
+      const realReduccion = cantActual - cantNueva;
+      if (realReduccion <= 0) continue;
+
+      const kcalRed = cpu * realReduccion;
+      const protRed = ppu * realReduccion;
+      cantidades.set(key, cantNueva);
+      excesoCal -= kcalRed;
+
+      compensaciones.push({
+        alimento_id: alimento.alimento_id,
+        nombre: alimento.nombre,
+        cantidad_antes: cantActual,
+        cantidad_despues: cantNueva,
+        kcal_reducidas: Math.round(kcalRed),
+        prot_reducidas: Math.round(protRed * 10) / 10,
+      });
+    }
+  }
+
+  return compensaciones;
 }
 
 export function calcularMacrosDia(alimentos: AlimentoCalendario[], dia: number): MacrosDia {
@@ -140,20 +301,98 @@ function formatearSugerencia(tipo: "reducir" | "aumentar", alimento: AlimentoCal
   return `${verbo} el ${alimento.nombre} en ${comidaLabel} de ${cantidad_actual}${unidad} a ${cantidad_nueva}${unidad} (${signo}${impacto_calorias} kcal)`;
 }
 
-function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null): Sugerencia[] {
+function calcularSnackAporte(c: CandidatoSnack, cantidad: number): { kcal: number; prot: number } {
+  if (c.unidad_medida === "unidad") {
+    return { kcal: cantidad * c.calorias_por_unidad, prot: cantidad * c.proteina_por_unidad };
+  }
+  return {
+    kcal: (cantidad * c.calorias_por_unidad) / c.porcion_base,
+    prot: (cantidad * c.proteina_por_unidad) / c.porcion_base,
+  };
+}
+
+function calcularCantidadSnackParaGap(c: CandidatoSnack, gapKcal: number, gapProt: number, prioridadProt: boolean): number {
+  const cpu = c.unidad_medida === "unidad" ? c.calorias_por_unidad : c.calorias_por_unidad / c.porcion_base;
+  const ppu = c.unidad_medida === "unidad" ? c.proteina_por_unidad : c.proteina_por_unidad / c.porcion_base;
+
+  let qty: number;
+  if (prioridadProt && ppu > 0) {
+    qty = gapProt / ppu;
+  } else if (cpu > 0) {
+    qty = gapKcal / cpu;
+  } else {
+    qty = c.porcion_base;
+  }
+
+  // Clamp to [porcion_min, porcion_max]
+  qty = Math.max(c.porcion_min, Math.min(c.porcion_max, qty));
+
+  // Round: units to 0.5 step, grams/ml to integers
+  if (c.unidad_medida === "unidad") {
+    qty = Math.round(qty * 2) / 2;
+  } else {
+    qty = Math.round(qty);
+  }
+
+  return qty;
+}
+
+function seleccionarSnacks(candidatos: CandidatoSnack[], gapKcal: number, gapProt: number, hayDeficit: boolean, hayDeficitProteina: boolean): OpcionSnack[] {
+  // Filter by gap type
+  const scored = candidatos.map((c) => {
+    const cpu = c.unidad_medida === "unidad" ? c.calorias_por_unidad : c.calorias_por_unidad / c.porcion_base;
+    const ppu = c.unidad_medida === "unidad" ? c.proteina_por_unidad : c.proteina_por_unidad / c.porcion_base;
+    const ratioProt = cpu > 0 ? ppu / cpu : 0; // g protein per kcal
+
+    // Filter: for solo_prot, want high protein ratio; for solo_cal, want low; for both, accept all
+    if (hayDeficitProteina && !hayDeficit && ratioProt < 0.08) return null; // solo_prot: skip low-protein
+    if (hayDeficit && !hayDeficitProteina && ratioProt > 0.12) return null; // solo_cal: skip high-protein (use them for meals instead)
+
+    const prioridadProt = hayDeficitProteina && (!hayDeficit || ratioProt >= 0.08);
+    const qty = calcularCantidadSnackParaGap(c, gapKcal, gapProt, prioridadProt);
+    const aporte = calcularSnackAporte(c, qty);
+
+    // Score: how well does this close the gap(s)?
+    const pctKcal = gapKcal > 0 && hayDeficit ? Math.min(aporte.kcal / gapKcal, 1) : 0;
+    const pctProt = gapProt > 0 && hayDeficitProteina ? Math.min(aporte.prot / gapProt, 1) : 0;
+    const score = pctKcal + pctProt + (c.es_del_pool ? 0.5 : 0); // Boost pool foods
+
+    return { candidato: c, qty, aporte, score };
+  }).filter((x): x is NonNullable<typeof x> => x !== null && x.score > 0);
+
+  // Sort by score descending, take top 3
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, 3).map(({ candidato, qty, aporte }) => ({
+    alimento_id: candidato.alimento_id,
+    nombre: candidato.nombre,
+    foto_url: candidato.foto_url,
+    cantidad: qty,
+    unidad_medida: candidato.unidad_medida,
+    unidad_display: candidato.unidad_display,
+    factor_conversion: candidato.factor_conversion,
+    kcal_aporta: Math.round(aporte.kcal),
+    prot_aporta: Math.round(aporte.prot * 10) / 10,
+    es_del_pool: candidato.es_del_pool,
+  }));
+}
+
+function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null, objetivo_calorias: number, candidatosSnack?: CandidatoSnack[]): Sugerencia[] {
   const sugerencias: Sugerencia[] = [];
   const hayExceso = diferencia_calorias > 20;
   const hayDeficit = diferencia_calorias < -20;
   const hayDeficitProteina = diferencia_proteina < -10;
-  const gapKcal = Math.abs(diferencia_calorias);
-  const gapProt = Math.abs(diferencia_proteina);
+  const calDentroDeTolerancia = Math.abs(diferencia_calorias) <= objetivo_calorias * 0.10;
+  let gapKcal = Math.abs(diferencia_calorias);
+  let gapProt = Math.abs(diferencia_proteina);
 
   const ordenados = comida_problematica
     ? [...alimentosDia.filter((a) => a.comida === comida_problematica), ...alimentosDia.filter((a) => a.comida !== comida_problematica)]
     : alimentosDia;
 
   // ═══ EXCESO: reduce high-density foods ═══
-  if (hayExceso) {
+  // Only suggest reductions when cal is OUTSIDE the ±10% product tolerance, not just the micro-threshold
+  if (hayExceso && !calDentroDeTolerancia) {
     const reducibles = ordenados
       .filter((a) => a.cantidad > a.porcion_min)
       .sort((a, b) => {
@@ -162,7 +401,7 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
         return densB - densA;
       });
     for (const alimento of reducibles) {
-      if (sugerencias.length >= 3) break;
+      if (sugerencias.length >= 3 || gapKcal <= 20) break;
       if (hayDeficitProteina && alimento.proteina_por_unidad > 10) continue;
       const cals_actuales = calcularCalorias(alimento);
       const cals_objetivo = Math.max(calcularCaloriasParaCantidad(alimento, alimento.porcion_min), cals_actuales - gapKcal);
@@ -179,6 +418,8 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
           impacto_proteina: Math.round(impacto_prot * 10) / 10,
           descripcion: formatearSugerencia("reducir", alimento, alimento.cantidad, Math.round(cantidad_nueva * 10) / 10, Math.round(impacto_cal)),
         });
+        gapKcal -= Math.abs(impacto_cal);
+        gapProt -= Math.abs(impacto_prot);
       }
     }
   }
@@ -196,18 +437,23 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
         const protPotencial = ppu * maxExtra;
         const pctKcal = gapKcal > 0 ? Math.min(kcalPotencial / gapKcal, 1) : 0;
         const pctProt = gapProt > 0 ? Math.min(protPotencial / gapProt, 1) : 0;
-        // Combined score: weight both gaps. If only one gap exists, the other contributes 0.
-        const score = (hayDeficit ? pctKcal : 0) + (hayDeficitProteina ? pctProt : 0);
+        // Combined score: weight both gaps. When cal is within tolerance but prot is not,
+        // strongly prioritize protein-dense foods (3x weight on prot).
+        const protWeight = (hayDeficitProteina && calDentroDeTolerancia) ? 3 : 1;
+        const score = (hayDeficit ? pctKcal : 0) + (hayDeficitProteina ? pctProt * protWeight : 0);
         return { alimento: a, score, cpu, ppu, maxExtra };
       })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    for (const { alimento, cpu } of aumentables) {
-      if (sugerencias.length >= 2) break;
+    for (const { alimento, cpu, ppu } of aumentables) {
+      if (sugerencias.length >= 2 || (gapKcal <= 20 && gapProt <= 10)) break;
       const cals_actuales = calcularCalorias(alimento);
-      // Target: close the kcal gap or max out, whichever is smaller
-      const targetExtra = cpu > 0 ? Math.min(gapKcal / cpu, alimento.porcion_max - alimento.cantidad) : alimento.porcion_max - alimento.cantidad;
+      // Target: when solo_prot (cal within tolerance), size the increase by protein gap, not kcal gap
+      const useProt = hayDeficitProteina && calDentroDeTolerancia && ppu > 0;
+      const targetExtra = useProt
+        ? Math.min(gapProt / ppu, alimento.porcion_max - alimento.cantidad)
+        : (cpu > 0 ? Math.min(gapKcal / cpu, alimento.porcion_max - alimento.cantidad) : alimento.porcion_max - alimento.cantidad);
       let cantidad_nueva = Math.round((alimento.cantidad + targetExtra) * 10) / 10;
       cantidad_nueva = Math.min(alimento.porcion_max, cantidad_nueva);
       if (cantidad_nueva <= alimento.cantidad) continue;
@@ -222,35 +468,43 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
         impacto_proteina: Math.round(impacto_prot * 10) / 10,
         descripcion: formatearSugerencia("aumentar", alimento, alimento.cantidad, cantidad_nueva, Math.round(impacto_cal)),
       });
+      gapKcal -= Math.abs(impacto_cal);
+      gapProt -= Math.abs(impacto_prot);
     }
 
-    // Add snack suggestion if still room (max 1, never duplicate)
-    if (sugerencias.length < 3) {
-      if (hayDeficit && hayDeficitProteina) {
-        // Mixed deficit: suggest a snack that covers both
+    // Add snack suggestion with real options from catalog if candidates available
+    if (sugerencias.length < 3 && candidatosSnack && candidatosSnack.length > 0) {
+      const opciones = seleccionarSnacks(candidatosSnack, gapKcal, gapProt, hayDeficit, hayDeficitProteina);
+      if (opciones.length > 0) {
+        const tipoGap = (hayDeficit && hayDeficitProteina) ? "combinado" : hayDeficitProteina ? "proteico" : "calórico";
         const kcalFalt = Math.round(gapKcal);
         const protFalt = Math.round(gapProt);
+        let descripcion: string;
+        if (tipoGap === "combinado") {
+          descripcion = `Agrega un snack que cubra ~${kcalFalt} kcal y ~${protFalt}g de proteína. Lucy te sugiere ${opciones.length} opciones:`;
+        } else if (tipoGap === "proteico") {
+          descripcion = `Agrega un snack proteico para cubrir ~${protFalt}g de proteína. Lucy te sugiere ${opciones.length} opciones:`;
+        } else {
+          descripcion = `Agrega un snack de ~${kcalFalt} kcal para completar tu meta. Lucy te sugiere ${opciones.length} opciones:`;
+        }
         sugerencias.push({
-          tipo: "agregar_snack", alimento_id: "", nombre: "Snack combinado", comida: "cena",
+          tipo: "agregar_snack", alimento_id: "", nombre: "Snack sugerido", comida: "snack",
           cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
           impacto_calorias: kcalFalt, impacto_proteina: protFalt,
-          descripcion: `Agrega un snack que cubra ~${kcalFalt} kcal y ~${protFalt}g de proteína. Por ejemplo: 40g de almendras (~230 kcal, 8g prot), o 1 Yogur Griego + 1 guineo (~200 kcal, 11g prot). Pregúntale a Lucy cuál encaja mejor.`,
+          descripcion,
+          opciones_snack: opciones,
         });
-      } else if (hayDeficitProteina) {
-        const protFalt = Math.round(gapProt);
+      }
+    } else if (sugerencias.length < 3 && (!candidatosSnack || candidatosSnack.length === 0)) {
+      // Fallback: no snack candidates available (legacy behavior — text only)
+      const kcalFalt = Math.round(gapKcal);
+      const protFalt = Math.round(gapProt);
+      if (hayDeficit || hayDeficitProteina) {
         sugerencias.push({
-          tipo: "agregar_snack", alimento_id: "", nombre: "Snack proteico", comida: "cena",
+          tipo: "agregar_snack", alimento_id: "", nombre: "Snack", comida: "snack",
           cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
-          impacto_calorias: 0, impacto_proteina: protFalt,
-          descripcion: `Agrega un snack proteico para cubrir ~${protFalt}g de proteína. Por ejemplo: 1 taza de Yogur Griego (+10g prot), ½ lata de Atún (+14g prot), o 3 claras de huevo (+11g prot). Pregúntale a Lucy en el chat cuál encaja mejor.`,
-        });
-      } else {
-        const kcalFalt = Math.round(gapKcal);
-        sugerencias.push({
-          tipo: "agregar_snack", alimento_id: "", nombre: "Snack", comida: "cena",
-          cantidad_actual: 0, cantidad_nueva: 0, unidad_medida: "unidad",
-          impacto_calorias: kcalFalt, impacto_proteina: 0,
-          descripcion: `Agregar un snack de ~${kcalFalt} kcal para completar tu meta. Pregúntale a Lucy qué snack encaja mejor con tu plan.`,
+          impacto_calorias: kcalFalt, impacto_proteina: protFalt,
+          descripcion: `Agrega un snack para cerrar la brecha. Pregúntale a Lucy en el chat cuál encaja mejor con tu plan.`,
         });
       }
     }
@@ -259,7 +513,7 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
   return sugerencias.slice(0, 3);
 }
 
-export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_calorias: number, objetivo_proteina: number): ResultadoAnalisis {
+export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_calorias: number, objetivo_proteina: number, candidatosSnack?: CandidatoSnack[]): ResultadoAnalisis {
   const dias = Array.from(new Set(alimentos.map((a) => a.dia))).sort();
   const tolerancia_calorias = objetivo_calorias * 0.10;
   const tolerancia_proteina = 10;
@@ -279,7 +533,7 @@ export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_cal
     if (deficit_proteina) problemas.push("deficit_proteina");
     const comida_problematica = identificarComidaProblematica(macros, objetivo_calorias);
     const alimentosDia = alimentos.filter((a) => a.dia === dia);
-    const sugerencias = generarSugerencias(alimentosDia, diferencia_calorias, diferencia_proteina, comida_problematica);
+    const sugerencias = generarSugerencias(alimentosDia, diferencia_calorias, diferencia_proteina, comida_problematica, objetivo_calorias, candidatosSnack);
     dias_problematicos.push({
       dia, macros, objetivo_calorias, objetivo_proteina,
       diferencia_calorias: Math.round(diferencia_calorias),

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { DiaProblemático, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
+import { Compensacion, DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
+import FoodAvatar from "@/components/FoodAvatar";
+import { toImperial } from "@/lib/units";
 
 interface DayPillProps {
   dia: number;
@@ -27,12 +29,21 @@ export function DayPill({ label, activo, problematico, onClick }: DayPillProps) 
 interface BannerAnalisisDiaProps {
   diaDato: DiaProblemático;
   onAplicarSugerencia: (sugerencia: Sugerencia, dia: number) => Promise<void>;
+  onAgregarSnack?: (opcion: OpcionSnack, dia: number) => Promise<{ compensaciones: Compensacion[] }>;
 }
 
-export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalisisDiaProps) {
+interface SnackResultado {
+  nombre: string;
+  opcion: OpcionSnack;
+  compensaciones: Compensacion[];
+}
+
+export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack }: BannerAnalisisDiaProps) {
   const [abierto, setAbierto] = useState(false);
   const [aplicando, setAplicando] = useState<number | null>(null);
   const [aplicados, setAplicados] = useState<number[]>([]);
+  const [snackAgregando, setSnackAgregando] = useState<string | null>(null);
+  const [snackResultados, setSnackResultados] = useState<Map<string, SnackResultado>>(new Map());
 
   const tieneExcesoCal = diaDato.problemas.includes("exceso_calorias");
   const tieneDeficitCal = diaDato.problemas.includes("deficit_calorias");
@@ -65,6 +76,27 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
     }
   }
 
+  async function handleAgregarSnack(opcion: OpcionSnack) {
+    if (!onAgregarSnack || snackAgregando) return;
+    setSnackAgregando(opcion.alimento_id);
+    try {
+      const result = await onAgregarSnack(opcion, diaDato.dia);
+      setSnackResultados((prev) => {
+        const next = new Map(prev);
+        next.set(opcion.alimento_id, {
+          nombre: opcion.nombre,
+          opcion,
+          compensaciones: result.compensaciones,
+        });
+        return next;
+      });
+    } catch (e) {
+      console.error("Error agregando snack:", e);
+    } finally {
+      setSnackAgregando(null);
+    }
+  }
+
   return (
     <div className="mx-4 mb-4 rounded-2xl overflow-hidden border border-red-200 bg-red-50">
       <button onClick={() => setAbierto(!abierto)} className="w-full flex items-center justify-between px-4 py-3 text-left">
@@ -85,8 +117,97 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
             <span>💪 {Math.round(diaDato.macros.proteina)}g / {Math.round(diaDato.objetivo_proteina)}g prot</span>
           </div>
 
+          {/* Confirmation messages for applied snacks — persists across analysis recalculations */}
+          {snackResultados.size > 0 && (
+            <div className="space-y-2">
+              {Array.from(snackResultados.values()).map((res) => (
+                <div key={res.opcion.alimento_id} className="rounded-xl border border-green-200 bg-green-50 p-3">
+                  <p className="text-xs text-[#2D2B45]">
+                    <span className="font-medium">✓ Agregado {res.nombre}</span>
+                    {res.compensaciones.length > 0 && (
+                      <>
+                        {". Ajusté "}
+                        {res.compensaciones.slice(0, 3).map((c, ci) => (
+                          <span key={c.alimento_id}>
+                            {ci > 0 && " y "}
+                            {c.nombre} de {toImperial(c.cantidad_antes, res.opcion)} a {toImperial(c.cantidad_despues, res.opcion)}
+                          </span>
+                        ))}
+                        {" para balancear."}
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {diaDato.sugerencias.map((sug, i) => {
             const yaAplicado = aplicados.includes(i);
+
+            // Snack suggestion with real options
+            if (sug.tipo === "agregar_snack" && sug.opciones_snack && sug.opciones_snack.length > 0) {
+              // Filter out already-applied options
+              const opcionesPendientes = sug.opciones_snack.filter(
+                (o) => !snackResultados.has(o.alimento_id)
+              );
+              if (opcionesPendientes.length === 0) return null;
+
+              return (
+                <div key={i} className="space-y-2">
+                  <p className="text-xs font-medium text-[#2D2B45]">{sug.descripcion}</p>
+                  {opcionesPendientes.map((opcion) => {
+                    const cargando = snackAgregando === opcion.alimento_id;
+                    return (
+                      <div
+                        key={opcion.alimento_id}
+                        className="rounded-xl border border-red-200 bg-white p-3 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FoodAvatar nombre={opcion.nombre} foto_url={opcion.foto_url} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-[#2D2B45] leading-snug">
+                              {opcion.nombre}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {toImperial(opcion.cantidad, opcion)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              +{opcion.kcal_aporta} kcal{opcion.prot_aporta > 0 ? `, ${opcion.prot_aporta}g prot` : ""}
+                            </p>
+                            {!opcion.es_del_pool && (
+                              <p className="text-[10px] text-[#7B7FC4] mt-0.5">Nuevo alimento</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleAgregarSnack(opcion)}
+                            disabled={!!snackAgregando}
+                            className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                              cargando
+                                ? "bg-gray-100 text-gray-400 cursor-wait"
+                                : "bg-[#7B7FC4] text-white active:scale-95"
+                            }`}
+                          >
+                            {cargando ? "..." : "Agregar"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            // Snack suggestion without options (legacy fallback)
+            if (sug.tipo === "agregar_snack") {
+              return (
+                <div key={i} className="rounded-xl border border-red-200 bg-white p-3">
+                  <p className="text-xs font-medium text-[#2D2B45] leading-snug">{sug.descripcion}</p>
+                </div>
+              );
+            }
+
+            // Aumentar / Reducir suggestions (unchanged)
             return (
               <div key={i} className={`rounded-xl border p-3 transition-all ${yaAplicado ? "border-green-200 bg-green-50" : "border-red-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-2">
@@ -96,15 +217,13 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia }: BannerAnalis
                       <p className="text-xs text-gray-400 mt-1">Proteína: {sug.impacto_proteina > 0 ? "+" : ""}{sug.impacto_proteina}g</p>
                     )}
                   </div>
-                  {sug.tipo !== "agregar_snack" && (
-                    <button
-                      onClick={() => handleAplicar(sug, i)}
-                      disabled={aplicando !== null || yaAplicado}
-                      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
-                    >
-                      {yaAplicado ? "✓" : aplicando === i ? "..." : "Aplicar"}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleAplicar(sug, i)}
+                    disabled={aplicando !== null || yaAplicado}
+                    className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
+                  >
+                    {yaAplicado ? "✓" : aplicando === i ? "..." : "Aplicar"}
+                  </button>
                 </div>
               </div>
             );
