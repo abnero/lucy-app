@@ -391,7 +391,8 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
     : alimentosDia;
 
   // ═══ EXCESO: reduce high-density foods ═══
-  if (hayExceso) {
+  // Only suggest reductions when cal is OUTSIDE the ±10% product tolerance, not just the micro-threshold
+  if (hayExceso && !calDentroDeTolerancia) {
     const reducibles = ordenados
       .filter((a) => a.cantidad > a.porcion_min)
       .sort((a, b) => {
