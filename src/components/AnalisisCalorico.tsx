@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Compensacion, DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
 import FoodAvatar from "@/components/FoodAvatar";
+import { toImperial } from "@/lib/units";
 
 interface DayPillProps {
   dia: number;
@@ -96,12 +97,6 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
     }
   }
 
-  function formatearUnidadCorta(unidad: string, cantidad: number): string {
-    if (unidad === "unidad") return cantidad === 1 ? "unidad" : "unidades";
-    if (unidad === "ml") return "ml";
-    return "g";
-  }
-
   return (
     <div className="mx-4 mb-4 rounded-2xl overflow-hidden border border-red-200 bg-red-50">
       <button onClick={() => setAbierto(!abierto)} className="w-full flex items-center justify-between px-4 py-3 text-left">
@@ -147,7 +142,7 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                                 {comps.slice(0, 3).map((c, ci) => (
                                   <span key={c.alimento_id}>
                                     {ci > 0 && " y "}
-                                    {c.nombre} de {c.cantidad_antes}{formatearUnidadCorta(opcion.unidad_medida, c.cantidad_antes)} a {c.cantidad_despues}{formatearUnidadCorta(opcion.unidad_medida, c.cantidad_despues)}
+                                    {c.nombre} de {toImperial(c.cantidad_antes, opcion)} a {toImperial(c.cantidad_despues, opcion)}
                                   </span>
                                 ))}
                                 {" para balancear."}
@@ -169,7 +164,7 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                           <FoodAvatar nombre={opcion.nombre} foto_url={opcion.foto_url} size="sm" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-[#2D2B45] truncate">
-                              {opcion.nombre}, {opcion.cantidad}{formatearUnidadCorta(opcion.unidad_medida, opcion.cantidad)}
+                              {opcion.nombre}, {toImperial(opcion.cantidad, opcion)}
                             </p>
                             <p className="text-xs text-gray-400">
                               +{opcion.kcal_aporta} kcal{opcion.prot_aporta > 0 ? `, ${opcion.prot_aporta}g prot` : ""}

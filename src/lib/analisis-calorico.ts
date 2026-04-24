@@ -38,6 +38,8 @@ export interface OpcionSnack {
   foto_url: string | null;
   cantidad: number;
   unidad_medida: string;
+  unidad_display: string | null;
+  factor_conversion: number | null;
   kcal_aporta: number;
   prot_aporta: number;
   es_del_pool: boolean;
@@ -52,6 +54,8 @@ export interface CandidatoSnack {
   porcion_base: number;
   porcion_min: number;
   porcion_max: number;
+  unidad_display: string | null;
+  factor_conversion: number | null;
   unidad_medida: "gramos" | "ml" | "unidad";
   es_del_pool: boolean;
 }
@@ -365,17 +369,20 @@ function seleccionarSnacks(candidatos: CandidatoSnack[], gapKcal: number, gapPro
     foto_url: candidato.foto_url,
     cantidad: qty,
     unidad_medida: candidato.unidad_medida,
+    unidad_display: candidato.unidad_display,
+    factor_conversion: candidato.factor_conversion,
     kcal_aporta: Math.round(aporte.kcal),
     prot_aporta: Math.round(aporte.prot * 10) / 10,
     es_del_pool: candidato.es_del_pool,
   }));
 }
 
-function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null, candidatosSnack?: CandidatoSnack[]): Sugerencia[] {
+function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calorias: number, diferencia_proteina: number, comida_problematica: "desayuno" | "almuerzo" | "cena" | "snack" | null, objetivo_calorias: number, candidatosSnack?: CandidatoSnack[]): Sugerencia[] {
   const sugerencias: Sugerencia[] = [];
   const hayExceso = diferencia_calorias > 20;
   const hayDeficit = diferencia_calorias < -20;
   const hayDeficitProteina = diferencia_proteina < -10;
+  const calDentroDeTolerancia = Math.abs(diferencia_calorias) <= objetivo_calorias * 0.10;
   let gapKcal = Math.abs(diferencia_calorias);
   let gapProt = Math.abs(diferencia_proteina);
 
@@ -429,18 +436,23 @@ function generarSugerencias(alimentosDia: AlimentoCalendario[], diferencia_calor
         const protPotencial = ppu * maxExtra;
         const pctKcal = gapKcal > 0 ? Math.min(kcalPotencial / gapKcal, 1) : 0;
         const pctProt = gapProt > 0 ? Math.min(protPotencial / gapProt, 1) : 0;
-        // Combined score: weight both gaps. If only one gap exists, the other contributes 0.
-        const score = (hayDeficit ? pctKcal : 0) + (hayDeficitProteina ? pctProt : 0);
+        // Combined score: weight both gaps. When cal is within tolerance but prot is not,
+        // strongly prioritize protein-dense foods (3x weight on prot).
+        const protWeight = (hayDeficitProteina && calDentroDeTolerancia) ? 3 : 1;
+        const score = (hayDeficit ? pctKcal : 0) + (hayDeficitProteina ? pctProt * protWeight : 0);
         return { alimento: a, score, cpu, ppu, maxExtra };
       })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    for (const { alimento, cpu } of aumentables) {
+    for (const { alimento, cpu, ppu } of aumentables) {
       if (sugerencias.length >= 2 || (gapKcal <= 20 && gapProt <= 10)) break;
       const cals_actuales = calcularCalorias(alimento);
-      // Target: close the kcal gap or max out, whichever is smaller
-      const targetExtra = cpu > 0 ? Math.min(gapKcal / cpu, alimento.porcion_max - alimento.cantidad) : alimento.porcion_max - alimento.cantidad;
+      // Target: when solo_prot (cal within tolerance), size the increase by protein gap, not kcal gap
+      const useProt = hayDeficitProteina && calDentroDeTolerancia && ppu > 0;
+      const targetExtra = useProt
+        ? Math.min(gapProt / ppu, alimento.porcion_max - alimento.cantidad)
+        : (cpu > 0 ? Math.min(gapKcal / cpu, alimento.porcion_max - alimento.cantidad) : alimento.porcion_max - alimento.cantidad);
       let cantidad_nueva = Math.round((alimento.cantidad + targetExtra) * 10) / 10;
       cantidad_nueva = Math.min(alimento.porcion_max, cantidad_nueva);
       if (cantidad_nueva <= alimento.cantidad) continue;
@@ -520,7 +532,7 @@ export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_cal
     if (deficit_proteina) problemas.push("deficit_proteina");
     const comida_problematica = identificarComidaProblematica(macros, objetivo_calorias);
     const alimentosDia = alimentos.filter((a) => a.dia === dia);
-    const sugerencias = generarSugerencias(alimentosDia, diferencia_calorias, diferencia_proteina, comida_problematica, candidatosSnack);
+    const sugerencias = generarSugerencias(alimentosDia, diferencia_calorias, diferencia_proteina, comida_problematica, objetivo_calorias, candidatosSnack);
     dias_problematicos.push({
       dia, macros, objetivo_calorias, objetivo_proteina,
       diferencia_calorias: Math.round(diferencia_calorias),

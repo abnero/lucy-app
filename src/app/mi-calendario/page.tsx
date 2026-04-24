@@ -133,7 +133,7 @@ export default function MiCalendarioPage() {
       // 1. Pool personal: alimentos in preferencias_usuario that have 'Snack' in rol_permitido
       const { data: poolData } = await supabase
         .from('preferencias_usuario')
-        .select('alimento:alimentos(id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
+        .select('alimento:alimentos(id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion, rol_permitido)')
         .eq('user_id', user.id)
 
       const poolSnacks: CandidatoSnack[] = (poolData || [])
@@ -151,6 +151,8 @@ export default function MiCalendarioPage() {
             porcion_min: a.porcion_min,
             porcion_max: a.porcion_max,
             unidad_medida: a.unidad_medida,
+            unidad_display: a.unidad_display ?? null,
+            factor_conversion: a.factor_conversion ?? null,
             es_del_pool: true,
           } as CandidatoSnack
         })
@@ -162,7 +164,7 @@ export default function MiCalendarioPage() {
         const poolIds = new Set(poolSnacks.map(s => s.alimento_id))
         const { data: catData } = await supabase
           .from('alimentos')
-          .select('id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido')
+          .select('id, nombre, foto_url, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion, rol_permitido')
           .contains('rol_permitido', ['Snack'])
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -178,6 +180,8 @@ export default function MiCalendarioPage() {
             porcion_min: a.porcion_min,
             porcion_max: a.porcion_max,
             unidad_medida: a.unidad_medida,
+            unidad_display: a.unidad_display ?? null,
+            factor_conversion: a.factor_conversion ?? null,
             es_del_pool: false,
           } as CandidatoSnack))
       }
@@ -684,7 +688,7 @@ export default function MiCalendarioPage() {
       {(() => {
         const diaDato = getDiaDato(diaActivo)
         return diaDato ? (
-          <BannerAnalisisDia diaDato={diaDato} onAplicarSugerencia={aplicarSugerencia} onAgregarSnack={agregarSnack} />
+          <BannerAnalisisDia key={diaDato.dia} diaDato={diaDato} onAplicarSugerencia={aplicarSugerencia} onAgregarSnack={agregarSnack} />
         ) : null
       })()}
 
