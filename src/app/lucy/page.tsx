@@ -180,8 +180,52 @@ export default function LandingPage() {
                 <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
               </div>
             </div>
-            <div>
-              <Placeholder label="[PLACEHOLDER: Mockup iPhone con app Lucy — calendario de 7 días]" height={500} />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              {/* iPhone mockup frame */}
+              <div
+                className="iphone-mockup"
+                style={{
+                  position: 'relative',
+                  width: 300,
+                  height: 620,
+                  background: '#1a1a1a',
+                  borderRadius: 52,
+                  padding: 12,
+                  boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
+                }}
+              >
+                {/* Dynamic Island */}
+                <div style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 100,
+                  height: 28,
+                  background: '#000',
+                  borderRadius: 20,
+                  zIndex: 2,
+                }} />
+                {/* Screen */}
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: 40,
+                  overflow: 'hidden',
+                  background: '#F8F7FC',
+                }}>
+                  <img
+                    src="/lucy-app-screenshot.png"
+                    alt="Lucy app — calendario metabólico mostrando plan de comidas del lunes con desayuno y almuerzo"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'top center',
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -580,6 +624,7 @@ export default function LandingPage() {
         @media (max-width: 768px) {
           .landing-logo { font-size: 44px !important; }
           .landing-nav-btn { padding: 8px 16px !important; font-size: 13px !important; }
+          .iphone-mockup { width: 240px !important; height: 496px !important; border-radius: 44px !important; padding: 10px !important; }
           .landing-h1 { font-size: 36px !important; }
           .landing-h2 { font-size: 28px !important; }
           .hero-intro { font-size: 18px !important; }
