@@ -306,19 +306,135 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 32 }} className="landing-h2">
             Cómo nació Lucy — y por qué la construí para ti
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 60, alignItems: 'start' }} className="landing-origin-grid">
-            <Placeholder label="[PLACEHOLDER: Foto profesional de Abner]" height={500} />
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 60, alignItems: 'start' }} className="landing-origin-grid">
+
+            {/* Foto Abner */}
+            <div style={{ position: 'sticky', top: 40 }} className="origin-photo-wrap">
+              <img
+                src="/abner-profesional.png"
+                alt="Coach Abner — CEO de Caribeño Fit Labs"
+                style={{
+                  width: '100%',
+                  borderRadius: 16,
+                  objectFit: 'cover',
+                  boxShadow: '0 12px 40px rgba(45,43,69,0.15)',
+                }}
+              />
+            </div>
+
+            {/* 12 bloques */}
             <div>
-              <p>Soy Abner, CEO de Caribeño Fit Labs.</p>
-              <p>Por años entrené a mujeres profesionales latinas uno-a-uno. Mujeres como tú. Mujeres que llegaban agotadas de probar todo y nada les funcionaba de manera sostenible.</p>
-              <p>Mis clientas bajaban 20, 30, 50 libras — pero nunca fue por fuerza de voluntad. Fue porque mi equipo y yo hacíamos el trabajo pesado por ellas: calculábamos sus macros, les decíamos exactamente qué comer cada día, ajustábamos las cantidades cuando cambiaban de peso o de nivel de actividad.</p>
-              <p>En Caribeño Fit Labs tenemos un sistema de 5 áreas: nutrición, ejercicio, descanso, hidratación y salud mental. Pero el 80% del tiempo de mis coaches se iba en UNA sola área: <strong>nutrición</strong>. Calculando porciones. Armando calendarios. Ajustando cantidades cada semana.</p>
-              <p>Un día me di cuenta de algo: si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de 120.</p>
-              <p>Así nació Lucy.</p>
-              <p>Lucy no es una dieta. No es una app de tracking. Lucy es el cerebro nutricional que mi equipo lleva años usando con mis clientas de alto ticket — ahora disponible para ti directamente en tu teléfono, por $297 al año.</p>
-              <p><strong>Eso es menos de lo que una sola semana de mi coaching privado cuesta.</strong></p>
-              <Placeholder label="[PLACEHOLDER: Historia personal específica — momento o clienta que te marcó]" height={80} />
-              <p style={{ fontStyle: 'italic', fontSize: 18, marginTop: 32, color: '#555' }}>— Abner Cartagena, CEO Caribeño Fit Labs</p>
+
+              {/* Bloque 1 — Identificación */}
+              <h3 style={{ fontSize: 36, fontWeight: 700, color: '#2D2B45', lineHeight: 1.2, marginBottom: 4 }} className="origin-h3">Soy Coach Abner.</h3>
+              <p style={{ fontSize: 18, color: '#555', marginBottom: 24 }}>CEO de Caribeño Fit Labs.</p>
+
+              {/* Bloque 2 — Contexto */}
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 20 }} className="origin-prose">
+                Por años entrené a mujeres profesionales latinas uno-a-uno. Mujeres como tú. Mujeres que llegaban agotadas de probar todo y nada les funcionaba de manera sostenible.
+              </p>
+
+              {/* Bloque 3 — Stat box */}
+              <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, margin: '32px 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' }} className="origin-stat-grid">
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">20-50</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Libras perdidas en promedio</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">120+</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Clientas privadas entrenadas</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">5</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Áreas de coaching</div>
+                </div>
+              </div>
+
+              {/* Bloque 4 — Lista actividades coaches */}
+              <h3 style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45', marginBottom: 8 }} className="origin-h3-sm">Mis clientas bajaban 20, 30, 50 libras — pero nunca por fuerza de voluntad.</h3>
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="origin-prose">Era porque mi equipo y yo hacíamos el trabajo pesado por ellas:</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+                {['Calculábamos sus macros', 'Les decíamos exactamente qué comer cada día', 'Ajustábamos las cantidades cuando cambiaban de peso', 'Adaptábamos el plan a su nivel de actividad'].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ color: '#7B7FC4', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>✓</span>
+                    <span style={{ fontSize: 18, color: '#2D2B45' }} className="origin-prose">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bloque 5 — Sistema 5 áreas */}
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="origin-prose">En Caribeño Fit Labs tenemos un sistema de 5 áreas:</p>
+              <div style={{ background: '#F8F7FC', padding: 24, borderRadius: 12, display: 'flex', justifyContent: 'space-around', marginBottom: 32 }} className="origin-areas">
+                {['Nutrición', 'Ejercicio', 'Descanso', 'Hidratación', 'Salud Mental'].map((area, i) => (
+                  <span key={i} style={{ fontSize: 16, fontWeight: 600, color: '#2D2B45', textAlign: 'center' }} className="origin-area-label">{area}</span>
+                ))}
+              </div>
+
+              {/* Bloque 6 — Frase ancla DRAMATIC */}
+              <p style={{ fontSize: 28, fontWeight: 600, color: '#2D2B45', textAlign: 'center', margin: '32px 0' }} className="origin-dramatic-intro">
+                Pero el 80% del tiempo de mis coaches se iba en una sola área:
+              </p>
+              <p style={{ fontSize: 80, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 48 }} className="origin-nutricion">
+                NUTRICIÓN.
+              </p>
+
+              {/* Bloque 7 — Las 3 actividades */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 32 }}>
+                {['Calculando porciones', 'Armando calendarios', 'Ajustando cantidades cada semana'].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ color: '#7B7FC4', fontWeight: 700, fontSize: 18 }}>—</span>
+                    <span style={{ fontSize: 18, color: '#555' }} className="origin-prose">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bloque 8 — Callout box epifanía */}
+              <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
+                <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }} className="origin-prose">Un día me di cuenta de algo:</p>
+                <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45' }} className="origin-callout-bold">Si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de 120.</p>
+              </div>
+
+              {/* Bloque 9 — Frase ancla */}
+              <p style={{ fontSize: 64, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', letterSpacing: '-0.02em', margin: '48px 0', lineHeight: 1.1 }} className="pain-anchor">
+                Así nació Lucy.
+              </p>
+
+              {/* Bloque 10 — Definición de Lucy */}
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 12 }}>Lucy no es una dieta.</p>
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 12 }}>Lucy no es una app de tracking.</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45', marginBottom: 24 }} className="origin-callout-bold">
+                Lucy es el cerebro nutricional que mi equipo lleva años usando con mis clientas privadas — ahora disponible para ti directamente en tu teléfono.
+              </p>
+
+              {/* Bloque 11 — Precio anchor */}
+              <div style={{ background: '#F8F7FC', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
+                <p style={{ fontSize: 32, fontWeight: 700, color: '#7B7FC4' }} className="origin-stat-num">Por $297 al año.</p>
+                <p style={{ fontSize: 18, fontWeight: 600, color: '#2D2B45', marginTop: 12 }} className="origin-prose">Eso es menos de lo que una sola semana de mi coaching privado cuesta.</p>
+              </div>
+
+              {/* Bloque 12 — Placeholder historia personal */}
+              <div style={{
+                background: 'repeating-linear-gradient(45deg, #F5EFFF, #F5EFFF 10px, #EAE2FF 10px, #EAE2FF 20px)',
+                border: '2px dashed #7B7FC4',
+                borderRadius: 16,
+                padding: 32,
+                textAlign: 'center',
+                color: '#7B7FC4',
+                fontWeight: 500,
+                fontSize: 14,
+                minHeight: 150,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                [Placeholder — Abner agregará historia personal específica]
+              </div>
+
+              {/* Firma */}
+              <p style={{ fontStyle: 'italic', fontSize: 18, color: '#555', marginTop: 32 }} className="origin-firma">
+                — Coach Abner<br />CEO, Caribeño Fit Labs
+              </p>
+
             </div>
           </div>
         </div>
@@ -669,6 +785,19 @@ export default function LandingPage() {
           .pain-card { padding: 24px !important; }
           .pain-card-bold { font-size: 20px !important; }
           .pain-anchor { font-size: 48px !important; margin: 32px 0 !important; }
+          .origin-h3 { font-size: 28px !important; }
+          .origin-h3-sm { font-size: 18px !important; }
+          .origin-prose { font-size: 16px !important; }
+          .origin-stat-grid { grid-template-columns: 1fr !important; padding: 24px !important; }
+          .origin-stat-num { font-size: 36px !important; }
+          .origin-areas { flex-wrap: wrap !important; gap: 12px !important; justify-content: center !important; }
+          .origin-area-label { font-size: 14px !important; }
+          .origin-dramatic-intro { font-size: 22px !important; }
+          .origin-nutricion { font-size: 56px !important; }
+          .origin-callout { padding: 24px !important; }
+          .origin-callout-bold { font-size: 18px !important; }
+          .origin-photo-wrap { position: static !important; max-width: 400px; margin: 0 auto; }
+          .origin-firma { text-align: center !important; }
           .landing-section { padding: 60px 0 !important; }
           .landing-hero-grid,
           .landing-origin-grid,
