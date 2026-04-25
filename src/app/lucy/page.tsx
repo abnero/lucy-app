@@ -238,31 +238,65 @@ export default function LandingPage() {
             No es que te falte disciplina. Es que nadie te ha dado un sistema que funcione para tu vida real.
           </h2>
 
-          <p style={{ fontSize: 19 }}>Eres exitosa en tu carrera. Llegaste donde querías llegar. Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás. Manejas 10 cosas a la vez y las manejas bien.</p>
+          {/* Bloque 1 — Identificación */}
+          <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 20 }} className="pain-prose">
+            Eres exitosa en tu carrera. Llegaste donde querías llegar. Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás. Manejas 10 cosas a la vez y las manejas bien.
+          </p>
 
-          <p style={{ fontSize: 19 }}>Pero hay una cosa que no has podido resolver: <strong>qué comer para bajar de peso sin volverte loca.</strong></p>
-
-          <p style={{ fontSize: 19 }}>Has probado de todo.</p>
-
-          <p style={{ fontSize: 19 }}>Keto. Ayuno intermitente. Batidos. Dietas con puntos. Apps que te hacen contar cada caloría que entra a tu boca. Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera antes de que la ignores.</p>
-
-          <p style={{ fontSize: 19 }}>Al principio funciona. Bajas 5, 10 libras. Te ilusionas. Y después recuperas todo. Y más.</p>
-
-          <p style={{ fontSize: 19 }}>Y te quedas con la sensación de que el problema eres tú. Que no tienes fuerza de voluntad. Que &ldquo;no puedes con algo tan simple como comer&rdquo;.</p>
-
-          <div style={{ background: '#FFF5F0', padding: '20px 24px', borderLeft: '4px solid #E87B5E', margin: '24px 0', fontWeight: 500, fontSize: 20 }}>
-            No eres tú.
+          {/* Bloque 2 — Card lavender */}
+          <div style={{ background: '#F8F7FC', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="pain-card">
+            <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }}>Pero hay una cosa que no has podido resolver:</p>
+            <p style={{ fontSize: 24, fontWeight: 700, color: '#2D2B45' }} className="pain-card-bold">Qué comer para bajar de peso sin volverte loca.</p>
           </div>
 
-          <p style={{ fontSize: 19 }}>El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.</p>
+          {/* Bloque 3 — Lista con ❌ */}
+          <h3 style={{ fontSize: 24, fontWeight: 700, color: '#2D2B45', marginBottom: 16 }} className="pain-h3">Has probado de todo:</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+            {[
+              'Keto',
+              'Ayuno intermitente',
+              'Batidos sustitutos de comida',
+              'Dietas con puntos',
+              'Apps que te hacen contar cada caloría',
+              'Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera',
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                <span style={{ color: '#E53E3E', fontSize: 20, flexShrink: 0 }}>❌</span>
+                <span style={{ fontSize: 18, color: '#2D2B45' }} className="pain-prose">{item}</span>
+              </div>
+            ))}
+          </div>
 
-          <p style={{ fontSize: 19 }}>Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.</p>
+          {/* Bloque 4 — El ciclo */}
+          <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="pain-prose">Al principio funciona. Bajas 5, 10 libras. Te ilusionas.</p>
+          <p style={{ fontSize: 18, color: '#2D2B45', fontWeight: 700, marginBottom: 16 }} className="pain-prose"><strong>Y después recuperas todo. Y más.</strong></p>
+          <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="pain-prose">Y te quedas con la sensación de que el problema eres tú.</p>
 
-          <p style={{ fontSize: 19 }}>Lo que necesitas no es otra dieta. Lo que necesitas es que alguien te diga: <strong>&ldquo;come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</strong></p>
+          {/* Bloque 5 — Frase ancla #1 */}
+          <p style={{ fontSize: 64, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', margin: '48px 0', letterSpacing: '-0.02em', lineHeight: 1.1 }} className="pain-anchor">
+            No eres tú.
+          </p>
 
-          <p style={{ fontSize: 19 }}>Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+          {/* Bloque 6 — La razón real */}
+          <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 20 }} className="pain-prose">
+            El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.
+          </p>
+          <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 20 }} className="pain-prose">
+            Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.
+          </p>
 
-          <p style={{ fontSize: 24, fontWeight: 700, color: '#7B7FC4' }}>Eso es Lucy.</p>
+          {/* Bloque 7 — Callout box */}
+          <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="pain-card">
+            <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }} className="pain-prose">Lo que necesitas no es otra dieta.</p>
+            <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }} className="pain-prose">Lo que necesitas es que alguien te diga:</p>
+            <p style={{ fontSize: 24, fontWeight: 700, color: '#2D2B45', marginBottom: 12 }} className="pain-card-bold">&ldquo;Come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</p>
+            <p style={{ fontSize: 18, color: '#555' }} className="pain-prose">Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+          </div>
+
+          {/* Bloque 8 — Frase ancla #2 */}
+          <p style={{ fontSize: 64, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', margin: '48px 0', letterSpacing: '-0.02em', lineHeight: 1.1 }} className="pain-anchor">
+            Eso es Lucy.
+          </p>
         </div>
       </section>
 
@@ -630,6 +664,11 @@ export default function LandingPage() {
           .hero-intro { font-size: 18px !important; }
           .hero-bullet { font-size: 16px !important; }
           .hero-sin { font-size: 14px !important; }
+          .pain-prose { font-size: 16px !important; }
+          .pain-h3 { font-size: 20px !important; }
+          .pain-card { padding: 24px !important; }
+          .pain-card-bold { font-size: 20px !important; }
+          .pain-anchor { font-size: 48px !important; margin: 32px 0 !important; }
           .landing-section { padding: 60px 0 !important; }
           .landing-hero-grid,
           .landing-origin-grid,
