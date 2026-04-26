@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
+import { validarPoolMinimos } from '@/lib/validacion-pool'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -494,6 +495,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'No encontramos tus alimentos seleccionados. Por favor regresa y escoge tus alimentos.' },
         { status: 404 }
+      )
+    }
+
+    // ═══ Capa B: Server-side pool validation (mínimos/máximos por categoría) ═══
+    const poolValidation = validarPoolMinimos(preferencias)
+    if (!poolValidation.valid) {
+      console.warn(`[plan] Pool validation failed for user ${userId}: ${poolValidation.errorMessage}`)
+      await supabase.from('usuarios').update({ generando_plan_at: null }).eq('id', userId)
+      return NextResponse.json(
+        { error: poolValidation.errorMessage, errores: poolValidation.errores },
+        { status: 400 }
       )
     }
 
