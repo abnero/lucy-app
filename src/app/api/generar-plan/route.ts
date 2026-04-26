@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -1383,47 +1384,95 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       }
     }
 
-    // Post-generation analysis
+    // Post-generation analysis using the canonical product criteria
     const { data: calWithFood } = await supabase
       .from('calendario')
-      .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
+      .select('dia, cantidad, alimento:alimentos(id, nombre, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
       .eq('user_id', userId)
 
-    let diasBajosProteina = 0
+    let diasFuera = 0
+    let diasDeficitProt = 0
+    let diasExcesoProt = 0
+    let diasDeficitCal = 0
+    let diasExcesoCal = 0
+
     if (calWithFood && calWithFood.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const alimentosParaAnalisis: AlimentoCalendario[] = calWithFood.map((row: any) => {
+        const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
+        return {
+          alimento_id: a?.id ?? '',
+          nombre: a?.nombre ?? '',
+          cantidad: row.cantidad,
+          unidad_medida: a?.unidad_medida ?? 'gramos',
+          porcion_base: a?.porcion_base ?? 100,
+          porcion_min: a?.porcion_min ?? 0,
+          porcion_max: a?.porcion_max ?? 999,
+          calorias_por_unidad: a?.calorias_por_unidad ?? 0,
+          proteina_por_unidad: a?.proteina_por_unidad ?? 0,
+          comida: 'almuerzo' as const, // not used for day-level analysis
+          dia: row.dia,
+          rol_permitido: a?.rol_permitido ?? [],
+        }
+      })
+
+      const analisis = analizarCalendario(alimentosParaAnalisis, calTarget, protTarget)
+
+      // analizarCalendario detects: deficit_calorias, exceso_calorias, deficit_proteina
+      // It does NOT detect excess protein (prot > target + 10g) — we check that separately
+      diasDeficitCal = analisis.dias_problematicos.filter(d => d.problemas.includes('deficit_calorias')).length
+      diasExcesoCal = analisis.dias_problematicos.filter(d => d.problemas.includes('exceso_calorias')).length
+      diasDeficitProt = analisis.dias_problematicos.filter(d => d.problemas.includes('deficit_proteina')).length
+
+      // Check ALL 7 days for excess protein (not covered by analizarCalendario)
       const dailyTotals: Record<number, { cal: number; prot: number }> = {}
-      for (const row of calWithFood) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const a = (Array.isArray(row.alimento) ? (row.alimento as any)[0] : row.alimento) as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const row of calWithFood as any[]) {
+        const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
         if (!a) continue
         const ratio = a.unidad_medida === 'unidad' ? row.cantidad : row.cantidad / (a.porcion_base || 100)
         if (!dailyTotals[row.dia]) dailyTotals[row.dia] = { cal: 0, prot: 0 }
-        dailyTotals[row.dia].cal += a.calorias_por_unidad * ratio
         dailyTotals[row.dia].prot += (a.proteina_por_unidad || 0) * ratio
       }
+      diasExcesoProt = Object.values(dailyTotals).filter(d => d.prot > protTarget + 10).length
 
-      const days = Object.values(dailyTotals)
-      const avgCal = days.reduce((s, d) => s + d.cal, 0) / (days.length || 1)
-      const avgProt = days.reduce((s, d) => s + d.prot, 0) / (days.length || 1)
-      diasBajosProteina = days.filter(d => d.prot < protTarget * 0.85).length
-      console.log('[plan] Verificación post-generación — cal promedio:', Math.round(avgCal), 'prot promedio:', Math.round(avgProt), 'días bajos prot:', diasBajosProteina)
+      diasFuera = new Set([
+        ...analisis.dias_problematicos.map(d => d.dia),
+        ...Object.entries(dailyTotals).filter(([, d]) => d.prot > protTarget + 10).map(([dia]) => parseInt(dia)),
+      ]).size
+
+      console.log(`[plan] Verificación post-generación — dias_fuera: ${diasFuera}, deficit_prot: ${diasDeficitProt}, exceso_prot: ${diasExcesoProt}, deficit_cal: ${diasDeficitCal}, exceso_cal: ${diasExcesoCal}`)
+    }
+
+    // Build honest description of what's off
+    const buildProblemaDesc = (): string => {
+      const parts: string[] = []
+      if (diasExcesoProt > 0) parts.push('la proteína queda por arriba de tu meta')
+      if (diasDeficitProt > 0) parts.push('la proteína queda por debajo de tu meta')
+      if (diasExcesoCal > 0) parts.push('las calorías quedan por encima de tu meta')
+      if (diasDeficitCal > 0) parts.push('las calorías quedan por debajo de tu meta')
+      if (parts.length === 0) return 'las calorías o la proteína quedan fuera de tu meta'
+      return parts.join(' y ')
     }
 
     if (esPrimeraVez) {
-      // First generation — insert PASO 5 analysis message
+      // First generation greeting
       let lucyPostMsg: string
-      if (diasBajosProteina >= 5) {
+      if (diasDeficitProt >= 5) {
+        // Severe protein deficit — specific actionable message (preserved from original)
         lucyPostMsg = `¡Hola ${usuario.nombre}! Acabo de revisar tu plan y quiero contarte algo importante 💜 Veo que en la mayoría de los días te va a faltar proteína para llegar a tu meta. Esto no significa que el plan esté mal — significa que los alimentos que escogiste no alcanzan para cubrir tus ${protTarget}g de proteína diaria. Te recomiendo añadir una fuente de proteína a tu desayuno: Yogur Griego, Clara de Huevo o Proteína en Polvo funcionan perfecto. ¿Quieres que ajustemos el plan juntas?`
-      } else if (diasBajosProteina >= 2) {
-        lucyPostMsg = `¡Hola ${usuario.nombre}! Ya tengo tu plan listo 🎉 Solo quiero avisarte que ${diasBajosProteina} días de tu semana van a quedar un poco bajos en proteína — específicamente los días con tu Desayuno 2. Nada que no se pueda resolver: puedes pedirme que te sugiera un snack proteico para esos días o ajustamos las porciones. Estoy aquí cuando me necesites 💜`
+      } else if (diasFuera > 0) {
+        // Some days outside tolerance — honest message
+        lucyPostMsg = `¡Hola ${usuario.nombre}! Tu plan de la semana ya está listo 🌿 Antes de empezar, quiero ser clara: noté que en ${diasFuera} día${diasFuera > 1 ? 's' : ''} ${buildProblemaDesc()}. Eso es normal cuando los alimentos que elegiste tienen densidades distintas — podemos ver cómo ajustarlo. Si quieres revisar opciones, dime. 💜`
       } else {
+        // All 7 days within tolerance — genuinely aligned
         lucyPostMsg = `¡Hola ${usuario.nombre}! Tu plan de la semana está listo y se ve muy bien 🎉 Tus calorías y proteína están alineadas con tu meta. Recuerda que puedes pedirme cualquier cambio — swap de alimentos, recetas, snacks — cuando quieras. ¡Vamos con todo esta semana! 💜`
       }
       await supabase.from('conversaciones').insert({
         user_id: userId, role: 'assistant', content: lucyPostMsg, leido: false,
       })
     } else {
-      // Regeneration — single fused message
+      // Regeneration greeting
       let regenMsg = 'Tu plan se regeneró con tus nuevos macros.'
 
       // Add personalization mention if any
@@ -1433,13 +1482,13 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         regenMsg += ` Mantuve las personalizaciones que habías pedido: ${listaAlimentos}.\n\nCon esos extras estás aproximadamente ${extrasKcalRound} kcal por encima de tu target diario. ¿Quieres que ajuste las cantidades del plan para compensar, o prefieres mantenerlo así?`
       }
 
-      // Fuse protein warning if needed
-      if (diasBajosProteina >= 5) {
+      // Honest analysis — same criteria as first generation
+      if (diasDeficitProt >= 5) {
         regenMsg += `\n\nImportante: la mayoría de los días te va a faltar proteína con los alimentos que escogiste. ¿Quieres que te sugiera snacks proteicos para completar? Es importante que lo ajustemos juntas. 💜`
-      } else if (diasBajosProteina >= 2) {
-        regenMsg += `\n\nAdemás, noté que ${diasBajosProteina} días te van a quedar un poco bajos en proteína. ¿Quieres que añada un snack proteico esos días, o ajustamos las cantidades? 💜`
+      } else if (diasFuera > 0) {
+        regenMsg += `\n\nAdemás, noté que en ${diasFuera} día${diasFuera > 1 ? 's' : ''} ${buildProblemaDesc()} — podemos ver cómo ajustarlo. Si quieres revisar opciones, dime. 💜`
       } else {
-        regenMsg += ' 💜'
+        regenMsg += ' Tus calorías y proteína están alineadas con tu meta. 💜'
       }
 
       await supabase.from('conversaciones').insert({
