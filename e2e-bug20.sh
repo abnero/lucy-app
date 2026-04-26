@@ -1,11 +1,6 @@
 #!/bin/bash
 # E2E tests for Bug #20 — run against preview
 # Usage: bash e2e-bug20.sh
-#
-# Prerequisites:
-# - .env.local must have NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
-#   SUPABASE_SERVICE_ROLE_KEY, VERCEL_AUTOMATION_BYPASS_SECRET
-# - Dummy account bug26test+e2e@caribeno.fit must have a generated calendar
 
 set -e
 
@@ -39,48 +34,47 @@ chat() {
   echo "USER: $msg"
   echo ""
 
+  # Endpoint expects: { userId, accessToken, messages: [{role,content}] }
+  BODY=$(python3 -c "
+import json
+print(json.dumps({
+    'userId': '$USER_ID',
+    'accessToken': '$TOKEN',
+    'messages': [{'role': 'user', 'content': '''$msg'''}],
+    'clientTime': '2026-04-26T10:00:00-04:00',
+    'clientTimezone': 'America/Puerto_Rico'
+}))
+")
+
   RESULT=$(curl -s "$PREVIEW_URL/api/chat" \
     -H "x-vercel-protection-bypass: $BYPASS" \
-    -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$msg\"}]}")
+    -d "$BODY")
 
-  RESPONSE=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('response','ERROR: '+str(d.get('error',''))))" 2>/dev/null || echo "PARSE ERROR: $RESULT")
+  RESPONSE=$(echo "$RESULT" | python3 -c "
+import sys,json
+try:
+    d=json.load(sys.stdin)
+    print(d.get('response', d.get('reply', 'ERROR: '+json.dumps(d))))
+except:
+    print('PARSE ERROR')
+" 2>/dev/null)
   echo "LUCY: $RESPONSE"
   echo ""
+  # Small delay to avoid rate limit
+  sleep 3
 }
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  Bug #20 E2E Tests — $(date)  ║"
+echo "║  Bug #20 E2E Tests — $(date)                           ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Test 1: User specifies quantity in grams
 chat "Ponme 200g de pechuga de pollo en el almuerzo del lunes" "TEST 1 — Usuario dicta 200g (debe ignorar)"
-
-# Test 2: User mentions inventory constraint
 chat "Solo tengo 100g de pollo en casa, ponme eso en la cena del martes" "TEST 2 — Inventario (debe sugerir alternativa)"
-
-# Test 3: Snack with specific quantity
 chat "Agrega 50g de almendras como snack el miércoles" "TEST 3 — Snack con cantidad dictada (debe calcular)"
-
-# Test 4: Dense food in a meal with little budget
-chat "Agrega aceite de coco al almuerzo del jueves" "TEST 4 — Alimento denso (puede dar 'no cabe')"
-
-# Test 5: Units (huevos)
+chat "Agrega aceite de coco al almuerzo del jueves" "TEST 4 — Alimento denso"
 chat "Ponme 3 huevos en el desayuno del lunes" "TEST 5 — Cantidad en unidades (debe calcular)"
-
-# Test 6: Protein powder as daily snack
 chat "Agregame 30g de proteína en polvo como snack para todos los días" "TEST 6 — Caso Yiselle (debe calcular)"
 
-echo ""
-echo "═══ VALIDATION QUERY ═══"
-echo "Run this in Supabase to check for suspicious quantities:"
-echo ""
-echo "SELECT a.nombre, c.cantidad, c.unidad, c.dia, c.comida"
-echo "FROM calendario c JOIN alimentos a ON a.id = c.alimento_id"
-echo "WHERE c.user_id = '$USER_ID' AND c.origen = 'chat'"
-echo "  AND c.created_at > NOW() - INTERVAL '1 hour'"
-echo "ORDER BY c.created_at DESC;"
-echo ""
 echo "═══ DONE ═══"
