@@ -1678,6 +1678,8 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       })
     }
 
+    const toolCallsThisTurn: string[] = []
+
     while (iterations < 8) {
       iterations++
 
@@ -1706,6 +1708,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       const toolResults: any[] = []
       for (const block of toolUseBlocks) {
         if (block.type === 'tool_use') {
+          toolCallsThisTurn.push(block.name)
           const result = await executeTool(block.name, block.input as Record<string, unknown>)
           toolResults.push({
             type: 'tool_result' as const,
@@ -1722,7 +1725,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       ]
     }
 
-    // If we exhausted iterations, get the last text
+    // If we exhausted iterations, get the last text — NEVER lie about changes
     if (!finalResponse && loopMessages.length > apiMessages.length) {
       const lastResponse = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
@@ -1731,7 +1734,39 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         messages: loopMessages,
       })
       const textBlock = lastResponse.content.find(b => b.type === 'text')
-      finalResponse = textBlock?.type === 'text' ? textBlock.text : 'Listo, hice los cambios.'
+      finalResponse = textBlock?.type === 'text'
+        ? textBlock.text
+        : 'Ay, perdóname — me enredé un poco procesando tu pedido. ¿Me repites qué cambio querías hacer? 💜'
+    }
+
+    // Build meta for telemetry
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let meta: Record<string, any> | null = null
+
+    // Bug A: fallback fired because loop exhausted
+    if (finalResponse === 'Ay, perdóname — me enredé un poco procesando tu pedido. ¿Me repites qué cambio querías hacer? 💜') {
+      meta = {
+        bug_type: 'fallback_loop_exhausted',
+        iterations_used: iterations,
+        last_tool_calls: toolCallsThisTurn.slice(-5),
+      }
+      console.error(`[Chat][Bug30] Loop exhausted for user ${userId}. Iterations: ${iterations}. Tools: ${toolCallsThisTurn.join(',')}`)
+    }
+
+    // Bug C: suspected lie — response claims changes but no tools were called this turn
+    if (!meta && finalResponse) {
+      const triggerPhrases = ['listo', 'hecho', 'cambios hechos', '✅', 'modificado', 'aplicado', 'actualizado']
+      const lower = finalResponse.toLowerCase()
+      const matched = triggerPhrases.filter(p => lower.includes(p))
+      if (matched.length > 0 && toolCallsThisTurn.length === 0) {
+        meta = {
+          bug_type: 'suspected_lie',
+          trigger_phrases: matched,
+          tools_called_this_turn: 0,
+          content_preview: finalResponse.slice(0, 200),
+        }
+        console.warn(`[Chat][Bug31] Suspected lie for user ${userId}. Triggers: ${matched.join(',')}. No tools called.`)
+      }
     }
 
     // Save messages to conversaciones
@@ -1739,7 +1774,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
     if (lastMsg && finalResponse) {
       await supabase.from('conversaciones').insert([
         { user_id: userId, role: 'user', content: lastMsg.content },
-        { user_id: userId, role: 'assistant', content: finalResponse },
+        { user_id: userId, role: 'assistant', content: finalResponse, ...(meta ? { meta } : {}) },
       ])
     }
 
