@@ -61,39 +61,36 @@ const DIAS_NOMBRES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sá
 const tools: Anthropic.Tool[] = [
   {
     name: 'cambiar_alimento',
-    description: 'Cambia un alimento por otro O cambia la cantidad de un alimento existente. Para cambiar cantidad: usa alimento_actual=alimento_nuevo y pasa nueva_cantidad. Para reemplazar: usa nombres diferentes.',
+    description: 'Reemplaza un alimento por otro en el calendario. Lucy calcula la cantidad automáticamente según los macros de la usuaria. NO pases cantidad — se calcula internamente.',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
         comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
-        alimento_actual: { type: 'string', description: 'Nombre del alimento a modificar' },
-        alimento_nuevo: { type: 'string', description: 'Nombre del nuevo alimento (mismo nombre si solo cambias cantidad)' },
-        nueva_cantidad: { type: 'number', description: 'Cantidad en la unidad base del alimento (gramos, ml, o unidades). Si el alimento se muestra en cups/oz/tbsp, convierte a gramos antes de pasar el valor. Si no se pasa, se calcula automáticamente.' },
+        alimento_actual: { type: 'string', description: 'Nombre del alimento a reemplazar' },
+        alimento_nuevo: { type: 'string', description: 'Nombre del nuevo alimento' },
       },
       required: ['dia', 'comida', 'alimento_actual', 'alimento_nuevo'],
     },
   },
   {
     name: 'agregar_snack',
-    description: 'Añade un snack al calendario. Soporta un alimento individual o múltiples ingredientes para un snack compuesto (ej. yogur con arándanos y mantequilla de maní).',
+    description: 'Añade un snack al calendario. Lucy calcula la cantidad automáticamente según los macros restantes del día. NO pases cantidad — se calcula internamente.',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'string', description: 'Día (1-7) o "todos" para añadir a todos los días' },
-        alimento: { type: 'string', description: 'Nombre del alimento (para snack de 1 ingrediente)' },
-        cantidad: { type: 'number', description: 'Cantidad en gramos/ml/unidades (unidad base del alimento). Convierte de cups/oz/tbsp a gramos antes de pasar.' },
+        alimento: { type: 'string', description: 'Nombre del alimento para el snack' },
         ingredientes: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
               alimento: { type: 'string' },
-              cantidad: { type: 'number' },
             },
-            required: ['alimento', 'cantidad'],
+            required: ['alimento'],
           },
-          description: 'Lista de ingredientes para snack compuesto (alternativa a alimento/cantidad individuales)',
+          description: 'Lista de ingredientes para snack compuesto (alternativa a alimento individual)',
         },
       },
       required: ['dia'],
@@ -145,16 +142,15 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: 'agregar_ingrediente_a_comida',
-    description: 'Añade un ingrediente nuevo a una comida existente (desayuno/almuerzo/cena) y compensa reduciendo las cantidades de alimentos de la misma categoría nutricional para mantener el presupuesto calórico.',
+    description: 'Añade un ingrediente nuevo a una comida existente (desayuno/almuerzo/cena). Lucy calcula la cantidad automáticamente según el presupuesto calórico de la comida y compensa reduciendo otros alimentos. NO pases cantidad — se calcula internamente.',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
         comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
         alimento: { type: 'string', description: 'Nombre del alimento a añadir (debe existir en el catálogo)' },
-        cantidad: { type: 'number', description: 'Cantidad en gramos/ml/unidades (unidad base del alimento). Convierte de cups/oz/tbsp a gramos antes de pasar.' },
       },
-      required: ['dia', 'comida', 'alimento', 'cantidad'],
+      required: ['dia', 'comida', 'alimento'],
     },
   },
   {
@@ -286,10 +282,42 @@ async function getSimilarAlimentos(supabase: SupabaseClient, nombre: string) {
     .map(a => a.nombre)
 }
 
+// ═══ Shared: calculate quantity from meal calorie budget ═══
+const MEAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, cena: 0.30 }
+
+function calcularCantidadDesdePresupuesto(
+  alimento: { calorias_por_unidad: number; porcion_base: number; porcion_min: number; porcion_max: number; unidad_medida: string },
+  budgetKcal: number,
+): { cantidad: number; cabe: boolean } {
+  const cpu = alimento.unidad_medida === 'unidad'
+    ? alimento.calorias_por_unidad
+    : alimento.calorias_por_unidad / (alimento.porcion_base || 100)
+
+  if (cpu <= 0) return { cantidad: alimento.porcion_min || 1, cabe: true }
+
+  let qty: number
+  if (alimento.unidad_medida === 'unidad') {
+    qty = Math.max(1, Math.round(budgetKcal / cpu))
+  } else {
+    qty = Math.round(budgetKcal / cpu)
+  }
+
+  // Clamp to [porcion_min, porcion_max]
+  const min = alimento.porcion_min || (alimento.unidad_medida === 'unidad' ? 1 : 10)
+  const max = alimento.porcion_max || 999
+  qty = Math.max(min, Math.min(max, qty))
+
+  // "No cabe" if budget is too small for even porcion_min
+  const minCal = cpu * min
+  const cabe = budgetKcal >= minCal * 0.5 // allow some flexibility
+
+  return { cantidad: qty, cabe }
+}
+
 async function executeCambiarAlimento(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: number; comida: string; alimento_actual: string; alimento_nuevo: string; nueva_cantidad?: number }
+  input: { dia: number; comida: string; alimento_actual: string; alimento_nuevo: string }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia, comida, alimento_actual, alimento_nuevo } = input
 
@@ -320,7 +348,6 @@ async function executeCambiarAlimento(
     return { result: `No encontré "${alimento_actual}" en el ${comida} del ${DIAS_NOMBRES[dia - 1]}. Los alimentos en esa comida son: ${available}.` }
   }
 
-  // Check if this is a quantity-only change (same food, or nueva_cantidad provided)
   const newAlimento = await findAlimento(supabase, alimento_nuevo, userId)
   if (!newAlimento) {
     const suggestions = await getSimilarAlimentos(supabase, alimento_nuevo)
@@ -328,52 +355,7 @@ async function executeCambiarAlimento(
     return { result: `"${alimento_nuevo}" no está en el catálogo de alimentos.${sugText}` }
   }
 
-  // If same food or nueva_cantidad provided → just update quantity
-  if (input.nueva_cantidad !== undefined || newAlimento.id === targetEntry.alimento_id) {
-    const newQty = input.nueva_cantidad ?? targetEntry.cantidad
-    const revertData: RevertData = {
-      type: 'cambiar',
-      originalRows: [{ rowId: targetEntry.id, alimento_id: targetEntry.alimento_id, cantidad: targetEntry.cantidad, unidad: targetEntry.unidad }],
-      userId,
-    }
-
-    console.log(`[cambiar_alimento] UPDATE: id=${targetEntry.id}, cantidad=${newQty}, userId=${userId}`)
-
-    const { error: updErr, count: updCount } = await supabase
-      .from('calendario')
-      .update({ cantidad: newQty }, { count: 'exact' })
-      .eq('id', targetEntry.id)
-      .eq('user_id', userId)
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const foodName = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)?.nombre || alimento_actual
-
-    if (updErr) {
-      console.error('[cambiar_alimento] UPDATE error:', updErr.message)
-      return { result: `Error actualizando cantidad: ${updErr.message}` }
-    }
-
-    console.log(`[cambiar_alimento] UPDATE count: ${updCount}`)
-
-    // Verify the change was persisted
-    const { data: check } = await supabase
-      .from('calendario')
-      .select('cantidad')
-      .eq('id', targetEntry.id)
-      .single()
-
-    console.log(`[VERIFICACION] cantidadEnDB=${check?.cantidad}, cantidadEsperada=${newQty}`)
-
-    if (check && check.cantidad != newQty) {
-      console.error(`[cambiar_alimento] MISMATCH! DB has ${check.cantidad} but expected ${newQty}`)
-      return { result: `Error: el cambio no se guardó correctamente (DB tiene ${check.cantidad}, esperaba ${newQty}). Puede ser un problema de permisos.` }
-    }
-
-    console.log(`[cambiar_alimento] SUCCESS: ${foodName} ${targetEntry.cantidad}→${newQty} ${targetEntry.unidad}`)
-    return { result: `Cambié ${foodName} de ${targetEntry.cantidad} a ${newQty} ${targetEntry.unidad} en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.`, revertData }
-  }
-
-  // Different food → calculate new quantity to match calories
+  // Always calculate quantity — Lucy decides, never the user
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const oldAlimento = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)
 
@@ -500,59 +482,86 @@ async function executeCambiarAlimento(
 async function executeAgregarSnack(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: string; alimento?: string; cantidad?: number; ingredientes?: { alimento: string; cantidad: number }[] }
+  input: { dia: string; alimento?: string; ingredientes?: { alimento: string }[] }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia } = input
   console.log('[agregar_snack] Input:', JSON.stringify(input))
 
-  // Build list of items to add (single or multi-ingredient)
-  const itemsToAdd: { alimento: string; cantidad: number }[] = []
+  // Build list of food names to add
+  const foodNames: string[] = []
   if (input.ingredientes && input.ingredientes.length > 0) {
-    itemsToAdd.push(...input.ingredientes)
-  } else if (input.alimento && input.cantidad != null && input.cantidad > 0) {
-    itemsToAdd.push({ alimento: input.alimento, cantidad: input.cantidad })
+    foodNames.push(...input.ingredientes.map(i => i.alimento))
   } else if (input.alimento) {
-    // Lucy passed alimento without cantidad — use a sensible default
-    console.log('[agregar_snack] No cantidad provided, using default portion')
-    itemsToAdd.push({ alimento: input.alimento, cantidad: 120 })
+    foodNames.push(input.alimento)
   } else {
-    return { result: 'Necesito al menos un alimento con cantidad para el snack.' }
+    return { result: 'Necesito al menos un alimento para el snack.' }
   }
 
   // Resolve all items
-  const resolved: { food: Awaited<ReturnType<typeof findAlimento>>; cantidad: number }[] = []
+  const resolvedFoods: NonNullable<Awaited<ReturnType<typeof findAlimento>>>[] = []
   const notFound: string[] = []
 
-  for (const item of itemsToAdd) {
-    const found = await findAlimento(supabase, item.alimento, userId)
+  for (const name of foodNames) {
+    const found = await findAlimento(supabase, name, userId)
     if (!found) {
-      notFound.push(item.alimento)
-
+      notFound.push(name)
       continue
     }
-    let qty = item.cantidad
-    if (found.unidad_medida === 'unidad' && qty > 20) {
-      qty = Math.max(1, Math.round(qty / (found.porcion_base || 100)))
-    }
-    resolved.push({ food: found, cantidad: qty })
+    resolvedFoods.push(found)
   }
 
   if (notFound.length > 0) {
     return { result: `No encontré: ${notFound.join(', ')}. Usa buscar_o_crear_alimento para registrarlos primero.` }
   }
 
+  // Get user objectives for budget calculation
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo')
+    .eq('id', userId)
+    .single()
+
+  if (!usuario) return { result: 'No se encontró el perfil de la usuaria.' }
+
   const dias = dia === 'todos' ? [1, 2, 3, 4, 5, 6, 7] : [parseInt(dia)]
+
+  // Calculate snack budget per day: remaining calories after meals
+  // Use first day as reference for budget calculation
+  const refDay = dias[0]
+  const { data: dayItems } = await supabase
+    .from('calendario')
+    .select('cantidad, comida, alimento:alimentos(calorias_por_unidad, porcion_base, unidad_medida)')
+    .eq('user_id', userId)
+    .eq('dia', refDay)
+
+  let mealsKcal = 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const item of (dayItems || []) as any[]) {
+    if (item.comida === 'snack') continue
+    const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+    if (!a) continue
+    const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+    mealsKcal += a.calorias_por_unidad * ratio
+  }
+
+  const snackBudget = Math.max(50, usuario.calorias_objetivo - mealsKcal)
+  const budgetPerFood = snackBudget / resolvedFoods.length
+
+  // Calculate quantity for each food from budget
+  const resolved: { food: typeof resolvedFoods[0]; cantidad: number }[] = []
+  for (const food of resolvedFoods) {
+    const { cantidad, cabe } = calcularCantidadDesdePresupuesto(food, budgetPerFood)
+    if (!cabe) {
+      return { result: `${food.nombre} no cuadra con tus macros del día sin pasarte. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
+    }
+    resolved.push({ food, cantidad })
+  }
+
   const allRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
 
   for (const { food, cantidad } of resolved) {
-    if (!food) continue
-    // For countable items (unidad), ensure quantity makes sense
-    let qty = cantidad
-    if (food.unidad_medida === 'unidad' && qty > 20) {
-      qty = Math.max(1, Math.round(qty / (food.porcion_base || 100)))
-    }
     for (const d of dias) {
-      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad: qty, unidad: food.unidad_medida, origen: 'chat' })
+      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida, origen: 'chat' })
     }
   }
 
@@ -569,11 +578,7 @@ async function executeAgregarSnack(
   // Update lista_compras
   for (const { food, cantidad } of resolved) {
     if (!food) continue
-    let qty = cantidad
-    if (food.unidad_medida === 'unidad' && qty > 20) {
-      qty = Math.max(1, Math.round(qty / (food.porcion_base || 100)))
-    }
-    const total = qty * dias.length
+    const total = cantidad * dias.length
     const { data: existing } = await supabase.from('lista_compras').select('id, cantidad_total').eq('user_id', userId).eq('alimento_id', food.id).single()
     if (existing) {
       await supabase.from('lista_compras').update({ cantidad_total: existing.cantidad_total + total }).eq('id', existing.id)
@@ -843,10 +848,9 @@ async function executeReemplazarComidaCompleta(
 async function executeAgregarIngredienteAComida(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: number; comida: string; alimento: string; cantidad: number }
+  input: { dia: number; comida: string; alimento: string }
 ): Promise<{ result: string; revertData?: RevertData }> {
   const { dia, comida, alimento } = input
-  const cantidad = input.cantidad
 
   // Find the ingredient in catalog
   const newFood = await findAlimento(supabase, alimento, userId)
@@ -875,39 +879,42 @@ async function executeAgregarIngredienteAComida(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const a = (Array.isArray(duplicate.alimento) ? (duplicate.alimento as any)[0] : duplicate.alimento) as any
     const nombre = a?.nombre || alimento
-
-    // If the requested cantidad is different, update it directly
-    if (cantidad !== duplicate.cantidad) {
-      const revertData: RevertData = {
-        type: 'cambiar',
-        originalRows: [{ rowId: duplicate.id, alimento_id: duplicate.alimento_id, cantidad: duplicate.cantidad, unidad: duplicate.unidad }],
-        userId,
-      }
-
-      const { error: updErr } = await supabase
-        .from('calendario')
-        .update({ cantidad })
-        .eq('id', duplicate.id)
-
-      if (updErr) {
-        console.error('Duplicate update error:', updErr.message)
-        return { result: `Error actualizando cantidad: ${updErr.message}` }
-      }
-
-      console.log(`Updated ${nombre}: ${duplicate.cantidad} → ${cantidad} ${duplicate.unidad}`)
-      return {
-        result: `Actualicé ${nombre} en el ${comida} del ${DIAS_NOMBRES[dia - 1]}: ${duplicate.cantidad}→${cantidad} ${duplicate.unidad}.`,
-        revertData,
-      }
-    }
-
-    // Same quantity — just inform
     return {
-      result: `${nombre} ya está en el ${comida} del ${DIAS_NOMBRES[dia - 1]} con ${duplicate.cantidad} ${duplicate.unidad}. Si quieres cambiar la cantidad, llama este tool con la cantidad nueva deseada.`,
+      result: `${nombre} ya está en el ${comida} del ${DIAS_NOMBRES[dia - 1]} con ${duplicate.cantidad} ${duplicate.unidad}. Si quieres reemplazarlo por otro, usa cambiar_alimento.`,
     }
   }
 
-  // Calculate calories of the new ingredient
+  // Get user objectives and calculate budget for this meal
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo')
+    .eq('id', userId)
+    .single()
+
+  if (!usuario) return { result: 'No se encontró el perfil de la usuaria.' }
+
+  const pct = MEAL_PCT[comida] || 0.33
+  const mealBudget = usuario.calorias_objetivo * pct
+
+  // Calculate current meal calories
+  let currentMealCal = 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const item of existingItems as any[]) {
+    const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+    if (!a) continue
+    const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+    currentMealCal += a.calorias_por_unidad * ratio
+  }
+
+  // Budget remaining for the new ingredient
+  const remainingBudget = Math.max(0, mealBudget - currentMealCal)
+  const { cantidad, cabe } = calcularCantidadDesdePresupuesto(newFood, remainingBudget)
+
+  if (!cabe) {
+    return { result: `${newFood.nombre} no cuadra con tus macros del ${comida} del ${DIAS_NOMBRES[dia - 1]} sin pasarte. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
+  }
+
+  // Calculate calories of the new ingredient at the calculated quantity
   const newIsCountable = newFood.unidad_medida === 'unidad'
   const newRatio = newIsCountable ? cantidad : cantidad / (newFood.porcion_base || 100)
   const newCalories = newFood.calorias_por_unidad * newRatio
@@ -1476,8 +1483,13 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 
 ═══ REGLAS OBLIGATORIAS ═══
 
-⚠️ REGLA ABSOLUTA: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
+⚠️ REGLA ABSOLUTA #1: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
+
+⚠️ REGLA ABSOLUTA #2: NUNCA aceptes cantidades que la usuaria te diga. Si dice "ponme 200g de pollo", "quiero 3 huevos", "solo tengo 100g de arroz" — ignora la cantidad. Tú SIEMPRE calculas la cantidad desde el presupuesto de macros. Los tools ya no aceptan parámetro de cantidad — se calcula automáticamente. Si la usuaria insiste en una cantidad específica, responde: "Entiendo, pero para que tu plan funcione yo calculo las cantidades según tus macros. Si prefieres un alimento distinto, dime cuál y te lo ajusto." Si menciona que tiene una cantidad limitada en casa, sugiere cambiar el alimento o moverlo a otro día. NUNCA ajustes al inventario de la usuaria.
 Cuando la usuaria pida añadir un snack o cambio para todos los días, usa dia="todos" en el tool. Es la forma correcta y eficiente. El tool lo soporta nativamente.
+
+0. CUANDO UN ALIMENTO "NO CABE"
+Si un tool devuelve que el alimento no cuadra con los macros, ofrece 2 opciones: (a) cambiar por otro alimento que sí cuadre, o (b) moverlo a otro día. Para mover a otro día: primero usa agregar_ingrediente_a_comida en el día destino, luego confirma al usuario. NO intentes forzar el alimento en la comida original.
 
 1. UN CAMBIO A LA VEZ
 Si la usuaria pide múltiples cambios en un mensaje → ejecuta solo el primero → confirma → pregunta "¿Procedemos con [siguiente]?" → espera confirmación. NUNCA ejecutes 2 tools en el mismo turno.
@@ -1508,7 +1520,7 @@ NUNCA digas "USDA", "base de datos", "catálogo", "busqué en". Tú simplemente 
 Siempre habla en unidades imperiales con la usuaria. Usa oz para proteínas y tubérculos, cups para granos, vegetales y frutas, tbsp para aceites y semillas, fl oz para bebidas empacadas. Cuando la usuaria pida un cambio en cualquier unidad (gramos, tazas, oz, libras), convierte internamente a gramos usando factor_conversion antes de ejecutar el tool. Confirma siempre en la unidad imperial correspondiente al alimento.
 
 ═══ CANTIDADES EN TOOLS ═══
-Cuando uses cualquier tool que requiera una cantidad (cantidad, nueva_cantidad, etc.), SIEMPRE pasa la cantidad en la unidad base del alimento (gramos o ml), NUNCA en cups, oz, tazas o cucharadas. Convierte mentalmente antes de llamar el tool. Por ejemplo: si quieres añadir 1 cup de espinacas y 1 cup = 185g, pasa cantidad = 185. Si quieres añadir 2 oz de pollo y 1 oz = 28.35g, pasa cantidad = 57.
+Los tools de modificación del calendario (cambiar_alimento, agregar_snack, agregar_ingrediente_a_comida) ya NO aceptan parámetro de cantidad. La cantidad se calcula automáticamente desde el presupuesto de macros. Solo pasa el nombre del alimento y el día/comida. Cuando confirmes al usuario qué se hizo, usa la cantidad que el tool devolvió en su resultado.
 
 ═══ COMUNICAR CANTIDADES CORRECTAMENTE ═══
 Cuando Lucy añade, cambia o ajusta un alimento via tool, SIEMPRE debe confirmarle a la usuaria la cantidad exacta que insertó usando la unidad display del alimento (tazas, oz, cdas, unidades), no en gramos.
@@ -1583,7 +1595,6 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             comida: input.comida as string,
             alimento_actual: input.alimento_actual as string,
             alimento_nuevo: input.alimento_nuevo as string,
-            nueva_cantidad: input.nueva_cantidad as number | undefined,
           })
           if (revertData) currentRevertData = revertData
           return logResult(result)
@@ -1591,8 +1602,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
           const { result, revertData } = await executeAgregarSnack(supabase, userId, {
             dia: input.dia as string,
             alimento: input.alimento as string | undefined,
-            cantidad: input.cantidad as number | undefined,
-            ingredientes: input.ingredientes as { alimento: string; cantidad: number }[] | undefined,
+            ingredientes: input.ingredientes as { alimento: string }[] | undefined,
           })
           if (revertData) currentRevertData = revertData
           return logResult(result)
@@ -1614,7 +1624,6 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             dia: input.dia as number,
             comida: input.comida as string,
             alimento: input.alimento as string,
-            cantidad: input.cantidad as number,
           })
           if (revertData) currentRevertData = revertData
           return result
