@@ -527,7 +527,58 @@ export default function LandingPage() {
 
           {/* Bonus 1 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginBottom: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
-            <Placeholder label="[PLACEHOLDER: Mockup 3D del libro Activación Metabólica]" height={280} />
+            <figure style={{ perspective: 800, display: 'flex', justifyContent: 'center' }} aria-label="Libro El Método de Activación Metabólica por Coach Abner">
+              <div className="book-mockup" style={{
+                width: 200,
+                height: 280,
+                position: 'relative',
+                transformStyle: 'preserve-3d',
+                transform: 'rotateY(-20deg) rotateX(2deg)',
+                transition: 'transform 300ms ease',
+              }}>
+                {/* Front cover */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(135deg, #2D2B45 0%, #1a1932 100%)',
+                  borderRadius: '4px 12px 12px 4px',
+                  padding: '32px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '6px 6px 20px rgba(45,43,69,0.4)',
+                  backfaceVisibility: 'hidden',
+                  overflow: 'hidden',
+                }}>
+                  {/* Decorative line */}
+                  <div style={{ width: '40%', height: 3, background: '#7B7FC4', borderRadius: 2, marginBottom: 16 }} />
+                  {/* Title */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <p style={{ color: '#7B7FC4', fontSize: 10, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>El Método de</p>
+                    <h4 className="font-logo" style={{ color: '#F8F7FC', fontSize: 22, lineHeight: 1.2, marginBottom: 16 }}>Activación Metabólica</h4>
+                    <div style={{ width: '30%', height: 2, background: '#7B7FC4', borderRadius: 2 }} />
+                  </div>
+                  {/* Author */}
+                  <div>
+                    <p style={{ color: '#B8B5E0', fontSize: 11, fontWeight: 500 }}>Coach Abner</p>
+                    <p style={{ color: '#7B7FC4', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Caribeño Fit Labs</p>
+                  </div>
+                </div>
+                {/* Spine */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: 20,
+                  height: '100%',
+                  background: 'linear-gradient(to right, #1a1932, #2D2B45)',
+                  borderRadius: '4px 0 0 4px',
+                  transform: 'rotateY(90deg) translateZ(-10px) translateX(-10px)',
+                  transformOrigin: 'left center',
+                }} />
+              </div>
+              <figcaption className="sr-only">Libro digital: El Método de Activación Metabólica por Coach Abner de Caribeño Fit Labs</figcaption>
+            </figure>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $47 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #1 — Libro &ldquo;Activación Metabólica&rdquo;</h3>
@@ -641,13 +692,35 @@ export default function LandingPage() {
       <section style={{ background: '#F8F7FC', padding: '100px 0' }} className="landing-section">
         <div style={narrow}>
           <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 40, alignItems: 'center' }} className="landing-guarantee-grid">
-            <div style={{
-              width: 200, height: 200, borderRadius: '50%', background: '#7B7FC4', color: '#FFF',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              fontWeight: 700, fontSize: 20, padding: 20, boxShadow: '0 8px 24px rgba(123, 127, 196, 0.3)',
-              flexShrink: 0,
-            }}>
-              GARANTÍA<br/>7 DÍAS<br/>SIN PREGUNTAS
+            <div role="img" aria-label="Garantía de 7 días sin preguntas" className="guarantee-badge" style={{ width: 200, height: 200, flexShrink: 0 }}>
+              <svg viewBox="0 0 200 200" width="200" height="200" style={{ filter: 'drop-shadow(0 12px 32px rgba(123,127,196,0.25))' }}>
+                {/* Scalloped outer edge */}
+                <path d={(() => {
+                  const cx = 100, cy = 100, r = 96, bumps = 24, depth = 6
+                  let d = ''
+                  for (let i = 0; i < bumps; i++) {
+                    const a1 = (i / bumps) * Math.PI * 2
+                    const a2 = ((i + 0.5) / bumps) * Math.PI * 2
+                    const a3 = ((i + 1) / bumps) * Math.PI * 2
+                    const x1 = cx + (r + depth) * Math.cos(a1)
+                    const y1 = cy + (r + depth) * Math.sin(a1)
+                    const x2 = cx + (r - depth) * Math.cos(a2)
+                    const y2 = cy + (r - depth) * Math.sin(a2)
+                    const x3 = cx + (r + depth) * Math.cos(a3)
+                    const y3 = cy + (r + depth) * Math.sin(a3)
+                    if (i === 0) d += `M ${x1} ${y1} `
+                    d += `Q ${x2} ${y2} ${x3} ${y3} `
+                  }
+                  return d + 'Z'
+                })()} fill="#7B7FC4" />
+                {/* Inner circle */}
+                <circle cx="100" cy="100" r="82" fill="none" stroke="#F8F7FC" strokeWidth="2" opacity="0.5" />
+                <circle cx="100" cy="100" r="76" fill="none" stroke="#F8F7FC" strokeWidth="1" opacity="0.3" />
+                {/* Text */}
+                <text x="100" y="72" textAnchor="middle" fill="#FFFFFF" fontSize="12" fontWeight="600" letterSpacing="0.1em">GARANTÍA</text>
+                <text x="100" y="112" textAnchor="middle" fill="#FFFFFF" fontSize="36" fontWeight="700" letterSpacing="-0.02em">7 DÍAS</text>
+                <text x="100" y="134" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="600" letterSpacing="0.1em">SIN PREGUNTAS</text>
+              </svg>
             </div>
             <div>
               <h2 style={{ fontSize: 42, fontWeight: 700, marginBottom: 16 }} className="landing-h2">La Garantía Caribeña — 7 días, sin preguntas</h2>
@@ -775,7 +848,11 @@ export default function LandingPage() {
             grid-template-columns: 1fr !important;
             gap: 30px !important;
           }
+          .book-mockup { transform: rotateY(-15deg) rotateX(2deg) scale(0.85) !important; }
+          .guarantee-badge { width: 160px !important; height: 160px !important; margin: 0 auto; }
+          .guarantee-badge svg { width: 160px !important; height: 160px !important; }
         }
+        .book-mockup:hover { transform: rotateY(-25deg) rotateX(2deg) !important; }
       `}</style>
     </div>
   )
