@@ -1279,10 +1279,8 @@ function buildCalendarioTexto(
         const um = a?.unidad_medida ?? i.unidad
         const unidadLabel = um === 'gramos' ? 'g' : um === 'ml' ? 'ml' : um
         let kcal: string
-        if (!cpu || (!pb && um !== 'unidad')) {
+        if (!cpu || !pb) {
           kcal = '? kcal'
-        } else if (um === 'unidad') {
-          kcal = `${Math.round(i.cantidad * cpu)} kcal`
         } else {
           kcal = `${Math.round((i.cantidad / pb) * cpu)} kcal`
         }
