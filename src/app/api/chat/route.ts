@@ -1272,8 +1272,21 @@ function buildCalendarioTexto(
       if (items.length === 0) continue
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemsText = items.map((i: any) => {
-        const nombre = Array.isArray(i.alimento) ? i.alimento[0]?.nombre : i.alimento?.nombre
-        return `${nombre} (${i.cantidad} ${i.unidad})`
+        const a = Array.isArray(i.alimento) ? i.alimento[0] : i.alimento
+        const nombre = a?.nombre ?? '?'
+        const cpu = a?.calorias_por_unidad ?? 0
+        const pb = a?.porcion_base ?? 0
+        const um = a?.unidad_medida ?? i.unidad
+        const unidadLabel = um === 'gramos' ? 'g' : um === 'ml' ? 'ml' : um
+        let kcal: string
+        if (!cpu || (!pb && um !== 'unidad')) {
+          kcal = '? kcal'
+        } else if (um === 'unidad') {
+          kcal = `${Math.round(i.cantidad * cpu)} kcal`
+        } else {
+          kcal = `${Math.round((i.cantidad / pb) * cpu)} kcal`
+        }
+        return `${nombre} (${i.cantidad} ${unidadLabel}, ${kcal})`
       }).join(', ')
       text += `  ${comida.charAt(0).toUpperCase() + comida.slice(1)}: ${itemsText}\n`
     }
@@ -1351,7 +1364,7 @@ export async function POST(req: NextRequest) {
     // Fetch calendar
     const { data: calendario } = await supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
       .eq('user_id', userId)
       .order('dia')
       .order('comida')
