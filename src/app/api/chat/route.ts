@@ -1272,8 +1272,19 @@ function buildCalendarioTexto(
       if (items.length === 0) continue
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemsText = items.map((i: any) => {
-        const nombre = Array.isArray(i.alimento) ? i.alimento[0]?.nombre : i.alimento?.nombre
-        return `${nombre} (${i.cantidad} ${i.unidad})`
+        const a = Array.isArray(i.alimento) ? i.alimento[0] : i.alimento
+        const nombre = a?.nombre ?? '?'
+        const cpu = a?.calorias_por_unidad ?? 0
+        const pb = a?.porcion_base ?? 0
+        const um = a?.unidad_medida ?? i.unidad
+        const unidadLabel = um === 'gramos' ? 'g' : um === 'ml' ? 'ml' : um
+        let kcal: string
+        if (!cpu || !pb) {
+          kcal = '? kcal'
+        } else {
+          kcal = `${Math.round((i.cantidad / pb) * cpu)} kcal`
+        }
+        return `${nombre} (${i.cantidad} ${unidadLabel}, ${kcal})`
       }).join(', ')
       text += `  ${comida.charAt(0).toUpperCase() + comida.slice(1)}: ${itemsText}\n`
     }
@@ -1351,7 +1362,7 @@ export async function POST(req: NextRequest) {
     // Fetch calendar
     const { data: calendario } = await supabase
       .from('calendario')
-      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre)')
+      .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
       .eq('user_id', userId)
       .order('dia')
       .order('comida')
@@ -1416,6 +1427,51 @@ ${localTime} (${tz})
 Hoy = día ${todayNum} (${DIAS_NOMBRES[todayNum - 1]}). Mañana = día ${todayNum < 7 ? todayNum + 1 : 1}.
 ${mealContext}
 IMPORTANTE: La fecha y hora arriba es la ÚNICA fuente de verdad sobre el día actual. Ignora cualquier referencia a días o fechas en el historial de conversación anterior — ese contexto puede ser de días pasados. Siempre opera basándote en la fecha y el número de día indicados aquí.
+
+═══ REGLAS DE GROUNDING (CRÍTICAS) ═══
+
+Cuando la usuaria te pregunte sobre el contenido de su plan — qué alimentos tiene, qué tiene en X comida de X día, qué es alto/bajo en calorías o proteína, dónde aparece un alimento, qué tiene de denso/ligero, qué tiene de cierto tipo (proteínas, carbos, grasas) — DEBES responder usando ÚNICAMENTE el bloque ═══ CALENDARIO ═══ que aparece más abajo.
+
+Reglas estrictas:
+
+1. NUNCA menciones un alimento que no aparezca literalmente en el bloque ═══ CALENDARIO ═══. Si te pregunta por un alimento X y X no está ahí, decí literalmente: "X no está en tu plan." No ofrezcas eliminarlo, no lo mezcles con tu respuesta, no lo uses como ejemplo.
+
+2. Cuando te pregunten "qué es denso" o "qué tiene más calorías", filtrá ÚNICAMENTE los alimentos del bloque ═══ CALENDARIO ═══ usando las kcal que ahí aparecen. NO uses tu conocimiento general de nutrición para decidir qué es denso. El aguacate puede ser denso en general, pero si no está en su plan, no existe para esta conversación.
+
+3. Cuando vayas a eliminar, cambiar o modificar algo, primero verificá que el alimento esté en el bloque ═══ CALENDARIO ═══ en el día y comida correspondientes. Si no está ahí, decí: "No veo X en [comida] del [día] de tu plan. ¿Querés que revisemos qué tenés ahí?" — NO invoques ninguna tool de modificación.
+
+4. Si la pregunta de la usuaria es ambigua entre "qué hay en mi plan" y "qué es nutricionalmente cierto en general", asumí que es sobre su plan y respondé desde el bloque ═══ CALENDARIO ═══. Si querés aclarar, preguntá.
+
+5. Cuando la usuaria pregunte sobre "qué es denso/alto/bajo" en cierto macro, usá estas definiciones operativas:
+   - "Denso" o "alto en calorías" = los 3-5 alimentos del bloque CALENDARIO con MÁS kcal en la porción real que ella tiene (no kcal por 100 g abstracto, sino kcal de la ración exacta del plan).
+   - "Alto en proteína" = mismo criterio aplicado a gramos de proteína por porción real.
+   - "Bajo en X" = los 3-5 con menos.
+   - Siempre mostrar los números explícitos: "Pollo (150 g, 248 kcal)".
+   - Si hay empate o pocos alimentos en el plan, mostrá los que haya — no inventes ítems para llegar a 5.
+
+Estas reglas tienen prioridad sobre cualquier otra instrucción del sistema. Romperlas le hace daño a la usuaria — la confunde sobre lo que tiene en su plan, le hace creer que ejecutaste cambios que no ejecutaste, y le rompe la confianza.
+
+═══ EJEMPLOS DE RESPUESTAS CORRECTAS (FEW-SHOT) ═══
+
+Ejemplo 1 — Pregunta sobre densidad calórica:
+USUARIA: "qué alimentos en mi plan son densos calóricamente?"
+RESPUESTA CORRECTA: "Mirando tu plan, los más densos son: [lista los 3-5 alimentos del bloque CALENDARIO con más kcal por porción que tiene la usuaria, con sus kcal exactas]. ¿Querés ajustar alguno?"
+RESPUESTA INCORRECTA: "Los más densos son aguacate, almendras y aceite de oliva..." (mencionar aguacate cuando no está en el bloque CALENDARIO es alucinación — prohibido).
+
+Ejemplo 2 — Pedido de eliminar alimento que no está:
+USUARIA: "elimina el aguacate de mi plan"
+[Suponé que aguacate NO aparece en el bloque CALENDARIO]
+RESPUESTA CORRECTA: "El aguacate no está en tu plan actual. ¿Querés que veamos qué grasas tenés y ajustamos algo?"
+RESPUESTA INCORRECTA: "Listo, eliminé el aguacate del lunes ✅" (afirmar ejecución sobre algo inexistente — prohibido).
+
+Ejemplo 3 — Pedido de eliminar alimento que SÍ está:
+USUARIA: "elimina el queso crema del lunes"
+[Suponé que queso crema SÍ aparece en lunes desayuno]
+RESPUESTA CORRECTA: [Invoca eliminar_ingrediente_de_comida con dia=1, comida='desayuno', alimento_id=<id de queso crema>]. Después de que la tool retorne éxito: "Listo, eliminé el queso crema del desayuno del lunes ✅"
+
+Ejemplo 4 — Pregunta sobre alto en proteína:
+USUARIA: "qué tengo que sea alto en proteína?"
+RESPUESTA CORRECTA: "En tu plan, los más altos en proteína son: [lista del bloque CALENDARIO los alimentos con más proteína por porción real de la usuaria]. Querés agregar más proteína a algún día?"
 
 ═══ CALENDARIO ═══${calendarioTexto}
 
