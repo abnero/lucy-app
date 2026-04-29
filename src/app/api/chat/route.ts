@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -1786,6 +1787,99 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             tool_use_id: block.id,
             content: result,
           })
+        }
+      }
+
+      // ═══ Post-tool tolerance hook (Bug #40) ═══
+      // After calendar-mutating tools, check if affected day(s) went out of tolerance.
+      // If so, append warning to the last tool result so Claude can inform the user.
+      const MUTATING_TOOLS = new Set(['cambiar_alimento', 'agregar_snack', 'reemplazar_comida_completa', 'agregar_ingrediente_a_comida', 'eliminar_ingrediente_de_comida', 'revertir_cambio'])
+      const mutatingCalls = toolUseBlocks.filter(b => b.type === 'tool_use' && MUTATING_TOOLS.has(b.name))
+
+      if (mutatingCalls.length > 0 && usuario) {
+        try {
+          // Determine affected days from tool args
+          const affectedDays = new Set<number>()
+          for (const block of mutatingCalls) {
+            if (block.type !== 'tool_use') continue
+            const input = block.input as Record<string, unknown>
+            if (block.name === 'revertir_cambio') {
+              // Don't know which day was reverted — check all
+              for (let d = 1; d <= 7; d++) affectedDays.add(d)
+            } else if (block.name === 'agregar_snack' && input.dia === 'todos') {
+              for (let d = 1; d <= 7; d++) affectedDays.add(d)
+            } else {
+              const dia = typeof input.dia === 'string' ? parseInt(input.dia) : input.dia as number
+              if (dia >= 1 && dia <= 7) affectedDays.add(dia)
+            }
+          }
+
+          // Only proceed if we have days to check and no tool returned an error
+          const lastResult = toolResults[toolResults.length - 1]
+          const lastResultStr = typeof lastResult?.content === 'string' ? lastResult.content : ''
+          const toolFailed = lastResultStr.toLowerCase().includes('error') || lastResultStr.toLowerCase().includes('no encontr')
+
+          if (affectedDays.size > 0 && !toolFailed) {
+            // Refetch calendar for affected days
+            const daysArray = Array.from(affectedDays)
+            const { data: postCalendar } = await supabase
+              .from('calendario')
+              .select('dia, cantidad, alimento:alimentos(id, nombre, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
+              .eq('user_id', userId)
+              .in('dia', daysArray)
+
+            if (postCalendar && postCalendar.length > 0) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const alimentosPost: AlimentoCalendario[] = postCalendar.map((row: any) => {
+                const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
+                return {
+                  alimento_id: a?.id ?? '',
+                  nombre: a?.nombre ?? '',
+                  cantidad: row.cantidad,
+                  unidad_medida: a?.unidad_medida ?? 'gramos',
+                  porcion_base: a?.porcion_base ?? 100,
+                  porcion_min: a?.porcion_min ?? 0,
+                  porcion_max: a?.porcion_max ?? 999,
+                  calorias_por_unidad: a?.calorias_por_unidad ?? 0,
+                  proteina_por_unidad: a?.proteina_por_unidad ?? 0,
+                  comida: 'almuerzo' as const, // not used for day-level analysis
+                  dia: row.dia,
+                  rol_permitido: a?.rol_permitido ?? [],
+                }
+              })
+
+              const analisis = analizarCalendario(alimentosPost, usuario.calorias_objetivo, usuario.proteina_objetivo)
+
+              // Build warnings for days that are out of tolerance
+              const warnings: string[] = []
+              for (const dp of analisis.dias_problematicos) {
+                if (!affectedDays.has(dp.dia)) continue
+                const calPct = Math.round((dp.diferencia_calorias / dp.objetivo_calorias) * 100)
+                warnings.push(
+                  `⚠️ AVISO_POST_MOD día ${dp.dia}: kcal ${Math.round(dp.macros.calorias)} vs target ${dp.objetivo_calorias} (Δ ${dp.diferencia_calorias > 0 ? '+' : ''}${dp.diferencia_calorias}, ${calPct > 0 ? '+' : ''}${calPct}%); prot ${Math.round(dp.macros.proteina)}g vs target ${dp.objetivo_proteina}g (Δ ${dp.diferencia_proteina > 0 ? '+' : ''}${Math.round(dp.diferencia_proteina)}g). Comunícale a la usuaria que el día quedó fuera de tolerancia y ofrécele caminos para ajustar (modificar otra comida, agregar/quitar snack, cambiar alimento). NO sugieras cantidades específicas — vos decidís siempre las cantidades.`
+                )
+                console.log(JSON.stringify({ event: 'post_tool_warning', tool: mutatingCalls.map(b => b.type === 'tool_use' ? b.name : '').join(','), dia: dp.dia, diff_cal: dp.diferencia_calorias, diff_prot: Math.round(dp.diferencia_proteina) }))
+              }
+
+              // Log OK days
+              for (const dia of analisis.dias_ok) {
+                if (!affectedDays.has(dia)) continue
+                console.log(JSON.stringify({ event: 'post_tool_ok', tool: mutatingCalls.map(b => b.type === 'tool_use' ? b.name : '').join(','), dia }))
+              }
+
+              // Append warnings to last tool result
+              if (warnings.length > 0 && toolResults.length > 0) {
+                const lastIdx = toolResults.length - 1
+                toolResults[lastIdx] = {
+                  ...toolResults[lastIdx],
+                  content: toolResults[lastIdx].content + '\n\n' + warnings.join('\n'),
+                }
+              }
+            }
+          }
+        } catch (hookErr) {
+          // Hook must never break the chat flow
+          console.error('[post-tool-hook] Error:', hookErr)
         }
       }
 
