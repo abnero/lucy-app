@@ -1824,19 +1824,52 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       console.error(`[Chat][Bug30] Loop exhausted for user ${userId}. Iterations: ${iterations}. Tools: ${toolCallsThisTurn.join(',')}`)
     }
 
-    // Bug C: suspected lie — response claims changes but no tools were called this turn
+    // Bug #31 detector — suspected_lie (heurística mejorada 28 abr 2026)
+    //
+    // LIMITACIONES CONOCIDAS:
+    // 1. NO detecta cross-turn lies (afirmar al turno N basado en mentira del turno N-1).
+    //    Ejemplo: caso Vivianne aguacate (5 turnos de "eliminé X" sin ejecutar).
+    //    Detector solo ve el mensaje individual, no patrón en cascada.
+    // 2. NO detecta si Lucy invoca tool, tool falla con error, y Lucy igual dice "Listo ✅".
+    //    Para cubrir requeriría trackear toolCallsSuccessful vs toolCallsFailed.
+    // 3. Heurística calibrada con 10 casos históricos. Sample chico — pueden existir
+    //    patrones no vistos. Revisar tasa de FP/FN periódicamente.
+    //
+    // Heurística:
+    // - Action triggers ('listo', 'hecho', etc.) marcan candidato.
+    // - ✅ aislado NO marca; solo cuenta si va con verbo de acción explícito.
+    // - 4 filtros de exclusión descartan contextos no-acción.
     if (!meta && finalResponse) {
-      const triggerPhrases = ['listo', 'hecho', 'cambios hechos', '✅', 'modificado', 'aplicado', 'actualizado']
       const lower = finalResponse.toLowerCase()
-      const matched = triggerPhrases.filter(p => lower.includes(p))
+
+      // 1. Action-claiming trigger phrases
+      const actionTriggers = ['listo', 'hecho', 'cambios hechos', 'modificado', 'aplicado', 'actualizado']
+      const matched = actionTriggers.filter(p => lower.includes(p))
+
+      // 2. ✅ solo cuenta si viene acompañado de verbo de acción explícito
+      const hasCheckmark = finalResponse.includes('✅')
+      const actionVerbs = ['eliminé', 'cambié', 'añadí', 'agregué', 'reemplacé', 'ajusté', 'actualicé', 'modifiqué']
+      const hasActionVerb = actionVerbs.some(v => lower.includes(v))
+      if (hasCheckmark && hasActionVerb) matched.push('✅+verb')
+
       if (matched.length > 0 && toolCallsThisTurn.length === 0) {
-        meta = {
-          bug_type: 'suspected_lie',
-          trigger_phrases: matched,
-          tools_called_this_turn: 0,
-          content_preview: finalResponse.slice(0, 200),
+        // 3. Filtros de exclusión — contextos no-acción
+        const isQuestion = finalResponse.includes('?')
+        const isIntention = /(déjame|voy a|necesito|antes de)/i.test(finalResponse)
+        const isExistingState = /(ya está|ya tiene|ya tienes|ya lo tiene|ya quedó|dejamos)/i.test(finalResponse)
+        const isProposal = /(te propongo|te recomiendo|qué te parece|quieres que)/i.test(finalResponse)
+
+        const excluded = isQuestion || isIntention || isExistingState || isProposal
+
+        if (!excluded) {
+          meta = {
+            bug_type: 'suspected_lie',
+            trigger_phrases: matched,
+            tools_called_this_turn: 0,
+            content_preview: finalResponse.slice(0, 200),
+          }
+          console.warn(`[Chat][Bug31] Suspected lie for user ${userId}. Triggers: ${matched.join(',')}. No tools called.`)
         }
-        console.warn(`[Chat][Bug31] Suspected lie for user ${userId}. Triggers: ${matched.join(',')}. No tools called.`)
       }
     }
 
