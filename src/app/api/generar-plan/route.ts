@@ -812,11 +812,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Apply bidirectional scaling PER CATEGORY for main meals
-    // Each category (proteina, carb, fibra, grasa) gets its own budget and scales independently
-    // This prevents excess in one category from shrinking another
+    // Each category scales independently using a REPRESENTATIVE food (median)
+    // to avoid the pool-sum vs single-meal-budget mismatch
     {
       const categorias = ['proteina', 'carbohidrato', 'fibra', 'grasa']
-      // Use almuerzo budget (largest meal) for scaling — ensures foods CAN reach the larger meal's needs
+      // Use almuerzo budget for scaling — ensures foods CAN reach the larger meal's needs
       const scalingBudget = almuerzoBudget
 
       for (const cat of categorias) {
@@ -826,14 +826,21 @@ export async function POST(req: NextRequest) {
         const catShare = CAT_SHARE[cat] ?? 0.25
         const catBudget = scalingBudget * catShare
 
-        const catTotal = totalCalsOfFoods(foods)
-        console.log(`[scale] ${cat}: total=${Math.round(catTotal)} kcal, budget=${Math.round(catBudget)} kcal`)
+        // Use median food as representative (same pattern as before, but per category)
+        const sorted = [...foods].sort((a, b) => calPerUnit(a) - calPerUnit(b))
+        const rep = sorted[Math.floor(sorted.length / 2)]
+        const repEntry = cantidadMap.get(rep.nombre.toLowerCase())
+        if (!repEntry) continue
 
-        if (Math.abs(catTotal - catBudget) <= catBudget * 0.05) continue // within 5%
+        const repCal = calPerUnit(rep) * repEntry.cantidad
+        console.log(`[scale] ${cat}: rep=${rep.nombre} ${repEntry.cantidad}${rep.unidad_medida === 'unidad' ? 'u' : 'g'}=${Math.round(repCal)} kcal, budget=${Math.round(catBudget)} kcal`)
 
-        const factor = catBudget / catTotal
+        if (Math.abs(repCal - catBudget) <= catBudget * 0.05) continue // within 5%
+
+        const factor = catBudget / repCal
         const scalingUp = factor > 1
 
+        // Apply factor to ALL foods in this category
         for (const f of foods) {
           const entry = cantidadMap.get(f.nombre.toLowerCase())
           if (!entry) continue
@@ -845,39 +852,37 @@ export async function POST(req: NextRequest) {
           cantidadMap.set(f.nombre.toLowerCase(), { cantidad: newQty, unidad: entry.unidad })
         }
 
-        const newCatTotal = totalCalsOfFoods(foods)
-        console.log(`[scale] ${cat}: post-factor(${factor.toFixed(2)})=${Math.round(newCatTotal)} kcal`)
+        const newRepCal = calPerUnit(rep) * (cantidadMap.get(rep.nombre.toLowerCase())?.cantidad ?? 0)
+        console.log(`[scale] ${cat}: post-factor(${factor.toFixed(2)}) rep=${Math.round(newRepCal)} kcal`)
 
-        // Fine-tune if still off by >10%
-        if (Math.abs(newCatTotal - catBudget) > catBudget * 0.10) {
-          if (newCatTotal > catBudget) {
-            const sorted = [...foods].sort((a, b) => calPerUnit(b) - calPerUnit(a))
-            for (const f of sorted) {
+        // Fine-tune representative if still off by >10%
+        if (Math.abs(newRepCal - catBudget) > catBudget * 0.10) {
+          if (newRepCal > catBudget) {
+            for (const f of foods) {
               const entry = cantidadMap.get(f.nombre.toLowerCase())
               if (!entry) continue
               const min = getMin(f)
               if (entry.cantidad > min) {
                 cantidadMap.set(f.nombre.toLowerCase(), { cantidad: min, unidad: entry.unidad })
-                if (totalCalsOfFoods(foods) <= catBudget * 1.05) break
               }
             }
           } else {
-            const sorted = [...foods].sort((a, b) => calPerUnit(a) - calPerUnit(b))
-            for (const f of sorted) {
+            for (const f of foods) {
               const entry = cantidadMap.get(f.nombre.toLowerCase())
               if (!entry) continue
               const max = getMax(f)
               if (entry.cantidad < max) {
-                const deficit = catBudget - totalCalsOfFoods(foods)
+                const repNow = calPerUnit(rep) * (cantidadMap.get(rep.nombre.toLowerCase())?.cantidad ?? 0)
+                const deficit = catBudget - repNow
                 const extraQty = calPerUnit(f) > 0 ? deficit / calPerUnit(f) : 0
                 cantidadMap.set(f.nombre.toLowerCase(), { cantidad: Math.min(max, Math.round(entry.cantidad + extraQty)), unidad: entry.unidad })
-                if (totalCalsOfFoods(foods) >= catBudget * 0.95) break
               }
             }
           }
         }
 
-        if (Math.abs(totalCalsOfFoods(foods) - catBudget) > catBudget * 0.10) {
+        const finalRepCal = calPerUnit(rep) * (cantidadMap.get(rep.nombre.toLowerCase())?.cantidad ?? 0)
+        if (Math.abs(finalRepCal - catBudget) > catBudget * 0.10) {
           warnings.push(`tu categoría ${cat}`)
         }
       }
