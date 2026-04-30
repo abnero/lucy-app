@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
 import { validarPoolMinimos } from '@/lib/validacion-pool'
+import { calcularCantidadesParaSlot, type AlimentoSlot, type SlotBudget, type SlotShares } from '@/lib/calcular-cantidades-slot'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -712,8 +713,14 @@ export async function POST(req: NextRequest) {
 
     console.log('[nueva-arquitectura] cantidades ajustadas:', JSON.stringify(Object.fromEntries(cantidadMap)))
 
-    // ═══ PASO 1c: Bidirectional meal budget scaling ═══
-    // Scale each meal's foods UP or DOWN to hit its calorie budget within ±5%
+    // NOTE: Paso 1c (bidirectional scaling) and Paso 1d (protein enforcement) REMOVED.
+    // Quantities are now calculated per-slot in Paso 4 using calcularCantidadesParaSlot().
+    // cantidadMap retains approximate values from Paso 1a+1b for Claude's rotation prompt.
+    // Old code moved to src/_deprecated/paso-1c-1d-old.ts
+
+    // [Paso 1c and 1d REMOVED — replaced by per-slot calcularCantidadesParaSlot in Paso 4]
+    // Old code: src/_deprecated/paso-1c-1d-old.ts
+    // MEAL_BUDGET kept for breakfast scaling reference only
     const MEAL_BUDGET: Record<string, number> = {
       desayuno: calTarget * 0.30,
       almuerzo: calTarget * 0.40,
@@ -1236,6 +1243,16 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
     }
 
+    // Build reverse lookup: food name → category (from preferencias)
+    const foodCategoryMap = new Map<string, string>()
+    for (const [cat, foods] of Object.entries(alimentosPorCategoria)) {
+      for (const f of foods) foodCategoryMap.set(f.nombre.toLowerCase(), cat)
+    }
+
+    // Slot shares for main meals and breakfast
+    const MAIN_SLOT_SHARES: SlotShares = { proteina: 0.40, carbohidrato: 0.35, fibra: 0.10, grasa: 0.15 }
+    const BREAKFAST_SHARES: SlotShares = { desayuno_1: 1.0, desayuno_2: 1.0 }
+
     const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
     const comprasTotals = new Map<string, { alimentoId: string; cantidad: number; unidad: string }>()
 
@@ -1243,44 +1260,73 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       for (const comida of ['desayuno', 'almuerzo', 'cena'] as const) {
         const items = dia[comida]
         if (!items) continue
+
+        // Determine slot budget based on meal type
+        const isBreakfast = comida === 'desayuno'
+        const mealPct = MEAL_CAL_PCT[comida] || 0.33
+        const slotBudget: SlotBudget = {
+          kcal: calTarget * mealPct,
+          prot: protTarget * (isBreakfast ? 0.30 : 0.35),
+        }
+        const shares = isBreakfast ? BREAKFAST_SHARES : MAIN_SLOT_SHARES
+
+        // Build AlimentoSlot array for this slot
+        const slotFoods: AlimentoSlot[] = []
+        const slotItemMap: { item: typeof items[0]; match: { id: string; nombre: string } }[] = []
+
         for (const item of items) {
           const match = alimentosMap.get(item.alimento.toLowerCase())
           if (!match) {
             console.error('[plan] alimento no encontrado:', item.alimento)
             continue
           }
-
-          // Use backend-calculated quantity, NOT Claude's
-          const entry = cantidadMap.get(item.alimento.toLowerCase())
-          let cantidad = entry?.cantidad ?? item.cantidad
-          const unidad = entry?.unidad ?? item.unidad
-
-          // Final safety: enforce porcion_min as absolute floor
           const foodData = allFoodsLookup.get(item.alimento.toLowerCase())
-          if (foodData) {
-            const min = getMin(foodData)
-            if (cantidad < min) {
-              console.warn(`[plan] Clamping ${item.alimento} from ${cantidad} to min ${min}`)
-              cantidad = min
-            }
-          }
+          if (!foodData) continue
+
+          const cat = foodCategoryMap.get(item.alimento.toLowerCase()) || foodData.categoria_comida || 'carbohidrato'
+          slotFoods.push({
+            alimento_id: foodData.id,
+            nombre: foodData.nombre,
+            categoria: cat,
+            calorias_por_unidad: foodData.calorias_por_unidad,
+            proteina_por_unidad: foodData.proteina_por_unidad,
+            porcion_base: foodData.porcion_base,
+            porcion_min: getMin(foodData),
+            porcion_max: getMax(foodData),
+            unidad_medida: foodData.unidad_medida,
+          })
+          slotItemMap.push({ item, match })
+        }
+
+        // Calculate quantities dynamically for this slot
+        const slotResult = calcularCantidadesParaSlot(slotFoods, slotBudget, shares)
+
+        if (slotResult.warnings.length > 0) {
+          console.log(`[plan] Slot warnings dia=${dia.dia} ${comida}:`, slotResult.warnings.join('; '))
+        }
+        console.log(`[plan] Slot dia=${dia.dia} ${comida}: ${slotResult.kcal_total_slot} kcal, ${slotResult.prot_total_slot}g prot (budget: ${Math.round(slotBudget.kcal)} kcal)`)
+
+        // Map calculated quantities back to calendar rows
+        for (const { match } of slotItemMap) {
+          const calcResult = slotResult.cantidades.find(c => c.alimento_id === match.id)
+          if (!calcResult) continue
 
           calendarioRows.push({
             user_id: userId,
             dia: dia.dia,
             comida,
             alimento_id: match.id,
-            cantidad,
-            unidad,
+            cantidad: calcResult.cantidad,
+            unidad: calcResult.unidad,
             origen: 'generado',
           })
 
           const key = match.id
           const existing = comprasTotals.get(key)
           if (existing) {
-            existing.cantidad += cantidad
+            existing.cantidad += calcResult.cantidad
           } else {
-            comprasTotals.set(key, { alimentoId: match.id, cantidad, unidad })
+            comprasTotals.set(key, { alimentoId: match.id, cantidad: calcResult.cantidad, unidad: calcResult.unidad })
           }
         }
       }
