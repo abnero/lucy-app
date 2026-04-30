@@ -184,6 +184,61 @@ export function calcularCantidadesParaSlot(
     warnings.push(`proteína magra requirió compensación cross-category`)
   }
 
+  // ═══ PASO 4 — Protein enforcement ═══
+  // After calorie compensation, check if protein is still under budget.
+  // If so, increase protein-category foods toward porcion_max and compensate
+  // by reducing non-protein foods if needed.
+  let protTotal = 0
+  for (const a of alimentosDelSlot) {
+    protTotal += calcProt(a, cantidades.get(a.alimento_id) ?? 0)
+  }
+
+  const protThreshold = Math.max(slotBudget.prot - 3, slotBudget.prot * 0.95) // act when deficit > 3g per slot
+  if (protTotal < protThreshold) {
+    const proteinFoods = alimentosDelSlot
+      .filter(a => a.categoria === 'proteina' || ppuOf(a) > 0.10) // protein-rich
+      .filter(a => (cantidades.get(a.alimento_id) ?? 0) < a.porcion_max)
+
+    let protDeficit = slotBudget.prot - protTotal
+    for (const pf of proteinFoods) {
+      if (protDeficit <= 0) break
+      const current = cantidades.get(pf.alimento_id) ?? 0
+      const ppu = ppuOf(pf)
+      if (ppu <= 0) continue
+      const extraQty = protDeficit / ppu
+      const newQty = clamp(current + extraQty, pf.porcion_min, pf.porcion_max, pf.unidad_medida)
+      const actualExtraProt = calcProt(pf, newQty) - calcProt(pf, current)
+      const actualExtraKcal = calcKcal(pf, newQty) - calcKcal(pf, current)
+
+      cantidades.set(pf.alimento_id, newQty)
+      protDeficit -= actualExtraProt
+
+      // If adding protein pushed kcal over budget, compensate by reducing non-protein foods
+      kcalTotal = 0
+      for (const a of alimentosDelSlot) {
+        kcalTotal += calcKcal(a, cantidades.get(a.alimento_id) ?? 0)
+      }
+      if (kcalTotal > slotBudget.kcal * 1.05 && actualExtraKcal > 0) {
+        const nonProtein = alimentosDelSlot
+          .filter(a => a.categoria !== 'proteina' && ppuOf(a) < 0.05)
+          .filter(a => (cantidades.get(a.alimento_id) ?? 0) > a.porcion_min)
+          .sort((a, b) => cpuOf(b) - cpuOf(a)) // reduce highest density first
+
+        let calToReduce = kcalTotal - slotBudget.kcal
+        for (const np of nonProtein) {
+          if (calToReduce <= 0) break
+          const npCurrent = cantidades.get(np.alimento_id) ?? 0
+          const npCpu = cpuOf(np)
+          if (npCpu <= 0) continue
+          const reduceQty = Math.min(npCurrent - np.porcion_min, calToReduce / npCpu)
+          const newNpQty = clamp(npCurrent - reduceQty, np.porcion_min, np.porcion_max, np.unidad_medida)
+          calToReduce -= calcKcal(np, npCurrent) - calcKcal(np, newNpQty)
+          cantidades.set(np.alimento_id, newNpQty)
+        }
+      }
+    }
+  }
+
   return buildResult(alimentosDelSlot, cantidades, slotBudget, warnings)
 }
 
