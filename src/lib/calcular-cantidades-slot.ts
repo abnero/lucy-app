@@ -126,9 +126,8 @@ export function calcularCantidadesParaSlot(
 
   const deficit = slotBudget.kcal - kcalTotal
   if (deficit <= slotBudget.kcal * 0.05) {
-    // Within 5%, no compensation needed — build result and return
-    return buildResult(alimentosDelSlot, cantidades, slotBudget, warnings)
-  }
+    // Calories within 5% — skip calorie compensation but still check protein (Paso 4 below)
+  } else {
 
   // ═══ PASO 3 — Cross-category compensation ═══
   // Find foods with room to grow (current < porcion_max)
@@ -183,8 +182,9 @@ export function calcularCantidadesParaSlot(
   } else if (remainingDeficit > 0) {
     warnings.push(`proteína magra requirió compensación cross-category`)
   }
+  } // end else (calorie compensation path)
 
-  // ═══ PASO 4 — Protein enforcement ═══
+  // ═══ PASO 4 — Protein enforcement (runs ALWAYS, not just after compensation) ═══
   // After calorie compensation, check if protein is still under budget.
   // If so, increase protein-category foods toward porcion_max and compensate
   // by reducing non-protein foods if needed.
