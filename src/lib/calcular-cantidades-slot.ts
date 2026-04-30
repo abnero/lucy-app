@@ -68,6 +68,14 @@ function calcProt(a: AlimentoSlot, qty: number): number {
   return ppuOf(a) * qty
 }
 
+// Density classification for protein distribution constraint
+export const DENSIDAD_MAGRA_THRESHOLD = 1.0 // kcal/g
+
+export function clasificarProteinaPorDensidad(alimento: { calorias_por_unidad: number; porcion_base: number }): 'densa' | 'magra' {
+  const densidad = alimento.calorias_por_unidad / (alimento.porcion_base || 100)
+  return densidad < DENSIDAD_MAGRA_THRESHOLD ? 'magra' : 'densa'
+}
+
 export function calcularCantidadesParaSlot(
   alimentosDelSlot: AlimentoSlot[],
   slotBudget: SlotBudget,

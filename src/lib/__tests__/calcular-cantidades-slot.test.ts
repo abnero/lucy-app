@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularCantidadesParaSlot, type AlimentoSlot, type SlotBudget, type SlotShares } from '../calcular-cantidades-slot'
+import { calcularCantidadesParaSlot, clasificarProteinaPorDensidad, type AlimentoSlot, type SlotBudget, type SlotShares } from '../calcular-cantidades-slot'
 
 // ═══ Real catalog values from Supabase (29 abr 2026) ═══
 const FOODS: Record<string, AlimentoSlot> = {
@@ -163,5 +163,23 @@ describe('calcularCantidadesParaSlot', () => {
     }
     // Inputs not mutated
     expect(JSON.stringify(slot)).toBe(JSON.stringify(inputCopy))
+  })
+})
+
+describe('clasificarProteinaPorDensidad', () => {
+  it('clasifica Salmón como densa (2.08 kcal/g)', () => {
+    expect(clasificarProteinaPorDensidad({ calorias_por_unidad: 208, porcion_base: 100 })).toBe('densa')
+  })
+  it('clasifica Mahi Mahi como magra (0.73 kcal/g)', () => {
+    expect(clasificarProteinaPorDensidad({ calorias_por_unidad: 109, porcion_base: 150 })).toBe('magra')
+  })
+  it('clasifica Pavo Molido 97% como magra (0.99 kcal/g)', () => {
+    expect(clasificarProteinaPorDensidad({ calorias_por_unidad: 148, porcion_base: 150 })).toBe('magra')
+  })
+  it('clasifica Pechuga como densa (1.10 kcal/g)', () => {
+    expect(clasificarProteinaPorDensidad({ calorias_por_unidad: 165, porcion_base: 150 })).toBe('densa')
+  })
+  it('clasifica Chuleta como densa (1.15 kcal/g)', () => {
+    expect(clasificarProteinaPorDensidad({ calorias_por_unidad: 172, porcion_base: 150 })).toBe('densa')
   })
 })

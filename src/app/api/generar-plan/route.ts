@@ -1100,6 +1100,32 @@ export async function POST(req: NextRequest) {
     console.log('[plan] Max posible cal:', Math.round(maxDayCal), 'objetivo:', calTarget, 'deficit:', deficitCalorias)
     console.log('[plan] Max posible prot:', Math.round(maxDayProt), 'objetivo:', protTarget, 'deficit:', deficitProteina)
 
+    // ═══ PASO 2.5: Classify protein density for Claude distribution constraint ═══
+    const DENSIDAD_MAGRA_THRESHOLD = 1.0 // kcal/g — below this = "magra" (lean)
+    const proteinasDelPool = alimentosPorCategoria['proteina'] || []
+    const proteinasMagras = proteinasDelPool
+      .filter(p => (calPerUnit(p)) < DENSIDAD_MAGRA_THRESHOLD)
+      .map(p => p.nombre)
+    const todasMagras = proteinasMagras.length === proteinasDelPool.length
+    console.log('[plan] Proteínas magras detectadas:', proteinasMagras.length > 0 ? proteinasMagras.join(', ') : '(ninguna)', todasMagras ? '(TODAS magras — regla desactivada)' : '')
+
+    // Build restriction block for Claude prompt (only if there are magras AND not all are magras)
+    let restriccionMagrasTexto = ''
+    if (proteinasMagras.length > 0 && !todasMagras) {
+      restriccionMagrasTexto = `
+═══ RESTRICCIÓN DE DISTRIBUCIÓN DE PROTEÍNAS ═══
+
+Las siguientes proteínas son de baja densidad calórica: ${proteinasMagras.join(', ')}
+
+REGLA OBLIGATORIA:
+- NUNCA pongas dos proteínas de esta lista en el mismo día (almuerzo + cena del mismo día)
+- Distribúyelas en días DIFERENTES, intercalando con proteínas no incluidas en esta lista
+- Ejemplo correcto: Mahi Mahi (almuerzo) + Pollo (cena) ✅
+- Ejemplo incorrecto: Mahi Mahi (almuerzo) + Pavo Molido (cena) ❌
+
+`
+    }
+
     // ═══ PASO 3: Call Claude for rotations only ═══
     // Build the food catalog text with calculated quantities
     const catalogoPorCat: Record<string, string[]> = {}
@@ -1117,7 +1143,7 @@ export async function POST(req: NextRequest) {
       .join('\n')
 
     const systemPrompt = `Eres un asistente de nutrición. Tu única tarea es crear la rotación de 7 días de un plan de comidas.
-
+${restriccionMagrasTexto}
 Se te darán los alimentos disponibles por categoría y las cantidades ya calculadas. Tu trabajo es SOLO decidir qué combinación va en cada día, siguiendo estas reglas:
 
 1. No repetir la misma combinación exacta de alimentos en días consecutivos
@@ -1159,6 +1185,24 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     }
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
+
+    // ═══ Validate protein distribution (post-Claude) ═══
+    if (proteinasMagras.length > 0 && !todasMagras) {
+      const magrasSet = new Set(proteinasMagras.map(n => n.toLowerCase()))
+      for (const dia of plan.dias) {
+        const magrasDelDia: string[] = []
+        for (const comida of ['almuerzo', 'cena'] as const) {
+          for (const item of (dia[comida] || [])) {
+            if (magrasSet.has(item.alimento.toLowerCase())) {
+              magrasDelDia.push(item.alimento)
+            }
+          }
+        }
+        if (magrasDelDia.length >= 2) {
+          console.warn(`[plan] Claude violó restricción magras día ${dia.dia}: ${magrasDelDia.join(' + ')}`)
+        }
+      }
+    }
 
     // ═══ Check for existing personalizations (for first-gen messages) ═══
     const { data: personalizaciones } = await supabase
