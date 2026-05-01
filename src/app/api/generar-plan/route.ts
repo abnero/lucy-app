@@ -1109,12 +1109,23 @@ export async function POST(req: NextRequest) {
       .map(([cat, items]) => `**${cat}:** ${items.join(', ')}`)
       .join('\n')
 
+    // Determine breakfast instruction based on whether desayuno_2 exists
+    const hasDesayuno2 = (alimentosPorCategoria['desayuno_2'] || []).length > 0
+    const desayuno1Foods = (alimentosPorCategoria['desayuno_1'] || []).map(f => f.nombre)
+    let breakfastInstruction: string
+    if (hasDesayuno2) {
+      breakfastInstruction = '2. Rotar los desayunos — usar variedad entre los alimentos de desayuno_1 y desayuno_2 disponibles'
+    } else {
+      breakfastInstruction = `2. El desayuno es IGUAL los 7 días: incluir TODOS estos alimentos juntos cada día: ${desayuno1Foods.join(', ')}. NO dividirlos ni alternarlos — todos aparecen en cada desayuno.`
+      console.log(`[plan] Desayuno sin opción 2 — instruyendo a Claude: todos los desayuno_1 juntos los 7 días`)
+    }
+
     const systemPrompt = `Eres un asistente de nutrición. Tu única tarea es crear la rotación de 7 días de un plan de comidas.
 
 Se te darán los alimentos disponibles por categoría y las cantidades ya calculadas. Tu trabajo es SOLO decidir qué combinación va en cada día, siguiendo estas reglas:
 
 1. No repetir la misma combinación exacta de alimentos en días consecutivos
-2. Rotar los desayunos — usar variedad entre los alimentos de desayuno_1 y desayuno_2 disponibles
+${breakfastInstruction}
 3. Variar las proteínas, carbs y fibras entre días
 4. Usar ÚNICAMENTE los nombres exactos de alimentos que se te dan
 5. Cada alimento debe aparecer al menos una vez en los 7 días
