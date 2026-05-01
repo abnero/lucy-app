@@ -1164,6 +1164,143 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
 
+    // ═══ PASO 3.5: Post-rotation protein enforcement per day ═══
+    // The cantidadMap assigns one quantity per food globally. But Claude's rotation
+    // puts different protein sources on different days. Days with lean proteins may
+    // fall short on protein even when kcal is fine. This step adjusts per-day.
+    const dayOverrides = new Map<string, number>() // key: `${dia}-${nombre.toLowerCase()}`
+
+    // Build food lookup early (also used by Paso 4)
+    const allFoodsLookup = new Map<string, AlimentoData>()
+    for (const foods of Object.values(alimentosPorCategoria)) {
+      for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
+    }
+
+    const PROT_TOLERANCE = 10 // grams — same as analizarCalendario
+
+    for (const dia of plan.dias) {
+      // 1. Calculate real protein and kcal for this day using cantidadMap quantities
+      let dayProt = 0
+      let dayCal = 0
+      const dayItems: { nombre: string; comida: string; food: AlimentoData; qty: number }[] = []
+
+      for (const comida of ['desayuno', 'almuerzo', 'cena'] as const) {
+        const items = dia[comida]
+        if (!items) continue
+        for (const item of items) {
+          const key = item.alimento.toLowerCase()
+          const food = allFoodsLookup.get(key)
+          if (!food) continue
+          const qty = cantidadMap.get(key)?.cantidad ?? item.cantidad
+          const itemCal = calPerUnit(food) * qty
+          const itemProt = protPerUnit(food) * qty
+          dayCal += itemCal
+          dayProt += itemProt
+          dayItems.push({ nombre: key, comida, food, qty })
+        }
+      }
+
+      const protDeficit = protTarget - dayProt
+      if (protDeficit <= PROT_TOLERANCE) {
+        console.log(`[prot-day] día ${dia.dia}: prot=${Math.round(dayProt)}g (target ${protTarget}g) — OK`)
+        continue
+      }
+
+      console.log(`[prot-day] día ${dia.dia}: prot=${Math.round(dayProt)}g, deficit=${Math.round(protDeficit)}g — adjusting`)
+
+      // 2. Find protein-role foods in this day, sorted by protein density (best prot/kcal first)
+      const proteinItems = dayItems.filter(i =>
+        (i.food.rol_permitido || []).includes('Proteina') || i.food.categoria_comida === 'proteina'
+      ).sort((a, b) => {
+        // Sort by protein-per-calorie ratio descending (lean proteins first — they add prot with less kcal cost)
+        const ratioA = protPerUnit(a.food) / (calPerUnit(a.food) || 1)
+        const ratioB = protPerUnit(b.food) / (calPerUnit(b.food) || 1)
+        return ratioB - ratioA
+      })
+
+      let remainingProtDeficit = protDeficit
+      const calAdded: { nombre: string; extraCal: number }[] = []
+
+      // 3. Increase protein foods toward porcion_max
+      for (const pi of proteinItems) {
+        if (remainingProtDeficit <= 0) break
+        const max = getMax(pi.food)
+        const currentQty = dayOverrides.get(`${dia.dia}-${pi.nombre}`) ?? pi.qty
+        if (currentQty >= max) continue
+
+        const ppu = protPerUnit(pi.food)
+        if (ppu <= 0) continue
+
+        const neededQty = remainingProtDeficit / ppu
+        let newQty = Math.min(max, Math.round(currentQty + neededQty))
+        if (pi.food.unidad_medida === 'unidad') {
+          newQty = Math.max(getMin(pi.food), Math.min(max, Math.round(newQty)))
+        }
+
+        const actualExtra = newQty - currentQty
+        if (actualExtra <= 0) continue
+
+        const extraProt = ppu * actualExtra
+        const extraCal = calPerUnit(pi.food) * actualExtra
+
+        dayOverrides.set(`${dia.dia}-${pi.nombre}`, newQty)
+        remainingProtDeficit -= extraProt
+        calAdded.push({ nombre: pi.nombre, extraCal })
+
+        console.log(`[prot-day] día ${dia.dia}: ↑ ${pi.food.nombre} ${currentQty}→${newQty}, +${Math.round(extraProt)}g prot, +${Math.round(extraCal)} kcal`)
+      }
+
+      // 4. If protein increase pushed kcal over +10%, compensate by reducing non-protein foods
+      const totalExtraCal = calAdded.reduce((s, c) => s + c.extraCal, 0)
+      const newDayCal = dayCal + totalExtraCal
+      const calOverage = newDayCal - calTarget * 1.10
+
+      if (calOverage > 0) {
+        console.log(`[prot-day] día ${dia.dia}: kcal overshoot ${Math.round(newDayCal)} (limit ${Math.round(calTarget * 1.10)}), compensating ${Math.round(calOverage)} kcal`)
+
+        // Reduce non-protein foods: carbohidrato first (35% share = most room), then grasa, then fibra
+        const nonProteinItems = dayItems
+          .filter(i => !proteinItems.some(p => p.nombre === i.nombre))
+          .sort((a, b) => {
+            // Prefer reducing high-density foods first
+            return calPerUnit(b.food) - calPerUnit(a.food)
+          })
+
+        let calToReduce = calOverage
+        for (const npi of nonProteinItems) {
+          if (calToReduce <= 0) break
+          const currentQty = dayOverrides.get(`${dia.dia}-${npi.nombre}`) ?? npi.qty
+          const min = getMin(npi.food)
+          if (currentQty <= min) continue
+
+          const cpu = calPerUnit(npi.food)
+          if (cpu <= 0) continue
+
+          const reduceQty = Math.min(currentQty - min, calToReduce / cpu)
+          const newQty = Math.max(min, Math.round(currentQty - reduceQty))
+          const actualReduce = currentQty - newQty
+          if (actualReduce <= 0) continue
+
+          const calReduced = cpu * actualReduce
+          calToReduce -= calReduced
+          dayOverrides.set(`${dia.dia}-${npi.nombre}`, newQty)
+
+          console.log(`[prot-day] día ${dia.dia}: ↓ ${npi.food.nombre} ${currentQty}→${newQty}, -${Math.round(calReduced)} kcal`)
+        }
+      }
+
+      // 5. Log final day state
+      let finalProt = 0, finalCal = 0
+      for (const di of dayItems) {
+        const qty = dayOverrides.get(`${dia.dia}-${di.nombre}`) ?? di.qty
+        finalProt += protPerUnit(di.food) * qty
+        finalCal += calPerUnit(di.food) * qty
+      }
+      console.log(`[prot-day] día ${dia.dia}: FINAL prot=${Math.round(finalProt)}g, kcal=${Math.round(finalCal)}`)
+    }
+
+    console.log('[prot-day] overrides:', dayOverrides.size, 'entries')
+
     // ═══ Check for existing personalizations (for first-gen messages) ═══
     const { data: personalizaciones } = await supabase
       .from('calendario')
@@ -1241,11 +1378,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     // Regeneration message is built AFTER post-generation analysis (see below)
 
     // ═══ PASO 4: Save calendar using backend-calculated quantities ═══
-    // Build a lookup for calPerUnit by nombre (lowercase)
-    const allFoodsLookup = new Map<string, AlimentoData>()
-    for (const foods of Object.values(alimentosPorCategoria)) {
-      for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
-    }
+    // allFoodsLookup already built in Paso 3.5
 
     const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
     const comprasTotals = new Map<string, { alimentoId: string; cantidad: number; unidad: string }>()
@@ -1261,9 +1394,11 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
             continue
           }
 
-          // Use backend-calculated quantity, NOT Claude's
+          // Use per-day override (Paso 3.5) if available, else global cantidadMap
+          const overrideKey = `${dia.dia}-${item.alimento.toLowerCase()}`
+          const dayOverrideQty = dayOverrides.get(overrideKey)
           const entry = cantidadMap.get(item.alimento.toLowerCase())
-          let cantidad = entry?.cantidad ?? item.cantidad
+          let cantidad = dayOverrideQty ?? entry?.cantidad ?? item.cantidad
           const unidad = entry?.unidad ?? item.unidad
 
           // Final safety: enforce porcion_min as absolute floor
