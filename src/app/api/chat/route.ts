@@ -99,18 +99,13 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: 'calcular_macros_dia',
-    description: 'Calcula los macros consumidos y restantes de un día específico. Usa esto cuando la usuaria pida un snack para saber cuántos macros le quedan. Puedes filtrar por comidas ya consumidas (solo desayuno, desayuno+almuerzo, o todas).',
+    description: 'Calcula los macros totales del plan para un día específico (desayuno+almuerzo+cena+snacks). Usa esto cuando la usuaria pregunte calorías, macros o proteína de un día, o antes de sugerir snacks.',
     input_schema: {
       type: 'object' as const,
       properties: {
         dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
-        comidas_consumidas: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Lista de comidas ya consumidas: ["desayuno"], ["desayuno","almuerzo"], o ["desayuno","almuerzo","cena"]',
-        },
       },
-      required: ['dia', 'comidas_consumidas'],
+      required: ['dia'],
     },
   },
   {
@@ -558,15 +553,41 @@ async function executeAgregarSnack(
     resolved.push({ food, cantidad })
   }
 
+  // Bug #35: Check for duplicate snacks before inserting
   const allRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
+  const skippedDuplicates: { nombre: string; dia: number }[] = []
 
   for (const { food, cantidad } of resolved) {
     for (const d of dias) {
+      // Check if this exact snack already exists for this day
+      const { data: existing } = await supabase
+        .from('calendario')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('dia', d)
+        .eq('comida', 'snack')
+        .eq('alimento_id', food.id)
+        .limit(1)
+
+      if (existing && existing.length > 0) {
+        skippedDuplicates.push({ nombre: food.nombre, dia: d })
+        continue
+      }
       allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida, origen: 'chat' })
     }
   }
 
-  console.log(`[agregar_snack] Inserting ${allRows.length} rows for dias=[${dias.join(',')}]`)
+  // If ALL rows were duplicates, return early
+  if (allRows.length === 0) {
+    if (skippedDuplicates.length === 1) {
+      const dup = skippedDuplicates[0]
+      return { result: `${dup.nombre} ya está como snack el ${DIAS_NOMBRES[dup.dia - 1]}. Si quieres cambiarlo por otro, usa cambiar_alimento.` }
+    }
+    const names = Array.from(new Set(skippedDuplicates.map(d => d.nombre))).join(', ')
+    return { result: `${names} ya está(n) como snack en esos días. Si quieres cambiarlos, usa cambiar_alimento.` }
+  }
+
+  console.log(`[agregar_snack] Inserting ${allRows.length} rows for dias=[${dias.join(',')}] (skipped ${skippedDuplicates.length} duplicates)`)
   const { data: inserted, error } = await supabase.from('calendario').insert(allRows).select('id')
   if (error) {
     console.error('[agregar_snack] Insert error:', error.message, error.details, error.hint)
@@ -576,10 +597,12 @@ async function executeAgregarSnack(
 
   const revertData: RevertData = { type: 'snack', insertedIds: inserted?.map(r => r.id) || [], userId }
 
-  // Update lista_compras
+  // Update lista_compras (only count actually inserted days per food)
   for (const { food, cantidad } of resolved) {
     if (!food) continue
-    const total = cantidad * dias.length
+    const insertedDaysForFood = allRows.filter(r => r.alimento_id === food.id).length
+    if (insertedDaysForFood === 0) continue
+    const total = cantidad * insertedDaysForFood
     const { data: existing } = await supabase.from('lista_compras').select('id, cantidad_total').eq('user_id', userId).eq('alimento_id', food.id).single()
     if (existing) {
       await supabase.from('lista_compras').update({ cantidad_total: existing.cantidad_total + total }).eq('id', existing.id)
@@ -588,19 +611,25 @@ async function executeAgregarSnack(
     }
   }
 
-  const diasText = dia === 'todos' ? 'todos los días' : DIAS_NOMBRES[parseInt(dia) - 1]
+  // Build response — only mention actually inserted foods/days
+  const insertedDias = Array.from(new Set(allRows.map(r => r.dia)))
+  const diasText = insertedDias.length === 7 ? 'todos los días' : insertedDias.map(d => DIAS_NOMBRES[d - 1]).join(', ')
   let totalCals = 0
   const details: string[] = []
+  const insertedFoodIds = new Set(allRows.map(r => r.alimento_id))
   for (const { food, cantidad } of resolved) {
-    if (!food) continue
+    if (!food || !insertedFoodIds.has(food.id)) continue
     const ratio = food.unidad_medida === 'unidad' ? cantidad : cantidad / (food.porcion_base || 100)
     totalCals += food.calorias_por_unidad * ratio
     details.push(`${cantidad}${food.unidad_medida} de ${food.nombre}`)
   }
   const listaMsg = dia === 'todos' ? ' Tu lista de compras también se actualizó.' : ''
+  const dupMsg = skippedDuplicates.length > 0
+    ? ` (${Array.from(new Set(skippedDuplicates.map(d => d.nombre))).join(', ')} ya existía como snack en ${skippedDuplicates.length === 1 ? DIAS_NOMBRES[skippedDuplicates[0].dia - 1] : 'algunos días'} — no se duplicó)`
+    : ''
 
   return {
-    result: `Añadí como snack el ${diasText}: ${details.join(', ')}. Total: ~${Math.round(totalCals)} kcal.${listaMsg}`,
+    result: `Añadí como snack el ${diasText}: ${details.join(', ')}. Total: ~${Math.round(totalCals)} kcal.${listaMsg}${dupMsg}`,
     revertData,
   }
 }
@@ -608,9 +637,9 @@ async function executeAgregarSnack(
 async function executeCalcularMacrosDia(
   supabase: SupabaseClient,
   userId: string,
-  input: { dia: number; comidas_consumidas: string[] }
+  input: { dia: number }
 ): Promise<string> {
-  const { dia, comidas_consumidas } = input
+  const { dia } = input
 
   // Get user macros
   const { data: usuario } = await supabase
@@ -624,7 +653,7 @@ async function executeCalcularMacrosDia(
   // Get calendar items for that day with nutrition info
   const { data: items } = await supabase
     .from('calendario')
-    .select('comida, cantidad, alimento:alimentos(nombre, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base)')
+    .select('comida, cantidad, alimento:alimentos(nombre, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida)')
     .eq('user_id', userId)
     .eq('dia', dia)
 
@@ -632,25 +661,24 @@ async function executeCalcularMacrosDia(
     return `No hay comidas programadas para el ${DIAS_NOMBRES[dia - 1]}. Macros restantes: ${usuario.calorias_objetivo} kcal, P:${usuario.proteina_objetivo}g, C:${usuario.carbs_objetivo}g, G:${usuario.grasas_objetivo}g.`
   }
 
-  // Calculate consumed macros
-  let calConsumed = 0, protConsumed = 0, carbsConsumed = 0, grasasConsumed = 0
+  // Calculate total plan macros for the day (all meals + snacks)
+  let calTotal = 0, protTotal = 0, carbsTotal = 0, grasasTotal = 0
 
   for (const item of items) {
-    if (!comidas_consumidas.includes(item.comida)) continue
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const a = (Array.isArray(item.alimento) ? (item.alimento as any)[0] : item.alimento) as any
     if (!a) continue
     const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
-    calConsumed += a.calorias_por_unidad * ratio
-    protConsumed += a.proteina_por_unidad * ratio
-    carbsConsumed += a.carbs_por_unidad * ratio
-    grasasConsumed += a.grasas_por_unidad * ratio
+    calTotal += a.calorias_por_unidad * ratio
+    protTotal += a.proteina_por_unidad * ratio
+    carbsTotal += a.carbs_por_unidad * ratio
+    grasasTotal += a.grasas_por_unidad * ratio
   }
 
-  const calRemaining = Math.round(usuario.calorias_objetivo - calConsumed)
-  const protRemaining = Math.round(usuario.proteina_objetivo - protConsumed)
-  const carbsRemaining = Math.round(usuario.carbs_objetivo - carbsConsumed)
-  const grasasRemaining = Math.round(usuario.grasas_objetivo - grasasConsumed)
+  const calRemaining = Math.round(usuario.calorias_objetivo - calTotal)
+  const protRemaining = Math.round(usuario.proteina_objetivo - protTotal)
+  const carbsRemaining = Math.round(usuario.carbs_objetivo - carbsTotal)
+  const grasasRemaining = Math.round(usuario.grasas_objetivo - grasasTotal)
 
   // Get snack-appropriate foods: fruits, nuts, yogurt, cottage cheese, nut butters
   const { data: allFoods } = await supabase
@@ -681,10 +709,10 @@ async function executeCalcularMacrosDia(
     }
   }
 
-  const comidasText = comidas_consumidas.join(', ')
-  return `${DIAS_NOMBRES[dia - 1]} — Ya consumió: ${comidasText}.
-Macros consumidos: ${Math.round(calConsumed)} kcal, P:${Math.round(protConsumed)}g, C:${Math.round(carbsConsumed)}g, G:${Math.round(grasasConsumed)}g.
-Macros restantes: ${calRemaining} kcal, P:${protRemaining}g, C:${carbsRemaining}g, G:${grasasRemaining}g.
+  return `${DIAS_NOMBRES[dia - 1]} — Total del plan:
+Macros totales: ${Math.round(calTotal)} kcal, P:${Math.round(protTotal)}g, C:${Math.round(carbsTotal)}g, G:${Math.round(grasasTotal)}g.
+Objetivo: ${usuario.calorias_objetivo} kcal, P:${usuario.proteina_objetivo}g, C:${usuario.carbs_objetivo}g, G:${usuario.grasas_objetivo}g.
+Diferencia: ${calRemaining >= 0 ? calRemaining : Math.abs(calRemaining)} kcal ${calRemaining >= 0 ? 'disponibles' : 'por encima'}, P:${protRemaining >= 0 ? protRemaining : Math.abs(protRemaining)}g ${protRemaining >= 0 ? 'disponibles' : 'por encima'}, C:${carbsRemaining >= 0 ? carbsRemaining : Math.abs(carbsRemaining)}g ${carbsRemaining >= 0 ? 'disponibles' : 'por encima'}, G:${grasasRemaining >= 0 ? grasasRemaining : Math.abs(grasasRemaining)}g ${grasasRemaining >= 0 ? 'disponibles' : 'por encima'}.
 Alimentos que caben como snack: ${suggestions.slice(0, 8).join(' | ')}`
 }
 
@@ -1283,7 +1311,8 @@ function buildCalendarioTexto(
         if (!cpu || !pb) {
           kcal = '? kcal'
         } else {
-          kcal = `${Math.round((i.cantidad / pb) * cpu)} kcal`
+          const ratio = um === 'unidad' ? i.cantidad : i.cantidad / pb
+          kcal = `${Math.round(ratio * cpu)} kcal`
         }
         return `${nombre} (${i.cantidad} ${unidadLabel}, ${kcal})`
       }).join(', ')
@@ -1368,7 +1397,7 @@ export async function POST(req: NextRequest) {
       .order('dia')
       .order('comida')
 
-    const calendarioTexto = buildCalendarioTexto(calendario)
+    let calendarioTexto = buildCalendarioTexto(calendario)
 
     // Fetch selected foods
     const { data: preferencias } = await supabase
@@ -1392,7 +1421,7 @@ export async function POST(req: NextRequest) {
         .join('\n')
     }
 
-    const systemPrompt = `═══ QUIÉN ES LUCY ═══
+    const systemPromptTemplate = `═══ QUIÉN ES LUCY ═══
 Lucy es una experta en nutrición y fitness con miles de casos de éxito. Conoce profundamente la ciencia detrás de la pérdida de peso sostenible. Pero cuando habla con sus usuarias, no habla como coach — habla como la mejor amiga que también resulta ser experta. Le habla de tú a tú, con calidez, sin juzgar, celebrando cada pequeño avance.
 Lucy no da órdenes. Lucy camina al lado.
 
@@ -1474,7 +1503,7 @@ Ejemplo 4 — Pregunta sobre alto en proteína:
 USUARIA: "qué tengo que sea alto en proteína?"
 RESPUESTA CORRECTA: "En tu plan, los más altos en proteína son: [lista del bloque CALENDARIO los alimentos con más proteína por porción real de la usuaria]. Querés agregar más proteína a algún día?"
 
-═══ CALENDARIO ═══${calendarioTexto}
+═══ CALENDARIO ═══PLACEHOLDER_CALENDARIO
 
 ═══ ALIMENTOS SELECCIONADOS ═══
 ${alimentosTexto || '(Ninguno)'}
@@ -1485,7 +1514,7 @@ ${alimentosTexto || '(Ninguno)'}
 2. reemplazar_comida_completa — Reemplazar TODA una comida con ingredientes nuevos. REQUIERE confirmación previa.
 3. agregar_ingrediente_a_comida — Añadir un ingrediente nuevo a una comida existente (compensa reduciendo misma categoría).
 4. eliminar_ingrediente_de_comida — Eliminar un ingrediente de una comida.
-5. calcular_macros_dia — Calcular macros consumidos/restantes de un día. SIEMPRE úsalo ANTES de sugerir snacks.
+5. calcular_macros_dia — Calcular macros totales del plan para un día (todas las comidas + snacks). SIEMPRE úsalo ANTES de sugerir snacks y cuando pregunten calorías/macros.
 6. agregar_snack — Añadir snack (1 o varios ingredientes con ingredientes[]). Usa dia="todos" para diario.
 7. buscar_macros_usda — Buscar macros de alimentos (uso interno, NUNCA mencionar a la usuaria).
 8. buscar_o_crear_alimento — Registrar alimento nuevo. Pedir confirmación de macros antes de crear.
@@ -1508,9 +1537,8 @@ ${alimentosTexto || '(Ninguno)'}
 NUNCA sugieras y ejecutes en el mismo turno.
 
 ═══ PROTOCOLO SNACKS ═══
-1. Pregunta qué ya comió hoy
-2. Usa calcular_macros_dia
-3. Sugiere 2-3 opciones que quepan en los macros restantes
+1. Usa calcular_macros_dia para ver macros totales y disponibles del día
+2. Sugiere 2-3 opciones que quepan en los macros disponibles
 4. Espera confirmación → ejecuta agregar_snack
 Para snacks compuestos ("yogur con arándanos"): usa ingredientes[] en agregar_snack.
 Al confirmar un snack, menciona SOLO lo que acabas de añadir. No menciones snacks anteriores ni otros cambios. Cada snack es independiente.
@@ -1539,6 +1567,9 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 - Máximo 4-5 ingredientes. Siempre incluye proteína.
 
 ═══ REGLAS OBLIGATORIAS ═══
+
+⚠️ REGLA ABSOLUTA #0 — MACROS SIEMPRE DESDE TOOL:
+Cuando la usuaria pregunte macros, calorías consumidas, proteína de un día, o cualquier dato numérico del plan, SIEMPRE invoca calcular_macros_dia. NUNCA uses el bloque ═══ CALENDARIO ═══ de arriba para calcular totales — puede estar desactualizado si hiciste cambios en esta misma conversación. El CALENDARIO sirve para saber QUÉ alimentos hay; los NÚMEROS actualizados solo vienen del tool.
 
 ⚠️ REGLA ABSOLUTA #1: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
 
@@ -1608,6 +1639,9 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
 - Si cambias la cena, el almuerzo del día siguiente debe ser igual
 - Después de cada cambio, confirma qué cambiaste con cantidades exactas`
 
+    // Bug #50a: systemPrompt uses a placeholder for CALENDARIO so it can be rebuilt with fresh data
+    let systemPrompt = systemPromptTemplate.replace('PLACEHOLDER_CALENDARIO', calendarioTexto)
+
     // Load conversation history from Supabase (last 30 messages)
     const { data: history } = await supabase
       .from('conversaciones')
@@ -1672,7 +1706,6 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         } else if (name === 'calcular_macros_dia') {
           return await executeCalcularMacrosDia(supabase, userId, {
             dia: input.dia as number,
-            comidas_consumidas: input.comidas_consumidas as string[],
           })
         } else if (name === 'reemplazar_comida_completa') {
           const { result, revertData } = await executeReemplazarComidaCompleta(supabase, userId, {
@@ -1824,14 +1857,27 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             const daysArray = Array.from(affectedDays)
             const { data: postCalendar } = await supabase
               .from('calendario')
-              .select('dia, cantidad, alimento:alimentos(id, nombre, calorias_por_unidad, proteina_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
+              .select('dia, cantidad, alimento:alimentos(id, nombre, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, rol_permitido)')
               .eq('user_id', userId)
               .in('dia', daysArray)
 
+            type PostCalendarAlimento = {
+              id: string; nombre: string; calorias_por_unidad: number; proteina_por_unidad: number;
+              carbs_por_unidad: number; grasas_por_unidad: number; porcion_base: number;
+              porcion_min: number; porcion_max: number; unidad_medida: 'gramos' | 'ml' | 'unidad'; rol_permitido: string[];
+            }
+            type PostCalendarRow = {
+              dia: number; cantidad: number;
+              alimento: PostCalendarAlimento | PostCalendarAlimento[] | null;
+            }
+
             if (postCalendar && postCalendar.length > 0) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const alimentosPost: AlimentoCalendario[] = postCalendar.map((row: any) => {
-                const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
+              const rows = postCalendar as unknown as PostCalendarRow[]
+              const unwrapAlimento = (row: PostCalendarRow): PostCalendarAlimento | null =>
+                Array.isArray(row.alimento) ? row.alimento[0] ?? null : row.alimento
+
+              const alimentosPost: AlimentoCalendario[] = rows.map((row) => {
+                const a = unwrapAlimento(row)
                 return {
                   alimento_id: a?.id ?? '',
                   nombre: a?.nombre ?? '',
@@ -1850,6 +1896,28 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
 
               const analisis = analizarCalendario(alimentosPost, usuario.calorias_objetivo, usuario.proteina_objetivo)
 
+              // Bug #50: Compute fresh day totals from postCalendar so Claude never uses stale data
+              const dayTotals: Map<number, { kcal: number; prot: number; carbs: number; grasas: number }> = new Map()
+              for (const row of rows) {
+                const a = unwrapAlimento(row)
+                if (!a) continue
+                const ratio = a.unidad_medida === 'unidad' ? row.cantidad : row.cantidad / (a.porcion_base || 100)
+                const prev = dayTotals.get(row.dia) || { kcal: 0, prot: 0, carbs: 0, grasas: 0 }
+                prev.kcal += (a.calorias_por_unidad || 0) * ratio
+                prev.prot += (a.proteina_por_unidad || 0) * ratio
+                prev.carbs += (a.carbs_por_unidad || 0) * ratio
+                prev.grasas += (a.grasas_por_unidad || 0) * ratio
+                dayTotals.set(row.dia, prev)
+              }
+
+              const freshTotalsLines: string[] = []
+              for (const d of daysArray.sort((a, b) => a - b)) {
+                const t = dayTotals.get(d) || { kcal: 0, prot: 0, carbs: 0, grasas: 0 }
+                freshTotalsLines.push(
+                  `📊 TOTALES_FRESCOS día ${d} (${DIAS_NOMBRES[d - 1]}): ${Math.round(t.kcal)} kcal, P:${Math.round(t.prot)}g, C:${Math.round(t.carbs)}g, G:${Math.round(t.grasas)}g (objetivo: ${usuario.calorias_objetivo} kcal, P:${usuario.proteina_objetivo}g)`
+                )
+              }
+
               // Build warnings for days that are out of tolerance
               const warnings: string[] = []
               for (const dp of analisis.dias_problematicos) {
@@ -1867,12 +1935,13 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
                 console.log(JSON.stringify({ event: 'post_tool_ok', tool: mutatingCalls.map(b => b.type === 'tool_use' ? b.name : '').join(','), dia }))
               }
 
-              // Append warnings to last tool result
-              if (warnings.length > 0 && toolResults.length > 0) {
+              // Append fresh totals + warnings to last tool result
+              const postToolFooter = [...freshTotalsLines, ...warnings].join('\n')
+              if (postToolFooter && toolResults.length > 0) {
                 const lastIdx = toolResults.length - 1
                 toolResults[lastIdx] = {
                   ...toolResults[lastIdx],
-                  content: toolResults[lastIdx].content + '\n\n' + warnings.join('\n'),
+                  content: toolResults[lastIdx].content + '\n\n' + postToolFooter,
                 }
               }
             }
@@ -1880,6 +1949,21 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         } catch (hookErr) {
           // Hook must never break the chat flow
           console.error('[post-tool-hook] Error:', hookErr)
+        }
+
+        // Bug #50a: Rebuild systemPrompt with fresh calendario after mutations
+        try {
+          const { data: freshCalendario } = await supabase
+            .from('calendario')
+            .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
+            .eq('user_id', userId)
+            .order('dia')
+            .order('comida')
+          calendarioTexto = buildCalendarioTexto(freshCalendario)
+          systemPrompt = systemPromptTemplate.replace('PLACEHOLDER_CALENDARIO', calendarioTexto)
+          console.log('[post-mutation] Rebuilt systemPrompt with fresh calendario')
+        } catch (rebuildErr) {
+          console.error('[post-mutation] Failed to rebuild calendario:', rebuildErr)
         }
       }
 
