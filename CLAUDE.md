@@ -159,6 +159,37 @@ Detalle completo en `01 - Lucy Producto/Filosofía y reglas.md` y `Workflow de d
 
 ---
 
+## Query oficial del producto para días dentro de tolerancia
+
+La métrica primaria del producto es bilateral. Un día está OK si:
+
+```sql
+ABS(kcal_dia - meta_cal) <= meta_cal * 0.10 
+AND ABS(prot_dia - meta_prot) <= 10
+```
+
+Donde kcal_dia y prot_dia se calculan con:
+
+```sql
+SUM(
+  CASE 
+    WHEN a.unidad_medida = 'unidad' 
+    THEN c.cantidad * a.calorias_por_unidad
+    ELSE (c.cantidad / a.porcion_base) * a.calorias_por_unidad
+  END
+) AS kcal_dia
+```
+
+(análoga para proteína usando proteina_por_unidad).
+
+NO usar `prot >= meta - 10` (unilateral, ignora exceso). NO usar `ABS(kcal - meta) / meta` (porcentaje no normalizado). NO agrupar de otra forma sin documentar el cambio.
+
+Cualquier reporte de validación con métricas de tolerancia debe usar exactamente esta query. Cualquier desviación es bug del reporte.
+
+**Tensión conocida (Bug #45-D):** La regla del producto "NUNCA reducir proteína" (chat system prompt) puede causar exceso de proteína >10g en días donde el loop sube proteína para cerrar déficit. Esto hace que el día falle bilateral aunque la usuaria no se perjudica (come más proteína, no menos). Se evalúa con data de cohorte real post-merge.
+
+---
+
 ## REGLA — Supabase producción compartida
 
 Hasta que tengamos proyecto Supabase separado para staging, el proyecto `anbpsybyipvbczzuqkjw` **ES producción** para todos los efectos. La preview de Vercel comparte la misma DB que lucy.fit.
@@ -196,3 +227,42 @@ Cuando Abner te dé una tarea nueva:
 ## Si algo no está en este archivo
 
 El vault es la fuente de verdad. Siempre priorizar vault sobre memoria o suposiciones. Si el vault no tiene la respuesta, preguntar a Abner antes de asumir.
+
+<!-- code-review-graph MCP tools -->
+## MCP Tools: code-review-graph
+
+**IMPORTANT: This project has a knowledge graph. ALWAYS use the
+code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
+the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+you structural context (callers, dependents, test coverage) that file
+scanning cannot.
+
+### When to use graph tools FIRST
+
+- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
+- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
+- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
+- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
+- **Architecture questions**: `get_architecture_overview` + `list_communities`
+
+Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+
+### Key Tools
+
+| Tool | Use when |
+|------|----------|
+| `detect_changes` | Reviewing code changes — gives risk-scored analysis |
+| `get_review_context` | Need source snippets for review — token-efficient |
+| `get_impact_radius` | Understanding blast radius of a change |
+| `get_affected_flows` | Finding which execution paths are impacted |
+| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
+| `semantic_search_nodes` | Finding functions/classes by name or keyword |
+| `get_architecture_overview` | Understanding high-level codebase structure |
+| `refactor_tool` | Planning renames, finding dead code |
+
+### Workflow
+
+1. The graph auto-updates on file changes (via hooks).
+2. Use `detect_changes` for code review.
+3. Use `get_affected_flows` to understand impact.
+4. Use `query_graph` pattern="tests_for" to check coverage.
