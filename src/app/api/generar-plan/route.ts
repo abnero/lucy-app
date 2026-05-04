@@ -1164,26 +1164,39 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
     const plan: { dias: PlanDia[] } = JSON.parse(jsonMatch[0])
 
-    // ═══ PASO 3.5: Post-rotation protein enforcement per day ═══
-    // The cantidadMap assigns one quantity per food globally. But Claude's rotation
-    // puts different protein sources on different days. Days with lean proteins may
-    // fall short on protein even when kcal is fine. This step adjusts per-day.
+    // ═══ PASO 3.5: Iterative per-day quantity tuning ═══
+    // Replicates the manual coach process: for each day, adjust quantities
+    // iteratively until kcal ±10% AND prot ±10g, or give up after max iterations.
     const dayOverrides = new Map<string, number>() // key: `${dia}-${nombre.toLowerCase()}`
+    const snackRows: { dia: number; food: AlimentoData; cantidad: number }[] = []
 
-    // Build food lookup early (also used by Paso 4)
+    // Build food lookup (also used by Paso 4)
     const allFoodsLookup = new Map<string, AlimentoData>()
     for (const foods of Object.values(alimentosPorCategoria)) {
       for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
     }
 
-    const PROT_TOLERANCE = 10 // grams — same as analizarCalendario
+    // Build snack candidate pool: breakfast-role foods + grasas, sorted by prot/kcal ratio desc
+    const snackCandidates = Array.from(allFoodsLookup.values())
+      .filter(f => {
+        const roles = f.rol_permitido || []
+        return roles.includes('Desayuno_1') || roles.includes('Desayuno_2') || f.categoria_comida === 'grasa'
+      })
+      .sort((a, b) => {
+        const ratioA = protPerUnit(a) / (calPerUnit(a) || 1)
+        const ratioB = protPerUnit(b) / (calPerUnit(b) || 1)
+        return ratioB - ratioA
+      })
+
+    const CAL_TOL = calTarget * 0.10
+    const PROT_TOL = 10
+    const MAX_ITER = 10
+    const MAX_SNACK_KCAL = 250
 
     for (const dia of plan.dias) {
-      // 1. Calculate real protein and kcal for this day using cantidadMap quantities
-      let dayProt = 0
-      let dayCal = 0
-      const dayItems: { nombre: string; comida: string; food: AlimentoData; qty: number }[] = []
-
+      // Build day items with current quantities from cantidadMap
+      type DayItem = { nombre: string; comida: string; food: AlimentoData; qty: number }
+      const dayItems: DayItem[] = []
       for (const comida of ['desayuno', 'almuerzo', 'cena'] as const) {
         const items = dia[comida]
         if (!items) continue
@@ -1192,114 +1205,204 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
           const food = allFoodsLookup.get(key)
           if (!food) continue
           const qty = cantidadMap.get(key)?.cantidad ?? item.cantidad
-          const itemCal = calPerUnit(food) * qty
-          const itemProt = protPerUnit(food) * qty
-          dayCal += itemCal
-          dayProt += itemProt
           dayItems.push({ nombre: key, comida, food, qty })
         }
       }
 
-      const protDeficit = protTarget - dayProt
-      if (protDeficit <= PROT_TOLERANCE) {
-        console.log(`[prot-day] día ${dia.dia}: prot=${Math.round(dayProt)}g (target ${protTarget}g) — OK`)
-        continue
+      const getQty = (di: DayItem) => dayOverrides.get(`${dia.dia}-${di.nombre}`) ?? di.qty
+      const setQty = (di: DayItem, q: number) => dayOverrides.set(`${dia.dia}-${di.nombre}`, q)
+      const sumDay = () => {
+        let kcal = 0, prot = 0
+        for (const di of dayItems) { const q = getQty(di); kcal += calPerUnit(di.food) * q; prot += protPerUnit(di.food) * q }
+        // Include snacks added to this day
+        for (const s of snackRows) { if (s.dia === dia.dia) { kcal += calPerUnit(s.food) * s.cantidad; prot += protPerUnit(s.food) * s.cantidad } }
+        return { kcal, prot }
       }
+      const isOk = (s: { kcal: number; prot: number }) =>
+        Math.abs(s.kcal - calTarget) <= CAL_TOL && s.prot >= protTarget - PROT_TOL
 
-      console.log(`[prot-day] día ${dia.dia}: prot=${Math.round(dayProt)}g, deficit=${Math.round(protDeficit)}g — adjusting`)
+      let snackAdded = false
 
-      // 2. Find protein-role foods in this day, sorted by protein density (best prot/kcal first)
-      const proteinItems = dayItems.filter(i =>
-        (i.food.rol_permitido || []).includes('Proteina') || i.food.categoria_comida === 'proteina'
-      ).sort((a, b) => {
-        // Sort by protein-per-calorie ratio descending (lean proteins first — they add prot with less kcal cost)
-        const ratioA = protPerUnit(a.food) / (calPerUnit(a.food) || 1)
-        const ratioB = protPerUnit(b.food) / (calPerUnit(b.food) || 1)
-        return ratioB - ratioA
-      })
+      for (let iter = 1; iter <= MAX_ITER; iter++) {
+        const { kcal, prot } = sumDay()
+        const kcalDelta = kcal - calTarget
+        const protDelta = prot - protTarget
 
-      let remainingProtDeficit = protDeficit
-      const calAdded: { nombre: string; extraCal: number }[] = []
-
-      // 3. Increase protein foods toward porcion_max
-      for (const pi of proteinItems) {
-        if (remainingProtDeficit <= 0) break
-        const max = getMax(pi.food)
-        const currentQty = dayOverrides.get(`${dia.dia}-${pi.nombre}`) ?? pi.qty
-        if (currentQty >= max) continue
-
-        const ppu = protPerUnit(pi.food)
-        if (ppu <= 0) continue
-
-        const neededQty = remainingProtDeficit / ppu
-        let newQty = Math.min(max, Math.round(currentQty + neededQty))
-        if (pi.food.unidad_medida === 'unidad') {
-          newQty = Math.max(getMin(pi.food), Math.min(max, Math.round(newQty)))
+        if (isOk({ kcal, prot })) {
+          console.log(`[loop dia=${dia.dia} iter=${iter}] kcal=${Math.round(kcal)} (${kcalDelta > 0 ? '+' : ''}${Math.round(kcalDelta)}), prot=${Math.round(prot)}g (${protDelta > 0 ? '+' : ''}${Math.round(protDelta)}g) — OK`)
+          break
         }
 
-        const actualExtra = newQty - currentQty
-        if (actualExtra <= 0) continue
+        console.log(`[loop dia=${dia.dia} iter=${iter}] kcal=${Math.round(kcal)} (${kcalDelta > 0 ? '+' : ''}${Math.round(kcalDelta)}), prot=${Math.round(prot)}g (${protDelta > 0 ? '+' : ''}${Math.round(protDelta)}g)`)
 
-        const extraProt = ppu * actualExtra
-        const extraCal = calPerUnit(pi.food) * actualExtra
+        // Step 4: kcal deficit → raise quantities: protein first, then carbs, then fat
+        if (kcalDelta < -CAL_TOL) {
+          const deficit = Math.abs(kcalDelta)
+          const catOrder = ['proteina', 'carbohidrato', 'fibra', 'grasa']
+          let remaining = deficit
+          for (const cat of catOrder) {
+            if (remaining <= 10) break
+            const catItems = dayItems.filter(di => di.food.categoria_comida === cat)
+            for (const di of catItems) {
+              if (remaining <= 10) break
+              const cur = getQty(di)
+              const max = Math.max(getMin(di.food), getMax(di.food)) // defensive for Pana bug
+              if (cur >= max) continue
+              const cpu = calPerUnit(di.food)
+              if (cpu <= 0) continue
+              const addQty = Math.min(max - cur, remaining / cpu)
+              const newQty = Math.round(cur + addQty)
+              if (newQty <= cur) continue
+              const added = cpu * (newQty - cur)
+              setQty(di, newQty)
+              remaining -= added
+              console.log(`[loop dia=${dia.dia} iter=${iter}] ↑ ${di.food.nombre} ${Math.round(cur)}→${newQty} (+${Math.round(added)} kcal)`)
+            }
+          }
+        }
 
-        dayOverrides.set(`${dia.dia}-${pi.nombre}`, newQty)
-        remainingProtDeficit -= extraProt
-        calAdded.push({ nombre: pi.nombre, extraCal })
+        // Step 6: kcal excess → lower quantities: carbs first, then fat (never reduce protein)
+        if (kcalDelta > CAL_TOL) {
+          const excess = kcalDelta - CAL_TOL * 0.5 // aim for middle of tolerance
+          const catOrder = ['carbohidrato', 'grasa', 'fibra']
+          let remaining = excess
+          for (const cat of catOrder) {
+            if (remaining <= 10) break
+            const catItems = dayItems.filter(di => di.food.categoria_comida === cat)
+              .sort((a, b) => calPerUnit(b.food) - calPerUnit(a.food)) // reduce densest first
+            for (const di of catItems) {
+              if (remaining <= 10) break
+              const cur = getQty(di)
+              const min = Math.min(getMin(di.food), getMax(di.food)) // defensive
+              if (cur <= min) continue
+              const cpu = calPerUnit(di.food)
+              if (cpu <= 0) continue
+              const reduceQty = Math.min(cur - min, remaining / cpu)
+              const newQty = Math.max(min, Math.round(cur - reduceQty))
+              if (newQty >= cur) continue
+              const reduced = cpu * (cur - newQty)
+              setQty(di, newQty)
+              remaining -= reduced
+              console.log(`[loop dia=${dia.dia} iter=${iter}] ↓ ${di.food.nombre} ${Math.round(cur)}→${newQty} (-${Math.round(reduced)} kcal)`)
+            }
+          }
+        }
 
-        console.log(`[prot-day] día ${dia.dia}: ↑ ${pi.food.nombre} ${currentQty}→${newQty}, +${Math.round(extraProt)}g prot, +${Math.round(extraCal)} kcal`)
-      }
+        // Step 5: prot deficit → raise protein foods specifically
+        const postKcal = sumDay()
+        if (postKcal.prot < protTarget - PROT_TOL) {
+          const protItems = dayItems
+            .filter(di => di.food.categoria_comida === 'proteina' || (di.food.rol_permitido || []).includes('Proteina'))
+            .sort((a, b) => {
+              const ra = protPerUnit(a.food) / (calPerUnit(a.food) || 1)
+              const rb = protPerUnit(b.food) / (calPerUnit(b.food) || 1)
+              return rb - ra // best prot/kcal ratio first
+            })
+          let protNeeded = protTarget - postKcal.prot
+          for (const pi of protItems) {
+            if (protNeeded <= 0) break
+            const cur = getQty(pi)
+            const max = Math.max(getMin(pi.food), getMax(pi.food))
+            if (cur >= max) continue
+            const ppu = protPerUnit(pi.food)
+            if (ppu <= 0) continue
+            const addQty = Math.min(max - cur, protNeeded / ppu)
+            const newQty = Math.round(cur + addQty)
+            if (newQty <= cur) continue
+            const addedProt = ppu * (newQty - cur)
+            const addedCal = calPerUnit(pi.food) * (newQty - cur)
+            setQty(pi, newQty)
+            protNeeded -= addedProt
+            console.log(`[loop dia=${dia.dia} iter=${iter}] ���prot ${pi.food.nombre} ${Math.round(cur)}→${newQty} (+${Math.round(addedProt)}g prot, +${Math.round(addedCal)} kcal)`)
+          }
 
-      // 4. If protein increase pushed kcal over +10%, compensate by reducing non-protein foods
-      const totalExtraCal = calAdded.reduce((s, c) => s + c.extraCal, 0)
-      const newDayCal = dayCal + totalExtraCal
-      const calOverage = newDayCal - calTarget * 1.10
+          // If raising prot pushed kcal over +10%, compensate by lowering carbs/fat
+          const afterProt = sumDay()
+          if (afterProt.kcal > calTarget + CAL_TOL) {
+            const overage = afterProt.kcal - calTarget
+            const catOrder = ['carbohidrato', 'grasa', 'fibra']
+            let rem = overage
+            for (const cat of catOrder) {
+              if (rem <= 10) break
+              const catItems = dayItems.filter(di => di.food.categoria_comida === cat)
+                .sort((a, b) => calPerUnit(b.food) - calPerUnit(a.food))
+              for (const di of catItems) {
+                if (rem <= 10) break
+                const cur = getQty(di)
+                const min = Math.min(getMin(di.food), getMax(di.food))
+                if (cur <= min) continue
+                const cpu = calPerUnit(di.food)
+                if (cpu <= 0) continue
+                const reduceQty = Math.min(cur - min, rem / cpu)
+                const newQty = Math.max(min, Math.round(cur - reduceQty))
+                if (newQty >= cur) continue
+                const reduced = cpu * (cur - newQty)
+                setQty(di, newQty)
+                rem -= reduced
+                console.log(`[loop dia=${dia.dia} iter=${iter}] ↓comp ${di.food.nombre} ${Math.round(cur)}→${newQty} (-${Math.round(reduced)} kcal)`)
+              }
+            }
+          }
+        }
 
-      if (calOverage > 0) {
-        console.log(`[prot-day] día ${dia.dia}: kcal overshoot ${Math.round(newDayCal)} (limit ${Math.round(calTarget * 1.10)}), compensating ${Math.round(calOverage)} kcal`)
+        // Step 7: if still out after adjustments and no snack yet → add snack
+        const final = sumDay()
+        if (!isOk(final) && !snackAdded) {
+          const needProt = final.prot < protTarget - PROT_TOL
+          const needCal = final.kcal < calTarget - CAL_TOL
+          const kcalRoom = calTarget + CAL_TOL - final.kcal
 
-        // Reduce non-protein foods: carbohidrato first (35% share = most room), then grasa, then fibra
-        const nonProteinItems = dayItems
-          .filter(i => !proteinItems.some(p => p.nombre === i.nombre))
-          .sort((a, b) => {
-            // Prefer reducing high-density foods first
-            return calPerUnit(b.food) - calPerUnit(a.food)
-          })
+          if (kcalRoom > 30) { // only add snack if there's caloric room
+            // Pick best snack candidate
+            let bestSnack: AlimentoData | null = null
+            let bestQty = 0
+            let bestScore = -1
 
-        let calToReduce = calOverage
-        for (const npi of nonProteinItems) {
-          if (calToReduce <= 0) break
-          const currentQty = dayOverrides.get(`${dia.dia}-${npi.nombre}`) ?? npi.qty
-          const min = getMin(npi.food)
-          if (currentQty <= min) continue
+            for (const c of snackCandidates) {
+              const cpu = calPerUnit(c)
+              if (cpu <= 0) continue
+              // Size to fit kcal room, capped at MAX_SNACK_KCAL and porcion_max
+              const maxQtyByCal = Math.min(MAX_SNACK_KCAL, kcalRoom) / cpu
+              const qty = Math.min(Math.max(getMin(c), getMax(c)), Math.max(getMin(c), Math.round(maxQtyByCal)))
+              const snackCal = cpu * qty
+              if (snackCal > kcalRoom || snackCal > MAX_SNACK_KCAL) continue
+              const snackProt = protPerUnit(c) * qty
 
-          const cpu = calPerUnit(npi.food)
-          if (cpu <= 0) continue
+              // Score: prioritize what the day needs
+              let score = 0
+              if (needProt) score += snackProt * 3 // weight protein heavily
+              if (needCal) score += snackCal * 0.5
+              if (!needProt && !needCal) score += snackCal * 0.3 + snackProt * 1 // balanced
 
-          const reduceQty = Math.min(currentQty - min, calToReduce / cpu)
-          const newQty = Math.max(min, Math.round(currentQty - reduceQty))
-          const actualReduce = currentQty - newQty
-          if (actualReduce <= 0) continue
+              if (score > bestScore) {
+                bestScore = score
+                bestSnack = c
+                bestQty = qty
+              }
+            }
 
-          const calReduced = cpu * actualReduce
-          calToReduce -= calReduced
-          dayOverrides.set(`${dia.dia}-${npi.nombre}`, newQty)
+            if (bestSnack && bestQty > 0) {
+              snackRows.push({ dia: dia.dia, food: bestSnack, cantidad: bestQty })
+              snackAdded = true
+              console.log(`[loop dia=${dia.dia} iter=${iter}] +snack ${bestSnack.nombre} ${bestQty}${bestSnack.unidad_medida} (+${Math.round(calPerUnit(bestSnack) * bestQty)} kcal, +${Math.round(protPerUnit(bestSnack) * bestQty)}g prot)`)
+            }
+          }
+        }
 
-          console.log(`[prot-day] día ${dia.dia}: ↓ ${npi.food.nombre} ${currentQty}→${newQty}, -${Math.round(calReduced)} kcal`)
+        // Check if converged after this iteration
+        const endState = sumDay()
+        if (isOk(endState)) {
+          console.log(`[loop dia=${dia.dia} iter=${iter}] CONVERGED kcal=${Math.round(endState.kcal)}, prot=${Math.round(endState.prot)}g`)
+          break
+        }
+
+        if (iter === MAX_ITER) {
+          console.log(`[loop dia=${dia.dia}] GAVE UP after ${MAX_ITER} iters — kcal=${Math.round(endState.kcal)}, prot=${Math.round(endState.prot)}g`)
         }
       }
-
-      // 5. Log final day state
-      let finalProt = 0, finalCal = 0
-      for (const di of dayItems) {
-        const qty = dayOverrides.get(`${dia.dia}-${di.nombre}`) ?? di.qty
-        finalProt += protPerUnit(di.food) * qty
-        finalCal += calPerUnit(di.food) * qty
-      }
-      console.log(`[prot-day] día ${dia.dia}: FINAL prot=${Math.round(finalProt)}g, kcal=${Math.round(finalCal)}`)
     }
 
-    console.log('[prot-day] overrides:', dayOverrides.size, 'entries')
+    console.log('[loop] overrides:', dayOverrides.size, ', snacks added:', snackRows.length)
 
     // ═══ Check for existing personalizations (for first-gen messages) ═══
     const { data: personalizaciones } = await supabase
@@ -1378,7 +1481,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     // Regeneration message is built AFTER post-generation analysis (see below)
 
     // ═══ PASO 4: Save calendar using backend-calculated quantities ═══
-    // allFoodsLookup already built in Paso 3.5
+    // allFoodsLookup built in Paso 3.5 iterative loop
 
     const calendarioRows: { user_id: string; dia: number; comida: string; alimento_id: string; cantidad: number; unidad: string; origen: string }[] = []
     const comprasTotals = new Map<string, { alimentoId: string; cantidad: number; unidad: string }>()
@@ -1429,6 +1532,26 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
             comprasTotals.set(key, { alimentoId: match.id, cantidad, unidad })
           }
         }
+      }
+    }
+
+    // Add snack rows generated by the iterative loop (Paso 3.5)
+    for (const snack of snackRows) {
+      calendarioRows.push({
+        user_id: userId,
+        dia: snack.dia,
+        comida: 'snack',
+        alimento_id: snack.food.id,
+        cantidad: snack.cantidad,
+        unidad: snack.food.unidad_medida,
+        origen: 'generado',
+      })
+      const key = snack.food.id
+      const existing = comprasTotals.get(key)
+      if (existing) {
+        existing.cantidad += snack.cantidad
+      } else {
+        comprasTotals.set(key, { alimentoId: snack.food.id, cantidad: snack.cantidad, unidad: snack.food.unidad_medida })
       }
     }
 
