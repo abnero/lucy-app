@@ -1202,7 +1202,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         .from('calendario')
         .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
         .eq('user_id', userId)
-        .neq('origen', 'generado')
+        .eq('origen', 'chat')  // Only 'chat' survives replace_calendario_generado
 
       if (persistedRows && persistedRows.length > 0) {
         const byOrigen: Record<string, number> = {}
@@ -1221,7 +1221,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
           .from('calendario')
           .select('origen')
           .eq('user_id', userId)
-          .neq('origen', 'generado')
+          .eq('origen', 'chat')
         if (origenCounts) {
           for (const r of origenCounts) { byOrigen[r.origen] = (byOrigen[r.origen] || 0) + 1 }
         }
