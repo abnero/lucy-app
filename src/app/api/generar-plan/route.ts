@@ -1193,6 +1193,45 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     const MAX_ITER = 10
     const MAX_SNACK_KCAL = 250
 
+    // Bug #45-E: Read persisted non-gen rows (chat, snack_sugerido, sugerencia)
+    // that survive replace_calendario_generado. The loop must account for their
+    // kcal/prot when tuning generated quantities.
+    const persistedBaseline = new Map<number, { kcal: number; prot: number }>()
+    {
+      const { data: persistedRows } = await supabase
+        .from('calendario')
+        .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
+        .eq('user_id', userId)
+        .neq('origen', 'generado')
+
+      if (persistedRows && persistedRows.length > 0) {
+        const byOrigen: Record<string, number> = {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const row of persistedRows as any[]) {
+          const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
+          if (!a) continue
+          const ratio = a.unidad_medida === 'unidad' ? row.cantidad : row.cantidad / (a.porcion_base || 100)
+          const prev = persistedBaseline.get(row.dia) || { kcal: 0, prot: 0 }
+          prev.kcal += a.calorias_por_unidad * ratio
+          prev.prot += a.proteina_por_unidad * ratio
+          persistedBaseline.set(row.dia, prev)
+        }
+        // Telemetry
+        const { data: origenCounts } = await supabase
+          .from('calendario')
+          .select('origen')
+          .eq('user_id', userId)
+          .neq('origen', 'generado')
+        if (origenCounts) {
+          for (const r of origenCounts) { byOrigen[r.origen] = (byOrigen[r.origen] || 0) + 1 }
+        }
+        console.log(`[loop] persisted non-gen for user: ${persistedRows.length} rows (${Object.entries(byOrigen).map(([k, v]) => `${k}: ${v}`).join(', ')})`)
+        for (const [d, totals] of Array.from(persistedBaseline.entries()).sort((a, b) => a[0] - b[0])) {
+          console.log(`[loop] day ${d} persisted: +${Math.round(totals.kcal)} kcal, +${Math.round(totals.prot)}g prot`)
+        }
+      }
+    }
+
     for (const dia of plan.dias) {
       // Build day items with current quantities from cantidadMap
       type DayItem = { nombre: string; comida: string; food: AlimentoData; qty: number }
@@ -1212,9 +1251,11 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       const getQty = (di: DayItem) => dayOverrides.get(`${dia.dia}-${di.nombre}`) ?? di.qty
       const setQty = (di: DayItem, q: number) => dayOverrides.set(`${dia.dia}-${di.nombre}`, q)
       const sumDay = () => {
-        let kcal = 0, prot = 0
+        // Start from persisted non-gen rows (Bug #45-E)
+        const fixed = persistedBaseline.get(dia.dia) || { kcal: 0, prot: 0 }
+        let kcal = fixed.kcal, prot = fixed.prot
         for (const di of dayItems) { const q = getQty(di); kcal += calPerUnit(di.food) * q; prot += protPerUnit(di.food) * q }
-        // Include snacks added to this day
+        // Include snacks added by the loop in this generation
         for (const s of snackRows) { if (s.dia === dia.dia) { kcal += calPerUnit(s.food) * s.cantidad; prot += protPerUnit(s.food) * s.cantidad } }
         return { kcal, prot }
       }
