@@ -30,7 +30,7 @@ export interface MacrosDia {
   };
 }
 
-export type TipoProblema = "exceso_calorias" | "deficit_calorias" | "deficit_proteina" | "exceso_proteina";
+export type TipoProblema = "exceso_calorias" | "deficit_calorias" | "deficit_proteina";
 
 export interface OpcionSnack {
   alimento_id: string;
@@ -526,13 +526,11 @@ export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_cal
     const diferencia_proteina = macros.proteina - objetivo_proteina;
     const excede_calorias = Math.abs(diferencia_calorias) > tolerancia_calorias;
     const deficit_proteina = diferencia_proteina < -tolerancia_proteina;
-    const exceso_proteina = diferencia_proteina > tolerancia_proteina;
-    if (!excede_calorias && !deficit_proteina && !exceso_proteina) { dias_ok.push(dia); continue; }
+    if (!excede_calorias && !deficit_proteina) { dias_ok.push(dia); continue; }
     const problemas: TipoProblema[] = [];
     if (diferencia_calorias > tolerancia_calorias) problemas.push("exceso_calorias");
     if (diferencia_calorias < -tolerancia_calorias) problemas.push("deficit_calorias");
     if (deficit_proteina) problemas.push("deficit_proteina");
-    if (exceso_proteina) problemas.push("exceso_proteina");
     const comida_problematica = identificarComidaProblematica(macros, objetivo_calorias);
     const alimentosDia = alimentos.filter((a) => a.dia === dia);
     const sugerencias = generarSugerencias(alimentosDia, diferencia_calorias, diferencia_proteina, comida_problematica, objetivo_calorias, candidatosSnack);
@@ -551,12 +549,10 @@ export function analizarCalendario(alimentos: AlimentoCalendario[], objetivo_cal
     const excesos = dias_problematicos.filter((d) => d.problemas.includes("exceso_calorias")).length;
     const deficits = dias_problematicos.filter((d) => d.problemas.includes("deficit_calorias")).length;
     const proteinas = dias_problematicos.filter((d) => d.problemas.includes("deficit_proteina")).length;
-    const protExceso = dias_problematicos.filter((d) => d.problemas.includes("exceso_proteina")).length;
     const partes = [];
-    if (excesos > 0) partes.push(`${excesos} día${excesos > 1 ? "s" : ""} con exceso calórico`);
-    if (deficits > 0) partes.push(`${deficits} día${deficits > 1 ? "s" : ""} con déficit calórico`);
+    if (excesos > 0) partes.push(`${excesos} día${excesos > 1 ? "s" : ""} con exceso`);
+    if (deficits > 0) partes.push(`${deficits} día${deficits > 1 ? "s" : ""} con déficit`);
     if (proteinas > 0) partes.push(`${proteinas} día${proteinas > 1 ? "s" : ""} con proteína baja`);
-    if (protExceso > 0) partes.push(`${protExceso} día${protExceso > 1 ? "s" : ""} con proteína alta`);
     resumen = `Lucy encontró ${partes.join(", ").replace(/, ([^,]*)$/, " y $1")} — tiene sugerencias específicas para cada uno.`;
   }
 
