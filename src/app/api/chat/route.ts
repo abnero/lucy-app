@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
+import { calcularCantidadParaAlimento, calcularCantidadIsoCalorica, calcularCantidadParaSnack } from '@/lib/calcular-cantidad'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -279,36 +280,7 @@ async function getSimilarAlimentos(supabase: SupabaseClient, nombre: string) {
 }
 
 // ═══ Shared: calculate quantity from meal calorie budget ═══
-const MEAL_PCT: Record<string, number> = { desayuno: 0.30, almuerzo: 0.40, cena: 0.30 }
-
-function calcularCantidadDesdePresupuesto(
-  alimento: { calorias_por_unidad: number; porcion_base: number; porcion_min: number; porcion_max: number; unidad_medida: string },
-  budgetKcal: number,
-): { cantidad: number; cabe: boolean } {
-  const cpu = alimento.unidad_medida === 'unidad'
-    ? alimento.calorias_por_unidad
-    : alimento.calorias_por_unidad / (alimento.porcion_base || 100)
-
-  if (cpu <= 0) return { cantidad: alimento.porcion_min || 1, cabe: true }
-
-  let qty: number
-  if (alimento.unidad_medida === 'unidad') {
-    qty = Math.max(1, Math.round(budgetKcal / cpu))
-  } else {
-    qty = Math.round(budgetKcal / cpu)
-  }
-
-  // Clamp to [porcion_min, porcion_max]
-  const min = alimento.porcion_min || (alimento.unidad_medida === 'unidad' ? 1 : 10)
-  const max = alimento.porcion_max || 999
-  qty = Math.max(min, Math.min(max, qty))
-
-  // "No cabe" if budget is too small for even porcion_min
-  const minCal = cpu * min
-  const cabe = budgetKcal >= minCal * 0.5 // allow some flexibility
-
-  return { cantidad: qty, cabe }
-}
+// MEAL_PCT and calcularCantidadDesdePresupuesto moved to src/lib/calcular-cantidad.ts (Bug #32/#34)
 
 async function executeCambiarAlimento(
   supabase: SupabaseClient,
@@ -320,7 +292,7 @@ async function executeCambiarAlimento(
   // Find current alimento in calendar
   const { data: currentEntries } = await supabase
     .from('calendario')
-    .select('id, alimento_id, cantidad, unidad, alimento:alimentos(nombre, calorias_por_unidad, proteina_por_unidad)')
+    .select('id, alimento_id, cantidad, unidad, alimento:alimentos(nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, porcion_base)')
     .eq('user_id', userId)
     .eq('dia', dia)
     .eq('comida', comida)
@@ -355,29 +327,22 @@ async function executeCambiarAlimento(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const oldAlimento = (Array.isArray((targetEntry as any).alimento) ? (targetEntry as any).alimento[0] : (targetEntry as any).alimento)
 
-  // Calculate total calories of the old item
+  // Bug #32: Validate same-category swap
+  const oldFoodCat = oldAlimento?.categoria_comida || 'otro'
+  const newFoodCat = newAlimento.categoria_comida || 'otro'
+  if (oldFoodCat !== newFoodCat) {
+    // Cross-category swap — reject with suggestions
+    const suggestions = await getSimilarAlimentos(supabase, alimento_nuevo)
+    const sameCatSuggestions = suggestions.length > 0 ? ` Alternativas de ${oldFoodCat}: ${suggestions.slice(0, 3).join(', ')}.` : ''
+    return { result: `No puedo cambiar ${oldAlimento?.nombre || alimento_actual} (${oldFoodCat}) por ${newAlimento.nombre} (${newFoodCat}) — eso rompería tus macros.${sameCatSuggestions} ¿Te interesa una alternativa dentro de la misma categoría?` }
+  }
+
+  // Iso-caloric swap (same category)
   const oldIsCountable = targetEntry.unidad === 'unidad'
   const oldRatio = oldIsCountable ? targetEntry.cantidad : targetEntry.cantidad / (oldAlimento?.porcion_base || 100)
   const oldCalories = (oldAlimento?.calorias_por_unidad || 100) * oldRatio
 
-  // Calculate quantity of new item to match those calories
-  const newIsCountable = newAlimento.unidad_medida === 'unidad'
-  let newCantidad: number
-  if (newIsCountable) {
-    // For countable items: round to whole units, minimum 1
-    newCantidad = Math.max(1, Math.round(oldCalories / newAlimento.calorias_por_unidad))
-  } else {
-    // For weight/volume items: calculate grams/ml
-    newCantidad = Math.round((oldCalories / newAlimento.calorias_por_unidad) * (newAlimento.porcion_base || 100))
-  }
-
-  // Clamp to valid portion range
-  if (newAlimento.porcion_min && newCantidad < newAlimento.porcion_min) {
-    newCantidad = newAlimento.porcion_min
-  }
-  if (newAlimento.porcion_max && newCantidad > newAlimento.porcion_max) {
-    newCantidad = newAlimento.porcion_max
-  }
+  const { cantidad: newCantidad } = calcularCantidadIsoCalorica(newAlimento, oldCalories)
 
   // Save original for revert (using row ID for precise targeting)
   const revertData: RevertData = {
@@ -543,10 +508,10 @@ async function executeAgregarSnack(
   const snackBudget = Math.max(50, usuario.calorias_objetivo - mealsKcal)
   const budgetPerFood = snackBudget / resolvedFoods.length
 
-  // Calculate quantity for each food from budget
+  // Calculate quantity for each food from budget (Bug #32: use centralized calc with porcion_max clamp)
   const resolved: { food: typeof resolvedFoods[0]; cantidad: number }[] = []
   for (const food of resolvedFoods) {
-    const { cantidad, cabe } = calcularCantidadDesdePresupuesto(food, budgetPerFood)
+    const { cantidad, cabe } = calcularCantidadParaSnack(food, budgetPerFood)
     if (!cabe) {
       return { result: `${food.nombre} no cuadra con tus macros del día sin pasarte. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
     }
@@ -765,7 +730,7 @@ async function executeReemplazarComidaCompleta(
   }
 
   // Resolve all ingredients from catalog or USDA
-  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; porcion_min: number; unidad_medida: string; categoria: string }[] = []
+  const resolved: { id: string; nombre: string; cal: number; porcion_base: number; porcion_min: number; porcion_max: number; unidad_medida: string; categoria: string }[] = []
   const notFound: string[] = []
   const substituted: string[] = []
 
@@ -778,6 +743,7 @@ async function executeReemplazarComidaCompleta(
         cal: found.calorias_por_unidad,
         porcion_base: found.porcion_base || 100,
         porcion_min: found.porcion_min || 0,
+        porcion_max: found.porcion_max || 500,
         unidad_medida: found.unidad_medida,
         categoria: found.categoria_comida || 'otro',
       })
@@ -803,26 +769,28 @@ async function executeReemplazarComidaCompleta(
     return { result: `Esta receta no tiene proteína. Sugiere a la usuaria añadir una proteína (pollo, carne, pescado, huevo, tofu) antes de ejecutar el reemplazo.` }
   }
 
-  // Max quantity limits by category
-  const MAX_QTY: Record<string, number> = { vegetal: 300, proteina: 250, carbohidrato: 200, grasa: 30, otro: 200 }
-
-  // Calculate quantities with limits
-  const calPerIngredient = mealCalTarget / resolved.length
+  // Bug #32 + #34: Calculate quantities using category shares + real porcion_max
+  // Group resolved ingredients by category to sum existing kcal per category
   let totalActualCal = 0
-
   const planned: { ing: typeof resolved[0]; cantidad: number }[] = []
+
+  // For reemplazar: we're replacing the whole meal, so existing cat cal = 0 for each category
+  // (the old items will be deleted). But we need to account for multiple items of the same category.
+  const catCalAccum: Record<string, number> = {}
+
   for (const ing of resolved) {
-    const maxQty = MAX_QTY[ing.categoria] || 200
-    let cantidad: number
-    if (ing.unidad_medida === 'unidad') {
-      cantidad = Math.max(1, Math.round(calPerIngredient / ing.cal))
-    } else {
-      cantidad = Math.round((calPerIngredient / ing.cal) * ing.porcion_base)
-      cantidad = Math.min(cantidad, maxQty)
-      cantidad = Math.max(ing.porcion_min || 10, cantidad)
-    }
+    const existingCatCal = catCalAccum[ing.categoria] || 0
+    const { cantidad } = calcularCantidadParaAlimento(
+      { calorias_por_unidad: ing.cal, proteina_por_unidad: 0, porcion_base: ing.porcion_base, porcion_min: ing.porcion_min, porcion_max: ing.porcion_max, unidad_medida: ing.unidad_medida, categoria_comida: ing.categoria },
+      comida,
+      usuario.calorias_objetivo,
+      existingCatCal
+    )
+
     const ratio = ing.unidad_medida === 'unidad' ? cantidad : cantidad / ing.porcion_base
-    totalActualCal += ing.cal * ratio
+    const ingCal = ing.cal * ratio
+    totalActualCal += ingCal
+    catCalAccum[ing.categoria] = (catCalAccum[ing.categoria] || 0) + ingCal
     planned.push({ ing, cantidad })
   }
 
@@ -922,22 +890,19 @@ async function executeAgregarIngredienteAComida(
 
   if (!usuario) return { result: 'No se encontró el perfil de la usuaria.' }
 
-  const pct = MEAL_PCT[comida] || 0.33
-  const mealBudget = usuario.calorias_objetivo * pct
-
-  // Calculate current meal calories
-  let currentMealCal = 0
+  // Bug #32: Calculate using category share, not total meal budget
+  // Sum existing kcal of the SAME category in this meal
+  let existingCatCal = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const item of existingItems as any[]) {
     const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
     if (!a) continue
+    if ((a.categoria_comida || 'otro') !== (newFood.categoria_comida || 'otro')) continue
     const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
-    currentMealCal += a.calorias_por_unidad * ratio
+    existingCatCal += a.calorias_por_unidad * ratio
   }
 
-  // Budget remaining for the new ingredient
-  const remainingBudget = Math.max(0, mealBudget - currentMealCal)
-  const { cantidad, cabe } = calcularCantidadDesdePresupuesto(newFood, remainingBudget)
+  const { cantidad, cabe } = calcularCantidadParaAlimento(newFood, comida, usuario.calorias_objetivo, existingCatCal)
 
   if (!cabe) {
     return { result: `${newFood.nombre} no cuadra con tus macros del ${comida} del ${DIAS_NOMBRES[dia - 1]} sin pasarte. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
@@ -1624,6 +1589,9 @@ POLLO GENÉRICO: Cuando la usuaria diga "pollo" sin especificar corte, NO asumas
 
 6. NUNCA MENCIONAR FUENTES TÉCNICAS
 NUNCA digas "USDA", "base de datos", "catálogo", "busqué en". Tú simplemente SABES la información.
+
+7. SWAPS DENTRO DE LA MISMA CATEGORÍA
+Cuando la usuaria pida cambiar un alimento por otro, el nuevo DEBE ser de la misma categoría (proteína→proteína, carb→carb, grasa→grasa, vegetal→vegetal). Si pide un cambio cross-categoría (ej. "cambia el aceite por mango"), la tool lo rechazará. En ese caso, explícale que no puedes hacer ese cambio porque descuadra sus macros, y ofrécele alternativas dentro de la misma categoría del alimento original.
 
 ═══ UNIDADES IMPERIALES ═══
 Siempre habla en unidades imperiales con la usuaria. Usa oz para proteínas y tubérculos, cups para granos, vegetales y frutas, tbsp para aceites y semillas, fl oz para bebidas empacadas. Cuando la usuaria pida un cambio en cualquier unidad (gramos, tazas, oz, libras), convierte internamente a gramos usando factor_conversion antes de ejecutar el tool. Confirma siempre en la unidad imperial correspondiente al alimento.
