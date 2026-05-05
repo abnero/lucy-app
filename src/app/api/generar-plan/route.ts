@@ -1259,8 +1259,9 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         for (const s of snackRows) { if (s.dia === dia.dia) { kcal += calPerUnit(s.food) * s.cantidad; prot += protPerUnit(s.food) * s.cantidad } }
         return { kcal, prot }
       }
+      // Bug #45-D: bilateral protein check — excess >+10g also fails
       const isOk = (s: { kcal: number; prot: number }) =>
-        Math.abs(s.kcal - calTarget) <= CAL_TOL && s.prot >= protTarget - PROT_TOL
+        Math.abs(s.kcal - calTarget) <= CAL_TOL && Math.abs(s.prot - protTarget) <= PROT_TOL
 
       let snackAdded = false
 
@@ -1386,6 +1387,41 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
           }
         }
 
+        // Step 5b: prot excess → lower generated protein foods (Bug #45-D)
+        // Chat rows (origen='chat') are the user's active choice — untouchable.
+        // Only reduce foods from Claude's rotation (all dayItems are origen='generado').
+        {
+          const postSteps = sumDay()
+          const protExcess = postSteps.prot - protTarget
+          if (protExcess > PROT_TOL) {
+            const protItems = dayItems
+              .filter(di => di.food.categoria_comida === 'proteina')
+              .sort((a, b) => {
+                // Reduce highest prot/kcal ratio first (most prot removed per kcal freed)
+                const ra = protPerUnit(a.food) / (calPerUnit(a.food) || 1)
+                const rb = protPerUnit(b.food) / (calPerUnit(b.food) || 1)
+                return rb - ra
+              })
+            let protToReduce = protExcess - PROT_TOL * 0.5 // aim for middle of band
+            for (const pi of protItems) {
+              if (protToReduce <= 0) break
+              const cur = getQty(pi)
+              const min = Math.min(getMin(pi.food), getMax(pi.food)) // defensive
+              if (cur <= min) continue
+              const ppu = protPerUnit(pi.food)
+              if (ppu <= 0) continue
+              const reduceQty = Math.min(cur - min, protToReduce / ppu)
+              const newQty = Math.max(min, Math.round(cur - reduceQty))
+              if (newQty >= cur) continue
+              const reducedProt = ppu * (cur - newQty)
+              const reducedCal = calPerUnit(pi.food) * (cur - newQty)
+              setQty(pi, newQty)
+              protToReduce -= reducedProt
+              console.log(`[loop dia=${dia.dia} iter=${iter}] ↓prot ${pi.food.nombre} ${Math.round(cur)}→${newQty} (-${Math.round(reducedProt)}g prot, -${Math.round(reducedCal)} kcal)`)
+            }
+          }
+        }
+
         // Step 7: if still out after adjustments and no snack yet → add snack
         const final = sumDay()
         if (!isOk(final) && !snackAdded) {
@@ -1408,6 +1444,9 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
               const snackCal = cpu * qty
               if (snackCal > kcalRoom || snackCal > MAX_SNACK_KCAL) continue
               const snackProt = protPerUnit(c) * qty
+
+              // Bug #45-D: reject candidates that would cause bilateral protein excess
+              if (final.prot + snackProt > protTarget + PROT_TOL) continue
 
               // Score: prioritize what the day needs
               let score = 0

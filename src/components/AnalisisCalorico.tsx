@@ -48,6 +48,7 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
   const tieneExcesoCal = diaDato.problemas.includes("exceso_calorias");
   const tieneDeficitCal = diaDato.problemas.includes("deficit_calorias");
   const tieneDeficitProt = diaDato.problemas.includes("deficit_proteina");
+  const tieneExcesoProt = diaDato.problemas.includes("exceso_proteina");
   const kcalDiff = Math.abs(diaDato.diferencia_calorias);
   const protDiff = Math.abs(Math.round(diaDato.diferencia_proteina));
 
@@ -55,10 +56,15 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
   if ((tieneExcesoCal || tieneDeficitCal) && tieneDeficitProt) {
     const calPart = tieneExcesoCal ? `${kcalDiff} kcal de más` : `${kcalDiff} kcal de menos`;
     mensaje = `Este día tiene ${calPart} y ${protDiff}g de proteína de menos`;
+  } else if ((tieneExcesoCal || tieneDeficitCal) && tieneExcesoProt) {
+    const calPart = tieneExcesoCal ? `${kcalDiff} kcal de más` : `${kcalDiff} kcal de menos`;
+    mensaje = `Este día tiene ${calPart} y ${protDiff}g de proteína de más`;
   } else if (tieneExcesoCal) {
     mensaje = `Este día tiene ${kcalDiff} kcal de más`;
   } else if (tieneDeficitCal) {
     mensaje = `Este día tiene ${kcalDiff} kcal de menos`;
+  } else if (tieneExcesoProt) {
+    mensaje = `Este día tiene ${protDiff}g de proteína de más — probablemente viene de cambios que pediste por chat`;
   } else {
     mensaje = `Este día tiene ${protDiff}g de proteína de menos`;
   }
