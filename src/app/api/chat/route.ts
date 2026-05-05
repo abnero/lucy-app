@@ -538,7 +538,7 @@ async function executeAgregarSnack(
         skippedDuplicates.push({ nombre: food.nombre, dia: d })
         continue
       }
-      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida, origen: 'chat' })
+      allRows.push({ user_id: userId, dia: d, comida: 'snack', alimento_id: food.id, cantidad, unidad: food.unidad_medida, origen: 'snack_chat' })
     }
   }
 
