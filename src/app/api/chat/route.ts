@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { analizarCalendario, type AlimentoCalendario } from '@/lib/analisis-calorico'
-import { calcularCantidadParaAlimento, calcularCantidadIsoCalorica, calcularCantidadParaSnack, CAT_SHARE } from '@/lib/calcular-cantidad'
+import { calcularCantidadParaAlimento, calcularCantidadIsoCalorica, calcularCantidadParaSnack } from '@/lib/calcular-cantidad'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
