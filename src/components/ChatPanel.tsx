@@ -157,7 +157,10 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
       const data = await res.json()
 
       if (data.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error. Intenta de nuevo.' }])
+        const userMsg = data.error === 'Tu sesión expiró. Recarga la página e intenta de nuevo.'
+          ? data.error
+          : 'Tuve un problemita procesando tu mensaje. Intenta de nuevo en unos segundos.'
+        setMessages(prev => [...prev, { role: 'assistant', content: userMsg }])
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
         if (data.revertData !== undefined) {

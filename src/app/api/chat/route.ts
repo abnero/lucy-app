@@ -1302,8 +1302,10 @@ function checkRateLimit(userId: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  let chatUserId: string | undefined
   try {
     const { userId, accessToken, messages, lastRevertData, clientTime, clientTimezone } = await req.json()
+    chatUserId = userId
     if (!userId || !accessToken || !messages) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
@@ -1771,14 +1773,36 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
     while (iterations < 8) {
       iterations++
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        system: systemPrompt,
-        tools,
-        tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
-        messages: loopMessages,
-      })
+      // Bug #66: retry 1x on transient Anthropic API errors (529 overloaded, timeout, network)
+      let response: Anthropic.Messages.Message
+      try {
+        response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          system: systemPrompt,
+          tools,
+          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          messages: loopMessages,
+        })
+      } catch (apiErr) {
+        const isTransient = apiErr instanceof Error && (
+          ('status' in apiErr && ((apiErr as { status: number }).status === 529 || (apiErr as { status: number }).status === 503))
+          || apiErr.message.includes('timeout')
+          || apiErr.message.includes('ECONNRESET')
+          || apiErr.message.includes('fetch failed')
+        )
+        if (!isTransient) throw apiErr
+        console.warn(`[chat] Transient API error (${apiErr.message}), retrying in 1s...`)
+        await new Promise(r => setTimeout(r, 1000))
+        response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          system: systemPrompt,
+          tools,
+          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          messages: loopMessages,
+        })
+      }
 
       // Collect all tool_use blocks
       const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
@@ -2048,8 +2072,19 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       revertData: currentRevertData,
     })
   } catch (err) {
-    console.error('chat error:', err)
+    // Bug #66: structured error logging for Vercel logs
     const errMessage = err instanceof Error ? err.message : 'Error interno'
+    const errorType = err instanceof Error && 'status' in err ? 'API_ERROR'
+      : err instanceof TypeError ? 'PARSE_ERROR'
+      : err instanceof Error && errMessage.includes('supabase') ? 'DB_ERROR'
+      : 'UNKNOWN'
+    console.error(JSON.stringify({
+      event: 'chat_error',
+      error_type: errorType,
+      message: errMessage,
+      user_id: chatUserId || 'unknown',
+      stack: err instanceof Error ? err.stack?.split('\n').slice(0, 3).join(' | ') : undefined,
+    }))
     return NextResponse.json({ error: errMessage }, { status: 500 })
   }
 }
