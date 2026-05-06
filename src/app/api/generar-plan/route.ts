@@ -1539,9 +1539,11 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
 
       let introMessage = ''
       if (usuario.meta === 'perder_peso') {
-        introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del 15% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
+        const deficitPct = Math.round(((tdee - calTarget) / tdee) * 100)
+        introMessage = `Basado en tu peso, altura, edad y nivel de actividad, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan está diseñado con un déficit del ${deficitPct}% — ${calTarget} calorías — lo que te permite perder peso de forma sostenible sin sacrificar músculo ni energía. ¡Aquí está tu plan de la semana! 🌿`
       } else if (usuario.meta === 'ganar_masa') {
-        introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del 20% — ${calTarget} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
+        const superavitPct = Math.round(((calTarget - tdee) / tdee) * 100)
+        introMessage = `Basado en tu perfil, tu cuerpo quema aproximadamente ${tdee} calorías al día. Tu plan incluye un superávit del ${superavitPct}% — ${calTarget} calorías — diseñado para construir músculo de forma limpia. ¡Aquí está tu plan! 💪`
       } else {
         introMessage = `Basado en tu perfil, tu cuerpo necesita aproximadamente ${tdee} calorías al día para mantenerse. Tu plan está calibrado exactamente en eso — ${calTarget} calorías — con la distribución correcta de proteína, carbohidratos y grasas para que te sientas con energía todo el día. ¡Aquí está tu plan! ✨`
       }
