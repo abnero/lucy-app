@@ -884,7 +884,7 @@ async function executeAgregarIngredienteAComida(
   // Get user objectives and calculate budget for this meal
   const { data: usuario } = await supabase
     .from('usuarios')
-    .select('calorias_objetivo')
+    .select('calorias_objetivo, proteina_objetivo')
     .eq('id', userId)
     .single()
 
@@ -902,15 +902,53 @@ async function executeAgregarIngredienteAComida(
     existingCatCal += a.calorias_por_unidad * ratio
   }
 
-  const { cantidad, cabe } = calcularCantidadParaAlimento(newFood, comida, usuario.calorias_objetivo, existingCatCal)
+  const { cantidad, cabe: cabeCategoria } = calcularCantidadParaAlimento(newFood, comida, usuario.calorias_objetivo, existingCatCal)
 
-  if (!cabe) {
-    return { result: `${newFood.nombre} no cuadra con tus macros del ${comida} del ${DIAS_NOMBRES[dia - 1]} sin pasarte. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
+  // Bug #70: if category budget is full, check day-level bilateral before rejecting.
+  // The category share may be saturated but the DAY may still have room.
+  let cantidadFinal = cantidad
+  if (!cabeCategoria) {
+    // Fetch all items of the day to compute day total
+    const { data: dayItems } = await supabase
+      .from('calendario')
+      .select('cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
+      .eq('user_id', userId)
+      .eq('dia', dia)
+
+    let dayKcal = 0, dayProt = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const item of (dayItems || []) as any[]) {
+      const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+      if (!a) continue
+      const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+      dayKcal += a.calorias_por_unidad * ratio
+      dayProt += a.proteina_por_unidad * ratio
+    }
+
+    // Calculate day state WITH newFood at porcion_min
+    const minQty = newFood.porcion_min || 10
+    const cpuNew = newFood.unidad_medida === 'unidad' ? newFood.calorias_por_unidad : newFood.calorias_por_unidad / (newFood.porcion_base || 100)
+    const ppuNew = newFood.unidad_medida === 'unidad' ? newFood.proteina_por_unidad : newFood.proteina_por_unidad / (newFood.porcion_base || 100)
+    const projKcal = dayKcal + cpuNew * minQty
+    const projProt = dayProt + ppuNew * minQty
+
+    const calTarget = usuario.calorias_objetivo
+    const protTarget = usuario.proteina_objetivo
+    const dayBilateralOk = Math.abs(projKcal - calTarget) <= calTarget * 0.10
+      && Math.abs(projProt - protTarget) <= 10
+
+    if (!dayBilateralOk) {
+      return { result: `Agregar ${newFood.nombre} al ${comida} del ${DIAS_NOMBRES[dia - 1]} dejaría el día en ${Math.round(projKcal)} kcal y ${Math.round(projProt)}g de proteína — fuera de tu rango. ¿Lo cambio por otro alimento o lo movemos a otro día?` }
+    }
+
+    // Day bilateral OK — allow with porcion_min override
+    cantidadFinal = minQty
+    console.log(`[agregar_ingrediente] Bug #70: category budget full but day bilateral OK. Allowing ${newFood.nombre} at porcion_min=${minQty}`)
   }
 
   // Calculate calories of the new ingredient at the calculated quantity
   const newIsCountable = newFood.unidad_medida === 'unidad'
-  const newRatio = newIsCountable ? cantidad : cantidad / (newFood.porcion_base || 100)
+  const newRatio = newIsCountable ? cantidadFinal : cantidadFinal / (newFood.porcion_base || 100)
   const newCalories = newFood.calorias_por_unidad * newRatio
 
   // Determine category
@@ -982,7 +1020,7 @@ async function executeAgregarIngredienteAComida(
   // Insert the new ingredient
   const { error: insertErr } = await supabase
     .from('calendario')
-    .insert({ user_id: userId, dia, comida, alimento_id: newFood.id, cantidad, unidad: newFood.unidad_medida, origen: 'chat' })
+    .insert({ user_id: userId, dia, comida, alimento_id: newFood.id, cantidad: cantidadFinal, unidad: newFood.unidad_medida, origen: 'chat' })
 
   if (insertErr) {
     return { result: `Error añadiendo ingrediente: ${insertErr.message}` }

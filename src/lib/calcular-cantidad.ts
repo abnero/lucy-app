@@ -103,9 +103,9 @@ function calcFromBudget(
   const max = getMax(food)
   qty = Math.max(min, Math.min(max, qty))
 
-  // "No cabe" if budget is too small for porcion_min
+  // "No cabe" if budget is too small for porcion_min (no implicit override)
   const minCal = cpu * min
-  const cabe = budgetKcal >= minCal * 0.5
+  const cabe = budgetKcal >= minCal
 
   return { cantidad: qty, cabe }
 }
