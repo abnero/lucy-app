@@ -1552,12 +1552,12 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         user_id: userId, role: 'assistant', content: introMessage,
       })
 
+      // Bug #64: removed stale warning message about "alimentos densos calóricamente".
+      // The warnings array from Paso 1c scaling is pre-iterative-loop state.
+      // Paso 3.5 fixes these issues per-day. The real post-gen warnings come from
+      // analizarCalendario (Paso 5) which operates on the final saved plan.
       if (warnings.length > 0) {
-        const mealsTxt = warnings.join(', ')
-        const warningMsg = `Noté que algunos alimentos que escogiste son muy densos calóricamente. Para ${mealsTxt}, las porciones mínimas disponibles superan tu presupuesto calórico de esa comida. Considera cambiar algunos alimentos por opciones más ligeras (ej. menos aceites, frutos secos o quesos) para tener más flexibilidad. 💜`
-        await supabase.from('conversaciones').insert({
-          user_id: userId, role: 'assistant', content: warningMsg,
-        })
+        console.log(`[plan] Paso 1c scaling warnings (informational only, not sent to user): ${warnings.join(', ')}`)
       }
     }
     // Regeneration message is built AFTER post-generation analysis (see below)
