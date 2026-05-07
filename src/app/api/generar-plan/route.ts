@@ -1193,19 +1193,17 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     const MAX_ITER = 10
     const MAX_SNACK_KCAL = 250
 
-    // Bug #45-E: Read persisted non-gen rows (chat, snack_sugerido, sugerencia)
-    // that survive replace_calendario_generado. The loop must account for their
-    // kcal/prot when tuning generated quantities.
+    // Bug #45-E: Read persisted non-gen rows that survive replace_calendario_generado.
+    // Bug #74: forceRegenerate=true → RPC borra todo, no leer baseline que no va a sobrevivir.
     const persistedBaseline = new Map<number, { kcal: number; prot: number }>()
-    {
+    if (!forceRegenerate) {
       const { data: persistedRows } = await supabase
         .from('calendario')
         .select('dia, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
         .eq('user_id', userId)
-        .eq('origen', 'chat')  // Only 'chat' survives replace_calendario_generado
+        .eq('origen', 'chat')
 
       if (persistedRows && persistedRows.length > 0) {
-        const byOrigen: Record<string, number> = {}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const row of persistedRows as any[]) {
           const a = Array.isArray(row.alimento) ? row.alimento[0] : row.alimento
@@ -1216,19 +1214,7 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
           prev.prot += a.proteina_por_unidad * ratio
           persistedBaseline.set(row.dia, prev)
         }
-        // Telemetry
-        const { data: origenCounts } = await supabase
-          .from('calendario')
-          .select('origen')
-          .eq('user_id', userId)
-          .eq('origen', 'chat')
-        if (origenCounts) {
-          for (const r of origenCounts) { byOrigen[r.origen] = (byOrigen[r.origen] || 0) + 1 }
-        }
-        console.log(`[loop] persisted non-gen for user: ${persistedRows.length} rows (${Object.entries(byOrigen).map(([k, v]) => `${k}: ${v}`).join(', ')})`)
-        for (const [d, totals] of Array.from(persistedBaseline.entries()).sort((a, b) => a[0] - b[0])) {
-          console.log(`[loop] day ${d} persisted: +${Math.round(totals.kcal)} kcal, +${Math.round(totals.prot)}g prot`)
-        }
+        console.log(`[loop] persisted chat rows for user: ${persistedRows.length} rows`)
       }
     }
 
