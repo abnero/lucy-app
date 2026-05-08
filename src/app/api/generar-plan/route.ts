@@ -449,8 +449,10 @@ export async function POST(req: NextRequest) {
         regenMsg += `\n\nTu plan tiene algunas comidas vacías (${emptySlots.join(', ')}). Para completarlas, usa "Cambiar alimentos" en tu perfil o pídeme cambios por aquí.`
       }
 
+      // Bug #75: removed hardcoded contradictory message. Real warnings come from
+      // analizarCalendario (Paso 5) on the final saved plan, same as Flujo 1/3 (Bug #64).
       if (impossibleSlots.length > 0) {
-        regenMsg += `\n\nAlgunas comidas no pudieron alcanzar el target calórico con los alimentos actuales. Considera cambiar algunos alimentos por opciones con menos calorías por porción.`
+        console.log('[generar-plan] Flujo 2 recalc — impossibleSlots:', impossibleSlots, 'user_id:', userId)
       }
 
       if (diasBajosProteina >= 5) {
