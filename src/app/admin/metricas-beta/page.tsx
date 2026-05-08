@@ -47,7 +47,7 @@ interface MetricasV2 {
 const COLORS = ['#7B7FC4', '#B8B5E0', '#F4845F', '#F7B267', '#56B4D3', '#82ca9d', '#ffc658']
 const STATUS_COLORS: Record<string, string> = {
   activa: '#22C55E',
-  lurker: '#F59E0B',
+  distante: '#F59E0B',
   churned: '#EF4444',
   sin_actividad: '#9896B0',
 }
@@ -146,7 +146,7 @@ export default function MetricasBetaPage() {
   const totalBilateralOk = calHealth.filter(u => u.dias > 0 && u.dias_ok === u.dias).length
   const totalWithCal = calHealth.filter(u => u.dias > 0).length
   const activas = reEng.filter(u => u.status === 'activa').length
-  const lurkers = reEng.filter(u => u.status === 'lurker').length
+  const distantes = reEng.filter(u => u.status === 'distante').length
   const churned = reEng.filter(u => u.status === 'churned').length
   const sinActividad = reEng.filter(u => u.status === 'sin_actividad').length
 
@@ -176,7 +176,7 @@ export default function MetricasBetaPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '24px', color: '#2D2B45', margin: 0 }}>Metricas v2</h1>
-            <p style={{ fontSize: '11px', color: '#6B6889', marginTop: '4px' }}>Telemetria + salud calendario</p>
+            <p style={{ fontSize: '11px', color: '#6B6889', marginTop: '4px' }}>Actividad + salud calendario</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* Range selector */}
@@ -277,7 +277,7 @@ export default function MetricasBetaPage() {
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 {[
                   { label: 'Activas (<=7d)', count: activas, color: STATUS_COLORS.activa },
-                  { label: 'Lurkers (8-13d)', count: lurkers, color: STATUS_COLORS.lurker },
+                  { label: 'Distantes (8-13d)', count: distantes, color: STATUS_COLORS.distante },
                   { label: 'Churned (14d+)', count: churned, color: STATUS_COLORS.churned },
                   { label: 'Sin actividad', count: sinActividad, color: STATUS_COLORS.sin_actividad },
                 ].filter(s => s.count > 0).map(s => (
@@ -530,7 +530,7 @@ export default function MetricasBetaPage() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px', marginBottom: '24px' }}>
               <StatCard label="Activas" value={activas} sub="<= 7 dias" />
-              <StatCard label="Lurkers" value={lurkers} sub="8-13 dias" />
+              <StatCard label="Distantes" value={distantes} sub="8-13 dias" />
               <StatCard label="Churned" value={churned} sub="14+ dias" />
               <StatCard label="Sin actividad" value={sinActividad} sub="nunca interactuaron" />
             </div>
@@ -542,13 +542,13 @@ export default function MetricasBetaPage() {
                   <PieChart>
                     <Pie data={[
                       { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
-                      { name: 'Lurkers', value: lurkers, color: STATUS_COLORS.lurker },
+                      { name: 'Distantes', value: distantes, color: STATUS_COLORS.distante },
                       { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
                       { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
                     ].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                       {[
                         { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
-                        { name: 'Lurkers', value: lurkers, color: STATUS_COLORS.lurker },
+                        { name: 'Distantes', value: distantes, color: STATUS_COLORS.distante },
                         { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
                         { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
                       ].filter(d => d.value > 0).map((d, i) => (
@@ -586,7 +586,7 @@ export default function MetricasBetaPage() {
                           <td style={{ padding: '8px 6px' }}>
                             <span style={{
                               padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600,
-                              backgroundColor: u.status === 'activa' ? '#DCFCE7' : u.status === 'lurker' ? '#FEF3C7' : u.status === 'sin_actividad' ? '#F3F4F6' : '#FEE2E2',
+                              backgroundColor: u.status === 'activa' ? '#DCFCE7' : u.status === 'distante' ? '#FEF3C7' : u.status === 'sin_actividad' ? '#F3F4F6' : '#FEE2E2',
                               color: STATUS_COLORS[u.status] || '#6B6889',
                             }}>
                               {u.status === 'sin_actividad' ? 'sin actividad' : u.status}

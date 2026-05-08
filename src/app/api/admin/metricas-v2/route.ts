@@ -219,16 +219,40 @@ export async function GET(req: NextRequest) {
     }).sort((a, b) => a.dias_ok - b.dias_ok)
 
     // === RE-ENGAGEMENT ===
-    // Fetch last activity from 4 sources: eventos_usuario, conversaciones (user msgs), calendario (chat edits), auth last_sign_in
-    const [
-      { data: eventsForReeng },
-      { data: chatMsgsForReeng },
-      { data: calChatForReeng },
-    ] = await Promise.all([
-      sb.from('eventos_usuario').select('user_id, created_at'),
-      sb.from('conversaciones').select('user_id, created_at').eq('role', 'user'),
-      sb.from('calendario').select('user_id, created_at').eq('origen', 'chat'),
-    ])
+    // Fetch last activity from 4 sources (no role/origen filters — any row = user activity)
+    const { data: eventsForReeng } = await sb.from('eventos_usuario').select('user_id, created_at')
+
+    // Conversaciones: paginated (can exceed 1000 rows)
+    let convForReeng: { user_id: string; created_at: string }[] = []
+    {
+      let from = 0
+      let more = true
+      while (more) {
+        const { data: page } = await sb.from('conversaciones')
+          .select('user_id, created_at')
+          .range(from, from + 999)
+        const rows = page || []
+        convForReeng = convForReeng.concat(rows)
+        more = rows.length === 1000
+        from += 1000
+      }
+    }
+
+    // Calendario: paginated (4000+ rows)
+    let calForReeng: { user_id: string; created_at: string }[] = []
+    {
+      let from = 0
+      let more = true
+      while (more) {
+        const { data: page } = await sb.from('calendario')
+          .select('user_id, created_at')
+          .range(from, from + 999)
+        const rows = page || []
+        calForReeng = calForReeng.concat(rows)
+        more = rows.length === 1000
+        from += 1000
+      }
+    }
 
     // Fetch last_sign_in_at from auth.users (paginated)
     const lastSignInByUser: Record<string, string> = {}
@@ -251,8 +275,8 @@ export async function GET(req: NextRequest) {
       }
     }
     for (const e of eventsForReeng || []) updateMax(e.user_id, e.created_at)
-    for (const c of chatMsgsForReeng || []) updateMax(c.user_id, c.created_at)
-    for (const c of calChatForReeng || []) updateMax(c.user_id, c.created_at)
+    for (const c of convForReeng) updateMax(c.user_id, c.created_at)
+    for (const c of calForReeng) updateMax(c.user_id, c.created_at)
     for (const [uid, ts] of Object.entries(lastSignInByUser)) updateMax(uid, ts)
 
     // Get onboarded users with their info
@@ -276,7 +300,7 @@ export async function GET(req: NextRequest) {
         email: u.email,
         last_activity: refDate,
         days_since: daysSince,
-        status: !lastAct ? 'sin_actividad' : daysSince <= 7 ? 'activa' : daysSince <= 13 ? 'lurker' : 'churned',
+        status: !lastAct ? 'sin_actividad' : daysSince <= 7 ? 'activa' : daysSince <= 13 ? 'distante' : 'churned',
       }
     }).sort((a, b) => b.days_since - a.days_since)
 
