@@ -78,6 +78,7 @@ export default function ListaComprasPage() {
 
   const toggleComprado = async (item: CompraItem) => {
     const newVal = !item.comprado
+    trackEvent('action_marcar_comprado', { nombre: item.alimento.nombre, comprado_nuevo: newVal })
     // Optimistic update
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, comprado: newVal } : i))
     await supabase.from('lista_compras').update({ comprado: newVal }).eq('id', item.id)

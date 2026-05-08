@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Compensacion, DiaProblemático, OpcionSnack, ResultadoAnalisis, Sugerencia } from "@/lib/analisis-calorico";
 import FoodAvatar from "@/components/FoodAvatar";
+import { useTrackEvent } from "@/hooks/useTrackEvent";
 import { toImperial } from "@/lib/units";
 
 interface DayPillProps {
@@ -39,6 +40,7 @@ interface SnackResultado {
 }
 
 export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack }: BannerAnalisisDiaProps) {
+  const trackEvent = useTrackEvent();
   const [abierto, setAbierto] = useState(false);
   const [aplicando, setAplicando] = useState<number | null>(null);
   const [aplicados, setAplicados] = useState<number[]>([]);
@@ -65,6 +67,7 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
 
   async function handleAplicar(sugerencia: Sugerencia, index: number) {
     if (aplicando !== null) return;
+    trackEvent('action_aceptar_sugerencia_banner', { tipo: sugerencia.tipo, nombre: sugerencia.nombre, dia: diaDato.dia });
     setAplicando(index);
     try {
       await onAplicarSugerencia(sugerencia, diaDato.dia);

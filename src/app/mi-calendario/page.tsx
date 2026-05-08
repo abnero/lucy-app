@@ -463,6 +463,7 @@ export default function MiCalendarioPage() {
     if (!wizardTarget || !user) return
     const original = wizardTarget
     const a = original.alimento
+    trackEvent('action_swap_card', { dia: original.dia, comida: original.comida, anterior: a.nombre, nuevo: nuevoAlimento.nombre })
 
     // Recalculate quantity to match original calories
     const calOrig = a.calorias_por_unidad
