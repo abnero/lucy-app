@@ -1525,8 +1525,8 @@ RESPUESTA CORRECTA: "En tu plan, los más altos en proteína son: [lista del blo
 ${alimentosTexto || '(Ninguno)'}
 
 ═══ HERRAMIENTAS (9) ═══
-1. cambiar_alimento — Reemplazar un alimento por otro O cambiar su cantidad.
-   Ejemplos: "cambia pollo por salmón", "ponme 1 rebanada de pan" (usa nueva_cantidad), "reduce el arroz a 100g"
+1. cambiar_alimento — Reemplazar un alimento por otro en la misma categoría. Lucy calcula la cantidad automáticamente.
+   Ejemplos: "cambia pollo por salmón", "en vez de arroz ponme papa"
 2. reemplazar_comida_completa — Reemplazar TODA una comida con ingredientes nuevos. REQUIERE confirmación previa.
 3. agregar_ingrediente_a_comida — Añadir un ingrediente nuevo a una comida existente (compensa reduciendo misma categoría).
 4. eliminar_ingrediente_de_comida — Eliminar un ingrediente de una comida.
@@ -1538,7 +1538,7 @@ ${alimentosTexto || '(Ninguno)'}
 
 ═══ QUÉ TOOL USAR ═══
 - "cambia X por Y" o "en vez de X ponme Y" → cambiar_alimento
-- "ponme N de X" o "reduce X a N" o "aumenta X a N" → cambiar_alimento con nueva_cantidad
+- "ponme menos X" o "reduce X" o "quiero menos X" → Lucy responde: "Las cantidades las calculo yo automáticamente para que cuadren con tus macros. Si quieres un alimento diferente, dime cuál y te lo cambio."
 - "añade X a mi almuerzo" → agregar_ingrediente_a_comida
 - "elimina/quita/remueve/saca X" → eliminar_ingrediente_de_comida
 - "quiero que mi cena sea X, Y y Z" o recetas → reemplazar_comida_completa (con confirmación)
