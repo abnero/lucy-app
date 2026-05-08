@@ -24,6 +24,7 @@ interface MetricasV2 {
     wau: number
     mau: number
     topActions: { tipo: string; count: number }[]
+    topChatUsers: { user_id: string; nombre: string; email: string; mensajes: number; ultimo_mensaje: string }[]
   }
   saludCalendario: {
     user_id: string
@@ -137,7 +138,7 @@ export default function MetricasBetaPage() {
   }
 
   const funnel = data?.adquisicion.funnel || { total: 0, onboarded: 0, chatted: 0 }
-  const engagement = data?.engagement || { dauSeries: [], wau: 0, mau: 0, topActions: [] }
+  const engagement = data?.engagement || { dauSeries: [], wau: 0, mau: 0, topActions: [], topChatUsers: [] }
   const calHealth = data?.saludCalendario || []
   const reEng = data?.reEngagement || []
 
@@ -417,6 +418,35 @@ export default function MetricasBetaPage() {
                 </ResponsiveContainer>
               ) : (
                 <EmptyState message="No hay eventos de accion en este rango" />
+              )}
+            </ChartCard>
+
+            {/* Top chat users */}
+            <ChartCard title={`Top usuarias por chat (${range})`}>
+              {engagement.topChatUsers?.length ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
+                        {['Nombre', 'Email', 'Mensajes', 'Ultimo mensaje'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {engagement.topChatUsers.map(u => (
+                        <tr key={u.user_id} style={{ borderBottom: '1px solid #E8E6F4' }}>
+                          <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 500 }}>{u.nombre}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', fontSize: '11px' }}>{u.email}</td>
+                          <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 600, textAlign: 'center' }}>{u.mensajes}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', whiteSpace: 'nowrap' }}>{formatDate(u.ultimo_mensaje)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState message="No hay mensajes de chat en este rango" />
               )}
             </ChartCard>
           </>

@@ -99,6 +99,46 @@ export async function GET(req: NextRequest) {
       .map(([tipo, count]) => ({ tipo, count }))
       .sort((a, b) => b.count - a.count)
 
+    // Top chat users (within range)
+    const chatCountQuery = sb.from('conversaciones')
+      .select('user_id, created_at')
+      .eq('role', 'user')
+      .gte('created_at', since)
+    const { data: chatCountRaw } = await chatCountQuery
+
+    // Aggregate per user
+    const chatCountByUser: Record<string, { count: number; last: string }> = {}
+    for (const c of chatCountRaw || []) {
+      if (!chatCountByUser[c.user_id]) chatCountByUser[c.user_id] = { count: 0, last: c.created_at }
+      chatCountByUser[c.user_id].count++
+      if (c.created_at > chatCountByUser[c.user_id].last) chatCountByUser[c.user_id].last = c.created_at
+    }
+
+    // Get user names for top chatters
+    const chatUserIds = Object.keys(chatCountByUser)
+    const chatUserNames: Record<string, { nombre: string; email: string; es_interno: boolean }> = {}
+    if (chatUserIds.length > 0) {
+      const { data: chatUserRows } = await sb.from('usuarios')
+        .select('id, nombre, email, es_interno')
+        .in('id', chatUserIds)
+      for (const u of chatUserRows || []) {
+        chatUserNames[u.id] = { nombre: u.nombre, email: u.email, es_interno: u.es_interno }
+      }
+    }
+
+    const topChatUsers = Object.entries(chatCountByUser)
+      .map(([uid, { count, last }]) => ({
+        user_id: uid,
+        nombre: chatUserNames[uid]?.nombre || uid.slice(0, 8),
+        email: chatUserNames[uid]?.email || '',
+        es_interno: chatUserNames[uid]?.es_interno || false,
+        mensajes: count,
+        ultimo_mensaje: last,
+      }))
+      .filter(u => incluirInternos || !u.es_interno)
+      .sort((a, b) => b.mensajes - a.mensajes)
+      .slice(0, 10)
+
     // === SALUD CALENDARIO ===
     // Fetch calendario + alimentos + usuarios separately, compute bilateral tolerance in JS
     let usersQuery = sb.from('usuarios')
@@ -111,15 +151,26 @@ export async function GET(req: NextRequest) {
 
     const healthUserIds = (healthUsers || []).map(u => u.id)
 
-    // Fetch calendario entries for these users
-    const { data: calEntries } = healthUserIds.length > 0
-      ? await sb.from('calendario')
+    // Fetch calendario entries for these users (paginated — default limit is 1000)
+    let calEntries: { user_id: string; dia: number; alimento_id: string; cantidad: number }[] = []
+    if (healthUserIds.length > 0) {
+      const PAGE_SIZE = 1000
+      let from = 0
+      let hasMore = true
+      while (hasMore) {
+        const { data: page } = await sb.from('calendario')
           .select('user_id, dia, alimento_id, cantidad')
           .in('user_id', healthUserIds)
-      : { data: [] }
+          .range(from, from + PAGE_SIZE - 1)
+        const rows = page || []
+        calEntries = calEntries.concat(rows)
+        hasMore = rows.length === PAGE_SIZE
+        from += PAGE_SIZE
+      }
+    }
 
     // Get unique alimento_ids
-    const alimentoIds = Array.from(new Set((calEntries || []).map(c => c.alimento_id)))
+    const alimentoIds = Array.from(new Set(calEntries.map(c => c.alimento_id)))
     const { data: alimentos } = alimentoIds.length > 0
       ? await sb.from('alimentos')
           .select('id, unidad_medida, porcion_base, calorias_por_unidad, proteina_por_unidad')
@@ -132,7 +183,7 @@ export async function GET(req: NextRequest) {
     type DayData = { kcal: number; prot: number }
     const userDayMacros: Record<string, Record<number, DayData>> = {}
 
-    for (const entry of calEntries || []) {
+    for (const entry of calEntries) {
       const food = alimentoMap.get(entry.alimento_id)
       if (!food) continue
       const kcal = food.unidad_medida === 'unidad'
@@ -168,7 +219,7 @@ export async function GET(req: NextRequest) {
     }).sort((a, b) => a.dias_ok - b.dias_ok)
 
     // === RE-ENGAGEMENT ===
-    // Fetch last activity from 3 sources: eventos_usuario, conversaciones (user msgs), calendario (chat edits)
+    // Fetch last activity from 4 sources: eventos_usuario, conversaciones (user msgs), calendario (chat edits), auth last_sign_in
     const [
       { data: eventsForReeng },
       { data: chatMsgsForReeng },
@@ -179,7 +230,20 @@ export async function GET(req: NextRequest) {
       sb.from('calendario').select('user_id, created_at').eq('origen', 'chat'),
     ])
 
-    // Build max timestamp per user across all 3 sources
+    // Fetch last_sign_in_at from auth.users (paginated)
+    const lastSignInByUser: Record<string, string> = {}
+    let authPage = 1
+    let authHasMore = true
+    while (authHasMore) {
+      const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ page: authPage, perPage: 1000 })
+      for (const au of authUsers) {
+        if (au.last_sign_in_at) lastSignInByUser[au.id] = au.last_sign_in_at
+      }
+      authHasMore = authUsers.length === 1000
+      authPage++
+    }
+
+    // Build max timestamp per user across all 4 sources
     const lastActivityByUser: Record<string, string> = {}
     const updateMax = (userId: string, ts: string) => {
       if (!lastActivityByUser[userId] || ts > lastActivityByUser[userId]) {
@@ -189,6 +253,7 @@ export async function GET(req: NextRequest) {
     for (const e of eventsForReeng || []) updateMax(e.user_id, e.created_at)
     for (const c of chatMsgsForReeng || []) updateMax(c.user_id, c.created_at)
     for (const c of calChatForReeng || []) updateMax(c.user_id, c.created_at)
+    for (const [uid, ts] of Object.entries(lastSignInByUser)) updateMax(uid, ts)
 
     // Get onboarded users with their info
     let reengUsersQuery = sb.from('usuarios')
@@ -226,6 +291,7 @@ export async function GET(req: NextRequest) {
         wau: wauUsers.size,
         mau: mauUsers.size,
         topActions: topActionsSorted,
+        topChatUsers,
       },
       saludCalendario: calHealth,
       reEngagement,
