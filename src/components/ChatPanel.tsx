@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase/client'
+import { useTrackEvent } from '@/hooks/useTrackEvent'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -14,6 +15,7 @@ const GREETING = '¡Hola! Soy Lucy. ¿En qué te puedo ayudar hoy? Puedo cambiar
 
 export default function ChatPanel({ onDataChange }: { onDataChange?: () => void }) {
   const { user, session } = useAuth()
+  const trackEvent = useTrackEvent()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -205,7 +207,7 @@ export default function ChatPanel({ onDataChange }: { onDataChange?: () => void 
         <div className="absolute inset-0 rounded-full animate-lucyPulse" style={{ backgroundColor: '#B8B5E0' }} />
 
         <button
-          onClick={() => { setOpen(true); setShowHint(false) }}
+          onClick={() => { setOpen(true); setShowHint(false); trackEvent('page_view_chat') }}
           className="relative w-16 h-16 rounded-full bg-lucy-accent flex items-center justify-center hover:opacity-90 transition-opacity"
         >
           <span className="font-logo text-white text-xl">L</span>

@@ -8,6 +8,7 @@ import { APP_VERSION } from '@/lib/version'
 import ChatPanel from '@/components/ChatPanel'
 import PreguntasActividad from '@/components/PreguntasActividad'
 import { calcularMacros, NivelActividad, Meta, Genero, DESCRIPCIONES_NIVEL } from '@/lib/calculo-macros'
+import { useTrackEvent } from '@/hooks/useTrackEvent'
 
 type UnidadPeso = 'lbs' | 'kg'
 type UnidadAltura = 'ft' | 'cm'
@@ -38,6 +39,8 @@ interface UsuarioData {
 export default function MiPerfilPage() {
   const { user, session, loading, signOut } = useAuth()
   const router = useRouter()
+  const trackEvent = useTrackEvent()
+  useEffect(() => { trackEvent('page_view_perfil') }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [userData, setUserData] = useState<UsuarioData | null>(null)
   const [loadingData, setLoadingData] = useState(true)

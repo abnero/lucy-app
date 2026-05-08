@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const VALID_EVENTS = new Set([
-  'page_view_home',
   'page_view_plan',
   'page_view_lista_compras',
   'page_view_perfil',

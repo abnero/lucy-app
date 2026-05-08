@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import ChatPanel from '@/components/ChatPanel'
 import FoodAvatar from '@/components/FoodAvatar'
 import { toImperial } from '@/lib/units'
+import { useTrackEvent } from '@/hooks/useTrackEvent'
 
 interface CompraItem {
   id: string
@@ -39,6 +40,8 @@ const CATEGORIAS: { key: string; label: string }[] = [
 export default function ListaComprasPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const trackEvent = useTrackEvent()
+  useEffect(() => { trackEvent('page_view_lista_compras') }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [items, setItems] = useState<CompraItem[]>([])
   const [loadingData, setLoadingData] = useState(true)
 
