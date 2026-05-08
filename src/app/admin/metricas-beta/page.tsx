@@ -280,7 +280,7 @@ export default function MetricasBetaPage() {
                   { label: 'Distantes (8-13d)', count: distantes, color: STATUS_COLORS.distante },
                   { label: 'Churned (14d+)', count: churned, color: STATUS_COLORS.churned },
                   { label: 'Sin actividad', count: sinActividad, color: STATUS_COLORS.sin_actividad },
-                ].filter(s => s.count > 0).map(s => (
+                ].map(s => (
                   <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: s.color }} />
                     <span style={{ fontSize: '13px', color: '#2D2B45' }}>{s.count} {s.label}</span>
@@ -545,14 +545,9 @@ export default function MetricasBetaPage() {
                       { name: 'Distantes', value: distantes, color: STATUS_COLORS.distante },
                       { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
                       { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
-                    ].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                      {[
-                        { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
-                        { name: 'Distantes', value: distantes, color: STATUS_COLORS.distante },
-                        { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
-                        { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
-                      ].filter(d => d.value > 0).map((d, i) => (
-                        <Cell key={i} fill={d.color} />
+                    ]} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                      {[STATUS_COLORS.activa, STATUS_COLORS.distante, STATUS_COLORS.churned, STATUS_COLORS.sin_actividad].map((color, i) => (
+                        <Cell key={i} fill={color} />
                       ))}
                     </Pie>
                     <Tooltip />

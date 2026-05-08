@@ -64,51 +64,113 @@ export async function GET(req: NextRequest) {
     const chattedIds = new Set((chatUsers || []).map(c => c.user_id))
     const chatted = chattedIds.size
 
-    // === ENGAGEMENT ===
-    const { data: dauRaw } = await sb.from('eventos_usuario')
-      .select('user_id, created_at')
-      .gte('created_at', since)
+    // === FETCH ALL ACTIVITY SOURCES (reused by Engagement + Re-engagement) ===
+    const now = new Date()
 
-    const dauByDay: Record<string, Set<string>> = {}
-    for (const e of dauRaw || []) {
-      const day = e.created_at.slice(0, 10)
-      if (!dauByDay[day]) dauByDay[day] = new Set()
-      dauByDay[day].add(e.user_id)
+    // 1. eventos_usuario (small table, no pagination needed)
+    const { data: allEvents } = await sb.from('eventos_usuario').select('user_id, created_at, tipo_evento')
+
+    // 2. conversaciones: paginated (can exceed 1000 rows)
+    let allConv: { user_id: string; created_at: string; role: string }[] = []
+    {
+      let from = 0
+      let more = true
+      while (more) {
+        const { data: page } = await sb.from('conversaciones')
+          .select('user_id, created_at, role')
+          .range(from, from + 999)
+        const rows = page || []
+        allConv = allConv.concat(rows)
+        more = rows.length === 1000
+        from += 1000
+      }
     }
+
+    // 3. calendario: already paginated below for salud, but we need created_at here too
+    //    Fetch separately since salud needs different columns (dia, alimento_id, cantidad)
+    let allCalTimestamps: { user_id: string; created_at: string }[] = []
+    {
+      let from = 0
+      let more = true
+      while (more) {
+        const { data: page } = await sb.from('calendario')
+          .select('user_id, created_at')
+          .range(from, from + 999)
+        const rows = page || []
+        allCalTimestamps = allCalTimestamps.concat(rows)
+        more = rows.length === 1000
+        from += 1000
+      }
+    }
+
+    // 4. auth.users last_sign_in_at
+    const lastSignInByUser: Record<string, string> = {}
+    let authPage = 1
+    let authHasMore = true
+    while (authHasMore) {
+      const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ page: authPage, perPage: 1000 })
+      for (const au of authUsers) {
+        if (au.last_sign_in_at) lastSignInByUser[au.id] = au.last_sign_in_at
+      }
+      authHasMore = authUsers.length === 1000
+      authPage++
+    }
+
+    // Build set of internal user IDs for filtering
+    const internoIds = new Set((funnelRaw || []).filter(u => u.es_interno).map(u => u.id))
+    const isExternal = (uid: string) => incluirInternos || !internoIds.has(uid)
+
+    // === ENGAGEMENT (DAU/WAU/MAU from all 4 sources) ===
+    // Unified activity records: {user_id, date_str}
+    const dauByDay: Record<string, Set<string>> = {}
+    const addActivity = (uid: string, ts: string) => {
+      if (!isExternal(uid)) return
+      const day = ts.slice(0, 10)
+      if (day < since.slice(0, 10)) return // outside range
+      if (!dauByDay[day]) dauByDay[day] = new Set()
+      dauByDay[day].add(uid)
+    }
+    for (const e of allEvents || []) addActivity(e.user_id, e.created_at)
+    for (const c of allConv) addActivity(c.user_id, c.created_at)
+    for (const c of allCalTimestamps) addActivity(c.user_id, c.created_at)
+    // last_sign_in_at counts as activity on that day
+    for (const [uid, ts] of Object.entries(lastSignInByUser)) addActivity(uid, ts)
+
     const dauSeries = Object.entries(dauByDay)
       .map(([dia, users]) => ({ dia, count: users.size }))
       .sort((a, b) => a.dia.localeCompare(b.dia))
 
-    // WAU/MAU
-    const now = new Date()
+    // WAU/MAU from same unified sources
     const wauSince = new Date(now.getTime() - 7 * 86400000).toISOString()
     const mauSince = new Date(now.getTime() - 30 * 86400000).toISOString()
-    const wauUsers = new Set((dauRaw || []).filter(e => e.created_at >= wauSince).map(e => e.user_id))
-    const mauUsers = new Set((dauRaw || []).filter(e => e.created_at >= mauSince).map(e => e.user_id))
+    const wauUserSet = new Set<string>()
+    const mauUserSet = new Set<string>()
+    const addWauMau = (uid: string, ts: string) => {
+      if (!isExternal(uid)) return
+      if (ts >= wauSince) wauUserSet.add(uid)
+      if (ts >= mauSince) mauUserSet.add(uid)
+    }
+    for (const e of allEvents || []) addWauMau(e.user_id, e.created_at)
+    for (const c of allConv) addWauMau(c.user_id, c.created_at)
+    for (const c of allCalTimestamps) addWauMau(c.user_id, c.created_at)
+    for (const [uid, ts] of Object.entries(lastSignInByUser)) addWauMau(uid, ts)
 
-    // Top actions (last 7d)
-    const { data: topActions } = await sb.from('eventos_usuario')
-      .select('tipo_evento')
-      .gte('created_at', new Date(now.getTime() - 7 * 86400000).toISOString())
-
+    // Top actions (last 7d, from eventos_usuario only — these are typed events)
+    const actionSince = new Date(now.getTime() - 7 * 86400000).toISOString()
     const actionBreakdown: Record<string, number> = {}
-    for (const e of topActions || []) {
-      actionBreakdown[e.tipo_evento] = (actionBreakdown[e.tipo_evento] || 0) + 1
+    for (const e of allEvents || []) {
+      if (e.created_at >= actionSince && e.tipo_evento) {
+        actionBreakdown[e.tipo_evento] = (actionBreakdown[e.tipo_evento] || 0) + 1
+      }
     }
     const topActionsSorted = Object.entries(actionBreakdown)
       .map(([tipo, count]) => ({ tipo, count }))
       .sort((a, b) => b.count - a.count)
 
-    // Top chat users (within range)
-    const chatCountQuery = sb.from('conversaciones')
-      .select('user_id, created_at')
-      .eq('role', 'user')
-      .gte('created_at', since)
-    const { data: chatCountRaw } = await chatCountQuery
-
-    // Aggregate per user
+    // Top chat users (within range, role=user only for message counts)
     const chatCountByUser: Record<string, { count: number; last: string }> = {}
-    for (const c of chatCountRaw || []) {
+    for (const c of allConv) {
+      if (c.role !== 'user' || c.created_at < since) continue
       if (!chatCountByUser[c.user_id]) chatCountByUser[c.user_id] = { count: 0, last: c.created_at }
       chatCountByUser[c.user_id].count++
       if (c.created_at > chatCountByUser[c.user_id].last) chatCountByUser[c.user_id].last = c.created_at
@@ -218,55 +280,7 @@ export async function GET(req: NextRequest) {
       }
     }).sort((a, b) => a.dias_ok - b.dias_ok)
 
-    // === RE-ENGAGEMENT ===
-    // Fetch last activity from 4 sources (no role/origen filters — any row = user activity)
-    const { data: eventsForReeng } = await sb.from('eventos_usuario').select('user_id, created_at')
-
-    // Conversaciones: paginated (can exceed 1000 rows)
-    let convForReeng: { user_id: string; created_at: string }[] = []
-    {
-      let from = 0
-      let more = true
-      while (more) {
-        const { data: page } = await sb.from('conversaciones')
-          .select('user_id, created_at')
-          .range(from, from + 999)
-        const rows = page || []
-        convForReeng = convForReeng.concat(rows)
-        more = rows.length === 1000
-        from += 1000
-      }
-    }
-
-    // Calendario: paginated (4000+ rows)
-    let calForReeng: { user_id: string; created_at: string }[] = []
-    {
-      let from = 0
-      let more = true
-      while (more) {
-        const { data: page } = await sb.from('calendario')
-          .select('user_id, created_at')
-          .range(from, from + 999)
-        const rows = page || []
-        calForReeng = calForReeng.concat(rows)
-        more = rows.length === 1000
-        from += 1000
-      }
-    }
-
-    // Fetch last_sign_in_at from auth.users (paginated)
-    const lastSignInByUser: Record<string, string> = {}
-    let authPage = 1
-    let authHasMore = true
-    while (authHasMore) {
-      const { data: { users: authUsers } } = await sb.auth.admin.listUsers({ page: authPage, perPage: 1000 })
-      for (const au of authUsers) {
-        if (au.last_sign_in_at) lastSignInByUser[au.id] = au.last_sign_in_at
-      }
-      authHasMore = authUsers.length === 1000
-      authPage++
-    }
-
+    // === RE-ENGAGEMENT (reuses data fetched above) ===
     // Build max timestamp per user across all 4 sources
     const lastActivityByUser: Record<string, string> = {}
     const updateMax = (userId: string, ts: string) => {
@@ -274,9 +288,9 @@ export async function GET(req: NextRequest) {
         lastActivityByUser[userId] = ts
       }
     }
-    for (const e of eventsForReeng || []) updateMax(e.user_id, e.created_at)
-    for (const c of convForReeng) updateMax(c.user_id, c.created_at)
-    for (const c of calForReeng) updateMax(c.user_id, c.created_at)
+    for (const e of allEvents || []) updateMax(e.user_id, e.created_at)
+    for (const c of allConv) updateMax(c.user_id, c.created_at)
+    for (const c of allCalTimestamps) updateMax(c.user_id, c.created_at)
     for (const [uid, ts] of Object.entries(lastSignInByUser)) updateMax(uid, ts)
 
     // Get onboarded users with their info
@@ -312,8 +326,8 @@ export async function GET(req: NextRequest) {
       },
       engagement: {
         dauSeries,
-        wau: wauUsers.size,
-        mau: mauUsers.size,
+        wau: wauUserSet.size,
+        mau: mauUserSet.size,
         topActions: topActionsSorted,
         topChatUsers,
       },
