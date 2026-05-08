@@ -168,16 +168,27 @@ export async function GET(req: NextRequest) {
     }).sort((a, b) => a.dias_ok - b.dias_ok)
 
     // === RE-ENGAGEMENT ===
-    // Fetch last event per user from eventos_usuario
-    const { data: eventsForReeng } = await sb.from('eventos_usuario')
-      .select('user_id, created_at')
+    // Fetch last activity from 3 sources: eventos_usuario, conversaciones (user msgs), calendario (chat edits)
+    const [
+      { data: eventsForReeng },
+      { data: chatMsgsForReeng },
+      { data: calChatForReeng },
+    ] = await Promise.all([
+      sb.from('eventos_usuario').select('user_id, created_at'),
+      sb.from('conversaciones').select('user_id, created_at').eq('role', 'user'),
+      sb.from('calendario').select('user_id, created_at').eq('origen', 'chat'),
+    ])
 
-    const lastEventByUser: Record<string, string> = {}
-    for (const e of eventsForReeng || []) {
-      if (!lastEventByUser[e.user_id] || e.created_at > lastEventByUser[e.user_id]) {
-        lastEventByUser[e.user_id] = e.created_at
+    // Build max timestamp per user across all 3 sources
+    const lastActivityByUser: Record<string, string> = {}
+    const updateMax = (userId: string, ts: string) => {
+      if (!lastActivityByUser[userId] || ts > lastActivityByUser[userId]) {
+        lastActivityByUser[userId] = ts
       }
     }
+    for (const e of eventsForReeng || []) updateMax(e.user_id, e.created_at)
+    for (const c of chatMsgsForReeng || []) updateMax(c.user_id, c.created_at)
+    for (const c of calChatForReeng || []) updateMax(c.user_id, c.created_at)
 
     // Get onboarded users with their info
     let reengUsersQuery = sb.from('usuarios')
@@ -191,15 +202,16 @@ export async function GET(req: NextRequest) {
     const nowMs = Date.now()
     type UserActivity = { id: string; nombre: string; email: string; last_activity: string; days_since: number; status: string }
     const reEngagement: UserActivity[] = (reengUsers || []).map(u => {
-      const lastAct = lastEventByUser[u.id] || u.created_at
-      const daysSince = Math.floor((nowMs - new Date(lastAct).getTime()) / 86400000)
+      const lastAct = lastActivityByUser[u.id] || null
+      const refDate = lastAct || u.created_at
+      const daysSince = Math.floor((nowMs - new Date(refDate).getTime()) / 86400000)
       return {
         id: u.id,
         nombre: u.nombre,
         email: u.email,
-        last_activity: lastAct,
+        last_activity: refDate,
         days_since: daysSince,
-        status: daysSince <= 7 ? 'activa' : daysSince <= 13 ? 'lurker' : 'churned',
+        status: !lastAct ? 'sin_actividad' : daysSince <= 7 ? 'activa' : daysSince <= 13 ? 'lurker' : 'churned',
       }
     }).sort((a, b) => b.days_since - a.days_since)
 

@@ -48,6 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
   activa: '#22C55E',
   lurker: '#F59E0B',
   churned: '#EF4444',
+  sin_actividad: '#9896B0',
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -146,6 +147,7 @@ export default function MetricasBetaPage() {
   const activas = reEng.filter(u => u.status === 'activa').length
   const lurkers = reEng.filter(u => u.status === 'lurker').length
   const churned = reEng.filter(u => u.status === 'churned').length
+  const sinActividad = reEng.filter(u => u.status === 'sin_actividad').length
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
@@ -276,7 +278,8 @@ export default function MetricasBetaPage() {
                   { label: 'Activas (<=7d)', count: activas, color: STATUS_COLORS.activa },
                   { label: 'Lurkers (8-13d)', count: lurkers, color: STATUS_COLORS.lurker },
                   { label: 'Churned (14d+)', count: churned, color: STATUS_COLORS.churned },
-                ].map(s => (
+                  { label: 'Sin actividad', count: sinActividad, color: STATUS_COLORS.sin_actividad },
+                ].filter(s => s.count > 0).map(s => (
                   <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: s.color }} />
                     <span style={{ fontSize: '13px', color: '#2D2B45' }}>{s.count} {s.label}</span>
@@ -495,10 +498,11 @@ export default function MetricasBetaPage() {
         {/* ==================== RE-ENGAGEMENT ==================== */}
         {tab === 'reengagement' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px', marginBottom: '24px' }}>
               <StatCard label="Activas" value={activas} sub="<= 7 dias" />
               <StatCard label="Lurkers" value={lurkers} sub="8-13 dias" />
               <StatCard label="Churned" value={churned} sub="14+ dias" />
+              <StatCard label="Sin actividad" value={sinActividad} sub="nunca interactuaron" />
             </div>
 
             {/* Status pie */}
@@ -507,13 +511,19 @@ export default function MetricasBetaPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie data={[
-                      { name: 'Activas', value: activas },
-                      { name: 'Lurkers', value: lurkers },
-                      { name: 'Churned', value: churned },
+                      { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
+                      { name: 'Lurkers', value: lurkers, color: STATUS_COLORS.lurker },
+                      { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
+                      { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
                     ].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                      <Cell fill={STATUS_COLORS.activa} />
-                      <Cell fill={STATUS_COLORS.lurker} />
-                      <Cell fill={STATUS_COLORS.churned} />
+                      {[
+                        { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
+                        { name: 'Lurkers', value: lurkers, color: STATUS_COLORS.lurker },
+                        { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
+                        { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
+                      ].filter(d => d.value > 0).map((d, i) => (
+                        <Cell key={i} fill={d.color} />
+                      ))}
                     </Pie>
                     <Tooltip />
                     <Legend />
@@ -546,10 +556,10 @@ export default function MetricasBetaPage() {
                           <td style={{ padding: '8px 6px' }}>
                             <span style={{
                               padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600,
-                              backgroundColor: u.status === 'activa' ? '#DCFCE7' : u.status === 'lurker' ? '#FEF3C7' : '#FEE2E2',
+                              backgroundColor: u.status === 'activa' ? '#DCFCE7' : u.status === 'lurker' ? '#FEF3C7' : u.status === 'sin_actividad' ? '#F3F4F6' : '#FEE2E2',
                               color: STATUS_COLORS[u.status] || '#6B6889',
                             }}>
-                              {u.status}
+                              {u.status === 'sin_actividad' ? 'sin actividad' : u.status}
                             </span>
                           </td>
                         </tr>
