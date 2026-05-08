@@ -121,24 +121,15 @@ export default function SeleccionAlimentosPage() {
         })
       }
 
-      // Clear preferences and shopping list (calendar preserved until generar-plan succeeds)
-      const uid = user!.id
-      const [delPref] = await Promise.all([
-        supabase.from('preferencias_usuario').delete().eq('user_id', uid).select(),
-        supabase.from('lista_compras').delete().eq('user_id', uid).select(),
-      ])
+      // Bug #77: atomic DELETE+INSERT via RPC (no race window between DELETE and INSERT)
+      const { error: rpcError } = await supabase.rpc('replace_preferencias', {
+        p_user_id: user!.id,
+        p_prefs: preferences,
+      })
 
-      if (delPref.error) {
-        setError('Error limpiando preferencias: ' + delPref.error.message)
-        setSaving(false)
-        return
-      }
-
-      const { error: dbError } = await supabase.from('preferencias_usuario').insert(preferences)
-
-      if (dbError) {
-        console.error('Insert error:', dbError, 'Preferences count:', preferences.length)
-        setError('Error al guardar: ' + dbError.message)
+      if (rpcError) {
+        console.error('RPC replace_preferencias error:', rpcError)
+        setError('Error al guardar tus alimentos: ' + rpcError.message)
         setSaving(false)
         return
       }
