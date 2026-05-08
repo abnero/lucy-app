@@ -10,6 +10,7 @@ import FoodWizard, { WizardAlimento } from '@/components/FoodWizard'
 import { toImperial } from '@/lib/units'
 import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
 import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
+import { useTrackEvent } from '@/hooks/useTrackEvent'
 import { registrarCambioEnChat } from '@/lib/registrar-cambio-lucy'
 import { nombreDiaCompleto, type AlimentoCalendario, type CandidatoSnack } from '@/lib/analisis-calorico'
 import BannerReOnboarding from '@/components/BannerReOnboarding'
@@ -95,6 +96,8 @@ const ROL_LABELS: Record<string, string> = {
 export default function MiCalendarioPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const trackEvent = useTrackEvent()
+  useEffect(() => { trackEvent('page_view_plan') }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [items, setItems] = useState<CalendarioItem[]>([])
   const [diaActivo, setDiaActivo] = useState(() => {
     const jsDay = new Date().getDay() // 0=Sun, 1=Mon, ..., 6=Sat
