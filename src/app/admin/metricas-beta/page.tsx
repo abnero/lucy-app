@@ -1,293 +1,603 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from 'recharts'
 
 const ADMIN_USER_ID = '57c22f0f-5d15-4b8e-ba80-070383f8c11e'
 
-interface UserMetric {
-  id: string
-  email: string
-  nombre: string
-  isInternal: boolean
-  createdAt: string
-  onboardingCompleto: boolean
-  tieneCalendario: boolean
-  ultimaInteraccion: string | null
-  totalMensajes: number
-  diasActivos7d: number
-  diasActivos14d: number
-  diasActivos30d: number
-  modificacionesCalendario: number
-  meta: 'nueva' | 'vieja'
-  pctCal: number | null
-  pctProt: number | null
-  comPrinc: number
-  subMins: number
-  pool: number
-  entries: number
-  veredicto: string
+type Range = '7d' | '30d' | '90d'
+type Tab = 'overview' | 'adquisicion' | 'engagement' | 'salud' | 'reengagement'
+
+interface MetricasV2 {
+  range: string
+  adquisicion: {
+    signupsPorDia: { dia: string; cnt: number }[]
+    funnel: { total: number; onboarded: number; chatted: number }
+  }
+  engagement: {
+    dauSeries: { dia: string; count: number }[]
+    wau: number
+    mau: number
+    topActions: { tipo: string; count: number }[]
+    topChatUsers: { user_id: string; nombre: string; email: string; mensajes: number; ultimo_mensaje: string }[]
+  }
+  saludCalendario: {
+    user_id: string
+    nombre: string
+    meta_cal: number
+    meta_prot: number
+    dias: number
+    dias_ok: number
+  }[]
+  reEngagement: {
+    id: string
+    nombre: string
+    email: string
+    last_activity: string
+    days_since: number
+    status: string
+  }[]
 }
 
-interface SinCalendario {
-  email: string
-  nombre: string
-  diasDesdeSingup: number
-  ultimaInteraccion: string | null
+const COLORS = ['#7B7FC4', '#B8B5E0', '#F4845F', '#F7B267', '#56B4D3', '#82ca9d', '#ffc658']
+const STATUS_COLORS: Record<string, string> = {
+  activa: '#22C55E',
+  distante: '#F59E0B',
+  churned: '#EF4444',
+  sin_actividad: '#9896B0',
 }
 
-interface RequiereAtencion {
-  nombre: string
-  email: string
-  veredicto: string
+function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{
+      backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E8E6F4',
+      padding: '16px 14px', textAlign: 'center', minWidth: 0,
+    }}>
+      <p style={{ fontSize: '28px', fontWeight: 700, color: '#2D2B45', lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: '10px', color: '#6B6889', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+      {sub && <p style={{ fontSize: '10px', color: '#9896B0', marginTop: '2px' }}>{sub}</p>}
+    </div>
+  )
 }
 
-interface Resumen {
-  totalBeta: number
-  completaronOnboarding: number
-  completaronOnboardingPct: number
-  generaronCalendario: number
-  generaronCalendarioPct: number
-  dau: number
-  wau: number
-  retencion7d: number
-  retencion14d: number
-  saludOk: number
-  saludWarning: number
-  saludCritical: number
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E8E6F4',
+      padding: '20px', marginBottom: '16px',
+    }}>
+      <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#2D2B45', marginBottom: '16px' }}>{title}</h3>
+      {children}
+    </div>
+  )
 }
 
-interface MetricasData {
-  resumen: Resumen
-  usuarios: UserMetric[]
-  sinCalendario: SinCalendario[]
-  requierenAtencion: RequiereAtencion[]
-}
-
-function pctColor(val: number | null, thresholdYellow: number, thresholdRed: number): string {
-  if (val === null) return '#9896B0'
-  const abs = Math.abs(val)
-  if (abs > thresholdRed) return '#DC2626'
-  if (abs > thresholdYellow) return '#D97706'
-  return '#2D2B45'
-}
-
-function pctBg(val: number | null, thresholdYellow: number, thresholdRed: number): string {
-  if (val === null) return 'transparent'
-  const abs = Math.abs(val)
-  if (abs > thresholdRed) return '#FEF2F2'
-  if (abs > thresholdYellow) return '#FFFBEB'
-  return 'transparent'
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div style={{ padding: '32px', textAlign: 'center' }}>
+      <p style={{ fontSize: '13px', color: '#9896B0' }}>{message}</p>
+    </div>
+  )
 }
 
 export default function MetricasBetaPage() {
   const { user, session, loading } = useAuth()
   const router = useRouter()
-  const [data, setData] = useState<MetricasData | null>(null)
+  const [data, setData] = useState<MetricasV2 | null>(null)
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
+  const [range, setRange] = useState<Range>('7d')
+  const [incluirInternos, setIncluirInternos] = useState(false)
+  const [tab, setTab] = useState<Tab>('overview')
+
+  const fetchData = useCallback(async () => {
+    if (!session?.access_token) return
+    setLoadingData(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ range, incluir_internos: String(incluirInternos) })
+      const res = await fetch(`/api/admin/metricas-v2?${params}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const d = await res.json()
+      if (d.error) { setError(d.error); setData(null) }
+      else setData(d)
+    } catch {
+      setError('Error cargando métricas')
+      setData(null)
+    }
+    setLoadingData(false)
+  }, [session?.access_token, range, incluirInternos])
 
   useEffect(() => {
     if (loading) return
-    if (!user || user.id !== ADMIN_USER_ID) {
-      router.push('/mi-calendario')
-      return
-    }
-    if (!session?.access_token) return
+    if (!user || user.id !== ADMIN_USER_ID) { router.push('/mi-calendario'); return }
+    fetchData()
+  }, [user, loading, router, fetchData])
 
-    fetch('/api/admin/metricas', {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) { setError(d.error); setLoadingData(false); return }
-        setData(d)
-        setLoadingData(false)
-      })
-      .catch(() => { setError('Error cargando métricas'); setLoadingData(false) })
-  }, [user, session, loading, router])
-
-  if (loading || loadingData) {
+  if (loading || (loadingData && !data)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8F7FC' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F7FC' }}>
         <p style={{ color: '#6B6889', fontSize: '14px' }}>Cargando métricas...</p>
       </div>
     )
   }
 
   if (!user || user.id !== ADMIN_USER_ID) return null
-  if (error) {
+  if (error && !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8F7FC' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F7FC' }}>
         <p style={{ color: '#e53e3e', fontSize: '14px' }}>{error}</p>
       </div>
     )
   }
-  if (!data) return null
 
-  const { resumen, usuarios, sinCalendario, requierenAtencion } = data
-  const reales = usuarios.filter(u => !u.isInternal)
+  const funnel = data?.adquisicion.funnel || { total: 0, onboarded: 0, chatted: 0 }
+  const engagement = data?.engagement || { dauSeries: [], wau: 0, mau: 0, topActions: [], topChatUsers: [] }
+  const calHealth = data?.saludCalendario || []
+  const reEng = data?.reEngagement || []
 
-  const formatDate = (d: string | null) => {
-    if (!d) return '—'
+  // Derived stats
+  const totalBilateralOk = calHealth.filter(u => u.dias > 0 && u.dias_ok === u.dias).length
+  const totalWithCal = calHealth.filter(u => u.dias > 0).length
+  const activas = reEng.filter(u => u.status === 'activa').length
+  const distantes = reEng.filter(u => u.status === 'distante').length
+  const churned = reEng.filter(u => u.status === 'churned').length
+  const sinActividad = reEng.filter(u => u.status === 'sin_actividad').length
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'adquisicion', label: 'Adquisicion' },
+    { key: 'engagement', label: 'Engagement' },
+    { key: 'salud', label: 'Salud Calendario' },
+    { key: 'reengagement', label: 'Re-engagement' },
+  ]
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formatDay = (d: any) => {
+    const date = new Date(String(d) + 'T00:00:00')
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+
+  const formatDate = (d: string) => {
     return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
-  const formatDateShort = (d: string) => {
-    return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-  }
-
-  const formatPct = (val: number | null) => {
-    if (val === null) return '—'
-    return (val >= 0 ? '+' : '') + val + '%'
-  }
-
-  const td = { padding: '8px 6px', fontSize: '12px' } as const
-  const thStyle = { textAlign: 'left' as const, padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' as const, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
-
   return (
     <div style={{ backgroundColor: '#F8F7FC', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 20px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '28px', color: '#2D2B45', margin: 0 }}>Métricas Beta</h1>
-            <p style={{ fontSize: '12px', color: '#6B6889', marginTop: '4px' }}>Solo visible para admin</p>
+            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '24px', color: '#2D2B45', margin: 0 }}>Metricas v2</h1>
+            <p style={{ fontSize: '11px', color: '#6B6889', marginTop: '4px' }}>Actividad + salud calendario</p>
           </div>
-          <button onClick={() => router.push('/admin')} style={{ fontSize: '12px', color: '#7B7FC4', background: 'none', border: 'none', cursor: 'pointer' }}>
-            ← Admin panel
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Range selector */}
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {(['7d', '30d', '90d'] as Range[]).map(r => (
+                <button key={r} onClick={() => setRange(r)} style={{
+                  padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer',
+                  backgroundColor: range === r ? '#7B7FC4' : '#FFFFFF',
+                  color: range === r ? '#FFFFFF' : '#6B6889',
+                }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            {/* Include internos */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#6B6889', cursor: 'pointer' }}>
+              <input type="checkbox" checked={incluirInternos} onChange={e => setIncluirInternos(e.target.checked)}
+                style={{ accentColor: '#7B7FC4' }} />
+              Internos
+            </label>
+            {/* Refresh */}
+            <button onClick={fetchData} disabled={loadingData} style={{
+              padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 500, border: '1px solid #E8E6F4',
+              backgroundColor: '#FFFFFF', color: '#6B6889', cursor: loadingData ? 'wait' : 'pointer',
+            }}>
+              {loadingData ? '...' : 'Refresh'}
+            </button>
+            {/* Back */}
+            <button onClick={() => router.push('/admin')} style={{ fontSize: '12px', color: '#7B7FC4', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Admin
+            </button>
+          </div>
         </div>
 
-        {/* Resumen ejecutivo */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '32px' }}>
-          {[
-            { label: 'Beta testers', value: resumen.totalBeta, sub: 'reales' },
-            { label: 'Onboarding', value: `${resumen.completaronOnboarding}`, sub: `${resumen.completaronOnboardingPct}%` },
-            { label: 'Con calendario', value: `${resumen.generaronCalendario}`, sub: `${resumen.generaronCalendarioPct}%` },
-            { label: 'DAU (24h)', value: resumen.dau, sub: 'activas' },
-            { label: 'WAU (7d)', value: resumen.wau, sub: 'activas' },
-            { label: 'Retención 7d', value: `${resumen.retencion7d}%`, sub: 'volvieron' },
-            { label: 'Retención 14d', value: `${resumen.retencion14d}%`, sub: 'volvieron' },
-            { label: 'Salud ✅', value: resumen.saludOk, sub: `de ${resumen.totalBeta}` },
-            { label: 'Salud 🟡', value: resumen.saludWarning, sub: 'atención' },
-            { label: 'Salud 🔴', value: resumen.saludCritical, sub: 'crítico' },
-          ].map((m, i) => (
-            <div key={i} style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              border: '1px solid #E8E6F4',
-              padding: '16px 12px',
-              textAlign: 'center',
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', overflowX: 'auto' }}>
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 500, border: 'none', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              backgroundColor: tab === t.key ? '#2D2B45' : '#FFFFFF',
+              color: tab === t.key ? '#FFFFFF' : '#6B6889',
             }}>
-              <p style={{ fontSize: '28px', fontWeight: 700, color: '#2D2B45', lineHeight: 1 }}>{m.value}</p>
-              <p style={{ fontSize: '10px', color: '#6B6889', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{m.label}</p>
-              <p style={{ fontSize: '10px', color: '#9896B0', marginTop: '2px' }}>{m.sub}</p>
-            </div>
+              {t.label}
+            </button>
           ))}
         </div>
 
-        {/* Requieren atención */}
-        {requierenAtencion.length > 0 && (
-          <div style={{ backgroundColor: '#FEF2F2', borderRadius: '16px', border: '1px solid #FECACA', padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#991B1B', marginBottom: '12px' }}>
-              Requieren atención ({requierenAtencion.length})
-            </h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {requierenAtencion.map((u, i) => (
-                <div key={i} style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', border: '1px solid #FECACA' }}>
-                  <span style={{ fontWeight: 600, color: '#2D2B45' }}>{u.nombre}</span>
-                  <span style={{ color: '#6B6889', marginLeft: '6px' }}>{u.veredicto}</span>
-                </div>
-              ))}
+        {/* ==================== OVERVIEW ==================== */}
+        {tab === 'overview' && (
+          <>
+            {/* KPI row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="Usuarios" value={funnel.total} />
+              <StatCard label="Onboarded" value={funnel.onboarded} sub={funnel.total > 0 ? `${Math.round(funnel.onboarded / funnel.total * 100)}%` : '—'} />
+              <StatCard label="Chatearon" value={funnel.chatted} sub={funnel.onboarded > 0 ? `${Math.round(funnel.chatted / funnel.onboarded * 100)}%` : '—'} />
+              <StatCard label="WAU" value={engagement.wau} />
+              <StatCard label="MAU" value={engagement.mau} />
+              <StatCard label="100% bilateral" value={totalBilateralOk} sub={totalWithCal > 0 ? `de ${totalWithCal}` : '—'} />
             </div>
-          </div>
-        )}
 
-        {/* Sin calendario */}
-        {sinCalendario.length > 0 && (
-          <div style={{ backgroundColor: '#FFF8F0', borderRadius: '16px', border: '1px solid #F5D0A9', padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#2D2B45', marginBottom: '12px' }}>
-              Sin calendario ({sinCalendario.length})
-            </h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #F5D0A9' }}>
-                    <th style={{ textAlign: 'left', padding: '8px 12px', color: '#6B6889', fontWeight: 500 }}>Email</th>
-                    <th style={{ textAlign: 'left', padding: '8px 12px', color: '#6B6889', fontWeight: 500 }}>Nombre</th>
-                    <th style={{ textAlign: 'center', padding: '8px 12px', color: '#6B6889', fontWeight: 500 }}>Días</th>
-                    <th style={{ textAlign: 'left', padding: '8px 12px', color: '#6B6889', fontWeight: 500 }}>Última</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sinCalendario.map((u, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #F5D0A9' }}>
-                      <td style={{ padding: '8px 12px', color: '#2D2B45' }}>{u.email}</td>
-                      <td style={{ padding: '8px 12px', color: '#2D2B45' }}>{u.nombre}</td>
-                      <td style={{ padding: '8px 12px', color: '#2D2B45', textAlign: 'center' }}>{u.diasDesdeSingup}d</td>
-                      <td style={{ padding: '8px 12px', color: '#6B6889' }}>{formatDate(u.ultimaInteraccion)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+            {/* Signups chart */}
+            <ChartCard title={`Signups (${range})`}>
+              {data?.adquisicion.signupsPorDia.length ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={data.adquisicion.signupsPorDia}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis dataKey="dia" tickFormatter={formatDay} tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip labelFormatter={formatDay} />
+                    <Bar dataKey="cnt" fill="#7B7FC4" radius={[4, 4, 0, 0]} name="Signups" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay signups en este rango" />
+              )}
+            </ChartCard>
 
-        {/* Tabla completa */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E8E6F4', padding: '20px', overflowX: 'auto' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#2D2B45', marginBottom: '16px' }}>
-            Usuarias reales ({reales.length})
-          </h2>
-          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', minWidth: '1300px' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
-                {['Nombre', 'Signup', 'Meta', '% Cal', '% Prot', 'Comidas', 'Sub-min', 'Pool', 'Veredicto', 'Última', 'Msgs', '7d'].map(h => (
-                  <th key={h} style={thStyle}>{h}</th>
+            {/* DAU chart */}
+            <ChartCard title={`DAU (${range})`}>
+              {engagement.dauSeries.length ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={engagement.dauSeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis dataKey="dia" tickFormatter={formatDay} tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip labelFormatter={formatDay} />
+                    <Line type="monotone" dataKey="count" stroke="#7B7FC4" strokeWidth={2} dot={{ r: 3, fill: '#7B7FC4' }} name="Usuarios activos" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay eventos en este rango" />
+              )}
+            </ChartCard>
+
+            {/* Re-engagement summary */}
+            <ChartCard title="Estado usuarias">
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Activas (<=7d)', count: activas, color: STATUS_COLORS.activa },
+                  { label: 'Distantes (8-13d)', count: distantes, color: STATUS_COLORS.distante },
+                  { label: 'Churned (14d+)', count: churned, color: STATUS_COLORS.churned },
+                  { label: 'Sin actividad', count: sinActividad, color: STATUS_COLORS.sin_actividad },
+                ].map(s => (
+                  <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: s.color }} />
+                    <span style={{ fontSize: '13px', color: '#2D2B45' }}>{s.count} {s.label}</span>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {reales.map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #E8E6F4' }}>
-                  <td style={{ ...td, color: '#2D2B45', fontWeight: 500, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={u.email}>{u.nombre}</td>
-                  <td style={{ ...td, color: '#6B6889' }}>{formatDateShort(u.createdAt)}</td>
-                  <td style={td}>
-                    <span style={{
-                      padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
-                      backgroundColor: u.meta === 'nueva' ? '#E8E6F4' : '#FFFBEB',
-                      color: u.meta === 'nueva' ? '#6B6889' : '#D97706',
-                    }}>{u.meta}</span>
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: pctColor(u.pctCal, 10, 20), backgroundColor: pctBg(u.pctCal, 10, 20), fontWeight: 600 }}>
-                    {formatPct(u.pctCal)}
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: pctColor(u.pctProt, 15, 25), backgroundColor: pctBg(u.pctProt, 15, 25), fontWeight: 600 }}>
-                    {formatPct(u.pctProt)}
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: u.comPrinc < 21 ? '#DC2626' : '#2D2B45', fontWeight: u.comPrinc < 21 ? 600 : 400 }}>
-                    {u.comPrinc}/21
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: u.subMins >= 5 ? '#DC2626' : u.subMins >= 1 ? '#D97706' : '#2D2B45', fontWeight: u.subMins > 0 ? 600 : 400 }}>
-                    {u.subMins}
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: u.pool < 18 ? '#D97706' : '#2D2B45' }}>
-                    {u.pool}
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    {u.veredicto}
-                  </td>
-                  <td style={{ ...td, color: '#6B6889', whiteSpace: 'nowrap' }}>{formatDate(u.ultimaInteraccion)}</td>
-                  <td style={{ ...td, textAlign: 'center', color: '#2D2B45' }}>{u.totalMensajes}</td>
-                  <td style={{ ...td, textAlign: 'center', color: '#2D2B45' }}>{u.diasActivos7d}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </div>
+            </ChartCard>
+
+            {/* Salud compacta */}
+            <ChartCard title="Salud bilateral (top 10 peor)">
+              {calHealth.length ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
+                        {['Nombre', 'Meta kcal', 'Meta prot', 'Dias', 'Dias OK', '%'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calHealth.slice(0, 10).map(u => {
+                        const pct = u.dias > 0 ? Math.round(u.dias_ok / u.dias * 100) : 0
+                        return (
+                          <tr key={u.user_id} style={{ borderBottom: '1px solid #E8E6F4' }}>
+                            <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 500 }}>{u.nombre}</td>
+                            <td style={{ padding: '8px 6px', color: '#6B6889' }}>{u.meta_cal}</td>
+                            <td style={{ padding: '8px 6px', color: '#6B6889' }}>{Math.round(u.meta_prot)}g</td>
+                            <td style={{ padding: '8px 6px', color: '#2D2B45', textAlign: 'center' }}>{u.dias}</td>
+                            <td style={{ padding: '8px 6px', color: pct < 50 ? '#EF4444' : pct < 80 ? '#F59E0B' : '#22C55E', textAlign: 'center', fontWeight: 600 }}>{u.dias_ok}</td>
+                            <td style={{ padding: '8px 6px', color: pct < 50 ? '#EF4444' : pct < 80 ? '#F59E0B' : '#22C55E', fontWeight: 600 }}>{pct}%</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState message="No hay datos de calendario" />
+              )}
+            </ChartCard>
+          </>
+        )}
+
+        {/* ==================== ADQUISICION ==================== */}
+        {tab === 'adquisicion' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="Total registrados" value={funnel.total} />
+              <StatCard label="Onboarded" value={funnel.onboarded} sub={funnel.total > 0 ? `${Math.round(funnel.onboarded / funnel.total * 100)}%` : '—'} />
+              <StatCard label="Chatearon" value={funnel.chatted} sub={funnel.onboarded > 0 ? `${Math.round(funnel.chatted / funnel.onboarded * 100)}% de onboarded` : '—'} />
+            </div>
+
+            {/* Funnel visual */}
+            <ChartCard title="Funnel de conversión">
+              {funnel.total > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={[
+                    { step: 'Registradas', count: funnel.total },
+                    { step: 'Onboarded', count: funnel.onboarded },
+                    { step: 'Chatearon', count: funnel.chatted },
+                  ]} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="step" type="category" tick={{ fontSize: 11 }} width={90} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#7B7FC4" radius={[0, 4, 4, 0]} name="Usuarios" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="Sin datos de funnel" />
+              )}
+            </ChartCard>
+
+            {/* Signups por dia */}
+            <ChartCard title={`Signups diarios (${range})`}>
+              {data?.adquisicion.signupsPorDia.length ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={data.adquisicion.signupsPorDia}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis dataKey="dia" tickFormatter={formatDay} tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip labelFormatter={formatDay} />
+                    <Bar dataKey="cnt" fill="#7B7FC4" radius={[4, 4, 0, 0]} name="Signups" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay signups en este rango" />
+              )}
+            </ChartCard>
+          </>
+        )}
+
+        {/* ==================== ENGAGEMENT ==================== */}
+        {tab === 'engagement' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="WAU (7d)" value={engagement.wau} />
+              <StatCard label="MAU (30d)" value={engagement.mau} />
+              <StatCard label="Stickiness" value={engagement.mau > 0 ? `${Math.round(engagement.wau / engagement.mau * 100)}%` : '—'} sub="WAU/MAU" />
+            </div>
+
+            {/* DAU series */}
+            <ChartCard title={`Usuarios activos por dia (${range})`}>
+              {engagement.dauSeries.length ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={engagement.dauSeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis dataKey="dia" tickFormatter={formatDay} tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip labelFormatter={formatDay} />
+                    <Line type="monotone" dataKey="count" stroke="#7B7FC4" strokeWidth={2} dot={{ r: 3, fill: '#7B7FC4' }} name="DAU" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay datos de actividad en este rango" />
+              )}
+            </ChartCard>
+
+            {/* Top actions pie */}
+            <ChartCard title="Acciones mas frecuentes (7d)">
+              {engagement.topActions.length ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    <Pie data={engagement.topActions} dataKey="count" nameKey="tipo" cx="50%" cy="50%" outerRadius={90} label={({ payload }: any) => `${(payload?.tipo || '').replace('page_view_', '').replace('action_', '')} (${payload?.count || 0})`}>
+                      {engagement.topActions.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    <Legend formatter={(v: any) => String(v).replace('page_view_', '').replace('action_', '')} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay eventos de accion en este rango" />
+              )}
+            </ChartCard>
+
+            {/* Top chat users */}
+            <ChartCard title={`Top usuarias por chat (${range})`}>
+              {engagement.topChatUsers?.length ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
+                        {['Nombre', 'Email', 'Mensajes', 'Ultimo mensaje'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {engagement.topChatUsers.map(u => (
+                        <tr key={u.user_id} style={{ borderBottom: '1px solid #E8E6F4' }}>
+                          <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 500 }}>{u.nombre}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', fontSize: '11px' }}>{u.email}</td>
+                          <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 600, textAlign: 'center' }}>{u.mensajes}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', whiteSpace: 'nowrap' }}>{formatDate(u.ultimo_mensaje)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState message="No hay mensajes de chat en este rango" />
+              )}
+            </ChartCard>
+          </>
+        )}
+
+        {/* ==================== SALUD CALENDARIO ==================== */}
+        {tab === 'salud' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="Con calendario" value={totalWithCal} />
+              <StatCard label="100% bilateral" value={totalBilateralOk} sub={totalWithCal > 0 ? `${Math.round(totalBilateralOk / totalWithCal * 100)}%` : '—'} />
+              <StatCard label="<50% bilateral" value={calHealth.filter(u => u.dias > 0 && (u.dias_ok / u.dias) < 0.5).length} sub="necesitan atencion" />
+            </div>
+
+            {/* Bilateral bar chart per user */}
+            <ChartCard title="% dias bilaterales OK por usuaria">
+              {calHealth.length ? (
+                <ResponsiveContainer width="100%" height={Math.max(200, calHealth.length * 28)}>
+                  <BarChart data={calHealth.filter(u => u.dias > 0).map(u => ({
+                    nombre: u.nombre?.split(' ')[0] || u.user_id.slice(0, 8),
+                    pct: Math.round(u.dias_ok / u.dias * 100),
+                    dias_ok: u.dias_ok,
+                    dias: u.dias,
+                  }))} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E6F4" />
+                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="nombre" type="category" tick={{ fontSize: 10 }} width={80} />
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    <Tooltip formatter={(v: any, _: any, entry: any) => [`${v}% (${entry?.payload?.dias_ok ?? '?'}/${entry?.payload?.dias ?? '?'} dias)`, 'Bilateral OK']} />
+                    <Bar dataKey="pct" radius={[0, 4, 4, 0]} name="% OK">
+                      {calHealth.filter(u => u.dias > 0).map((u, i) => {
+                        const pct = u.dias > 0 ? u.dias_ok / u.dias : 0
+                        return <Cell key={i} fill={pct < 0.5 ? '#EF4444' : pct < 0.8 ? '#F59E0B' : '#22C55E'} />
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay datos de calendario" />
+              )}
+            </ChartCard>
+
+            {/* Full table */}
+            <ChartCard title="Detalle por usuaria">
+              {calHealth.length ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
+                        {['Nombre', 'Meta kcal', 'Meta prot', 'Dias totales', 'Dias OK', '% bilateral'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calHealth.map(u => {
+                        const pct = u.dias > 0 ? Math.round(u.dias_ok / u.dias * 100) : 0
+                        return (
+                          <tr key={u.user_id} style={{ borderBottom: '1px solid #E8E6F4' }}>
+                            <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 500 }}>{u.nombre}</td>
+                            <td style={{ padding: '8px 6px', color: '#6B6889' }}>{u.meta_cal}</td>
+                            <td style={{ padding: '8px 6px', color: '#6B6889' }}>{Math.round(u.meta_prot)}g</td>
+                            <td style={{ padding: '8px 6px', textAlign: 'center' }}>{u.dias}</td>
+                            <td style={{ padding: '8px 6px', textAlign: 'center', color: pct < 50 ? '#EF4444' : pct < 80 ? '#F59E0B' : '#22C55E', fontWeight: 600 }}>{u.dias_ok}</td>
+                            <td style={{ padding: '8px 6px', color: pct < 50 ? '#EF4444' : pct < 80 ? '#F59E0B' : '#22C55E', fontWeight: 600 }}>{pct}%</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState message="No hay datos de calendario" />
+              )}
+            </ChartCard>
+          </>
+        )}
+
+        {/* ==================== RE-ENGAGEMENT ==================== */}
+        {tab === 'reengagement' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              <StatCard label="Activas" value={activas} sub="<= 7 dias" />
+              <StatCard label="Distantes" value={distantes} sub="8-13 dias" />
+              <StatCard label="Churned" value={churned} sub="14+ dias" />
+              <StatCard label="Sin actividad" value={sinActividad} sub="nunca interactuaron" />
+            </div>
+
+            {/* Status pie */}
+            <ChartCard title="Distribucion de estados">
+              {reEng.length ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie data={[
+                      { name: 'Activas', value: activas, color: STATUS_COLORS.activa },
+                      { name: 'Distantes', value: distantes, color: STATUS_COLORS.distante },
+                      { name: 'Churned', value: churned, color: STATUS_COLORS.churned },
+                      { name: 'Sin actividad', value: sinActividad, color: STATUS_COLORS.sin_actividad },
+                    ]} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                      {[STATUS_COLORS.activa, STATUS_COLORS.distante, STATUS_COLORS.churned, STATUS_COLORS.sin_actividad].map((color, i) => (
+                        <Cell key={i} fill={color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState message="No hay datos de re-engagement" />
+              )}
+            </ChartCard>
+
+            {/* User table */}
+            <ChartCard title="Detalle por usuaria">
+              {reEng.length ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #E8E6F4' }}>
+                        {['Nombre', 'Email', 'Ultima actividad', 'Dias sin actividad', 'Estado'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 6px', color: '#6B6889', fontWeight: 500, fontSize: '10px', textTransform: 'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reEng.map(u => (
+                        <tr key={u.id} style={{ borderBottom: '1px solid #E8E6F4' }}>
+                          <td style={{ padding: '8px 6px', color: '#2D2B45', fontWeight: 500 }}>{u.nombre}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', fontSize: '11px' }}>{u.email}</td>
+                          <td style={{ padding: '8px 6px', color: '#6B6889', whiteSpace: 'nowrap' }}>{formatDate(u.last_activity)}</td>
+                          <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: u.days_since > 13 ? '#EF4444' : u.days_since > 7 ? '#F59E0B' : '#2D2B45' }}>{u.days_since}d</td>
+                          <td style={{ padding: '8px 6px' }}>
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 600,
+                              backgroundColor: u.status === 'activa' ? '#DCFCE7' : u.status === 'distante' ? '#FEF3C7' : u.status === 'sin_actividad' ? '#F3F4F6' : '#FEE2E2',
+                              color: STATUS_COLORS[u.status] || '#6B6889',
+                            }}>
+                              {u.status === 'sin_actividad' ? 'sin actividad' : u.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState message="No hay datos de re-engagement" />
+              )}
+            </ChartCard>
+          </>
+        )}
       </div>
     </div>
   )
