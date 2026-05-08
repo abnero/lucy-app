@@ -4,7 +4,6 @@ import { useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 
 type TipoEvento =
-  | 'page_view_home'
   | 'page_view_plan'
   | 'page_view_lista_compras'
   | 'page_view_perfil'
