@@ -496,19 +496,80 @@ export default function LandingPage() {
             Estos son resultados reales de mujeres profesionales que siguieron la metodología nutricional que Lucy ahora automatiza.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 30 }} className="landing-testimonial-grid">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} style={{ background: '#FFF', borderRadius: 12, padding: 30, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                <Placeholder label={`[Before/After #${i}]`} height={200} />
-                <p style={{ fontWeight: 700, color: '#7B7FC4', fontSize: 18, marginTop: 16, marginBottom: 8 }}>Nombre P. — bajó XX lbs</p>
-                <p style={{ color: '#555', fontSize: 15 }}>[PLACEHOLDER quote 1-2 líneas]</p>
+          <div style={{
+            background: '#F8F7FC',
+            borderLeft: '3px solid #B8B5E0',
+            padding: '16px 20px',
+            borderRadius: 8,
+            marginBottom: 32,
+            fontSize: 14,
+            color: '#555',
+            fontStyle: 'italic',
+            lineHeight: 1.5
+          }}>
+            Resultados obtenidos con el coaching 1:1 de Caribeño Fit Labs aplicando el mismo método de alimentación —el Calendario Metabólico— que Lucy automatiza directamente en tu teléfono. Los resultados individuales varían.
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+            marginBottom: 32
+          }}>
+            {[
+              { id: 'dalery', nombre: 'Dalery O.', lbs: 30, img: '/transformaciones/transformacion-dalery.jpg' },
+              { id: 'karla', nombre: 'Karla R.', lbs: 100, img: '/transformaciones/transformacion-karla.jpg' },
+              { id: 'minelly', nombre: 'Minelly O.', lbs: 25, img: '/transformaciones/transformacion-minelly.jpg' },
+              { id: 'wanda', nombre: 'Wanda I.', lbs: 40, img: '/transformaciones/transformacion-wanda.jpg' }
+            ].map((t) => (
+              <div key={t.id} style={{
+                background: '#FFFFFF',
+                borderRadius: 16,
+                overflow: 'hidden',
+                boxShadow: '0 4px 12px rgba(45, 43, 69, 0.08)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{
+                  width: '100%',
+                  aspectRatio: '1 / 1',
+                  overflow: 'hidden',
+                  background: '#F8F7FC'
+                }}>
+                  <img
+                    src={t.img}
+                    alt={`Transformación ${t.nombre}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                </div>
+                <div style={{ padding: '20px 24px', textAlign: 'center' }}>
+                  <p style={{
+                    fontSize: 14,
+                    color: '#7B7FC4',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    marginBottom: 4
+                  }}>
+                    {t.nombre}
+                  </p>
+                  <p style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: '#2D2B45',
+                    margin: 0
+                  }}>
+                    Bajó {t.lbs} lbs
+                  </p>
+                </div>
               </div>
             ))}
           </div>
-
-          <p style={{ textAlign: 'center', fontSize: 13, color: '#555', fontStyle: 'italic', marginTop: 32 }}>
-            Los resultados mostrados son de clientas del programa de coaching 1:1 de Caribeño Fit Labs, que usa la misma metodología nutricional que Lucy automatiza. Los resultados individuales varían.
-          </p>
 
           <h3 style={{ textAlign: 'center', marginTop: 60, marginBottom: 24, fontSize: 24, fontWeight: 700 }}>
             Lo que dicen las beta testers que ya están usando Lucy:
