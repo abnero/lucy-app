@@ -51,7 +51,7 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
         onClick={handleClick}
         style={{
           display: 'inline-block',
-          background: '#7B7FC4',
+          background: '#2D2B45',
           color: '#FFFFFF',
           fontSize: large ? 24 : 20,
           fontWeight: 700,
@@ -61,13 +61,13 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
           cursor: 'pointer',
           textTransform: 'uppercase',
           letterSpacing: '0.02em',
-          boxShadow: '0 6px 20px rgba(123, 127, 196, 0.3)',
-          transition: 'transform 0.2s, box-shadow 0.2s',
+          boxShadow: '0 6px 20px rgba(45, 43, 69, 0.3)',
+          transition: 'transform 0.2s, box-shadow 0.2s, background 0.2s',
           width: '100%',
           maxWidth: 600,
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(123, 127, 196, 0.4)' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(123, 127, 196, 0.3)' }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(45, 43, 69, 0.4)'; e.currentTarget.style.background = '#3D3B5A' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(45, 43, 69, 0.3)'; e.currentTarget.style.background = '#2D2B45' }}
       >
         {text}
       </button>
@@ -180,7 +180,14 @@ export default function LandingPage() {
                 <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div className="hero-lifestyle" style={{ marginBottom: 32, borderRadius: 16, overflow: 'hidden' }}>
+                <img
+                  src="/hero-lifestyle.jpg"
+                  alt="Mujer profesional latina en su cocina mirando su plan de comidas en Lucy"
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                />
+              </div>
               {/* iPhone mockup frame */}
               <div
                 className="iphone-mockup"
@@ -214,6 +221,17 @@ export default function LandingPage() {
                   overflow: 'hidden',
                   background: '#F8F7FC',
                 }}>
+                  <p style={{
+                    textAlign: 'center',
+                    fontSize: 14,
+                    color: '#7B7FC4',
+                    fontWeight: 600,
+                    marginBottom: 12,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1
+                  }}>
+                    Así se ve tu plan de 7 días dentro de Lucy
+                  </p>
                   <img
                     src="/lucy-app-screenshot.png"
                     alt="Lucy app — calendario metabólico mostrando plan de comidas del lunes con desayuno y almuerzo"
@@ -238,9 +256,24 @@ export default function LandingPage() {
             No es que te falte disciplina. Es que nadie te ha dado un sistema que funcione para tu vida real.
           </h2>
 
-          <p style={{ fontSize: 19 }}>Eres exitosa en tu carrera. Llegaste donde querías llegar. Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás. Manejas 10 cosas a la vez y las manejas bien.</p>
-
-          <p style={{ fontSize: 19 }}>Pero hay una cosa que no has podido resolver: <strong>qué comer para bajar de peso sin volverte loca.</strong></p>
+          <ul className="pain-bullets" style={{ listStyle: 'none', padding: 0, marginBottom: 32 }}>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Eres exitosa en tu carrera. Llegaste donde querías llegar.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Manejas 10 cosas a la vez y las manejas bien.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Pero hay una cosa que no has podido resolver: <strong>qué comer para bajar de peso sin volverte loca.</strong>
+            </li>
+          </ul>
 
           <p style={{ fontSize: 19 }}>Has probado de todo.</p>
 
@@ -307,8 +340,8 @@ export default function LandingPage() {
                   <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Libras perdidas en promedio</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">120+</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Clientas privadas entrenadas</div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">1000+</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Mujeres entrenadas en Caribeño Fit Labs</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">5</div>
@@ -357,7 +390,7 @@ export default function LandingPage() {
               {/* Bloque 8 — Callout box epifanía */}
               <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
                 <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }} className="origin-prose">Un día me di cuenta de algo:</p>
-                <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45' }} className="origin-callout-bold">Si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de 120.</p>
+                <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45' }} className="origin-callout-bold">Si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de las que mi equipo y yo podíamos atender uno-a-uno.</p>
               </div>
 
               {/* Bloque 9 — Frase ancla */}
@@ -450,7 +483,7 @@ export default function LandingPage() {
       <section style={{ background: '#F8F7FC', padding: '100px 0' }} className="landing-section">
         <div style={container}>
           <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 16 }} className="landing-h2">
-            El Método Lucy: Las 3 Decisiones
+            Las 3 Decisiones
           </h2>
 
           <div style={narrow}>
