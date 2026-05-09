@@ -457,22 +457,23 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Bloque 12 — Placeholder historia personal */}
               <div style={{
-                background: 'repeating-linear-gradient(45deg, #F5EFFF, #F5EFFF 10px, #EAE2FF 10px, #EAE2FF 20px)',
-                border: '2px dashed #7B7FC4',
-                borderRadius: 16,
-                padding: 32,
-                textAlign: 'center',
-                color: '#7B7FC4',
-                fontWeight: 500,
-                fontSize: 14,
-                minHeight: 150,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                marginTop: 32,
+                marginBottom: 24,
+                padding: '24px 28px',
+                background: '#F8F7FC',
+                borderLeft: '4px solid #7B7FC4',
+                borderRadius: 8
               }}>
-                [Placeholder — Abner agregará historia personal específica]
+                <p style={{
+                  fontSize: 18,
+                  color: '#2D2B45',
+                  lineHeight: 1.6,
+                  margin: 0,
+                  fontStyle: 'italic'
+                }}>
+                  Construí Lucy porque mi equipo y yo no podíamos atender a todas las que nos escribían. Esto es lo que les damos a las clientas privadas — ahora directo a tu teléfono.
+                </p>
               </div>
 
               {/* Firma */}
