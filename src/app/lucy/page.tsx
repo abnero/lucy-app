@@ -423,7 +423,38 @@ export default function LandingPage() {
               {/* Bloque 11 — Precio anchor */}
               <div style={{ background: '#F8F7FC', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
                 <p style={{ fontSize: 32, fontWeight: 700, color: '#7B7FC4' }} className="origin-stat-num">Por $297 al año.</p>
-                <p style={{ fontSize: 18, fontWeight: 600, color: '#2D2B45', marginTop: 12 }} className="origin-prose">Eso es menos de lo que una sola semana de mi coaching privado cuesta.</p>
+                <div style={{ marginTop: 16, textAlign: 'left' }}>
+                  <p style={{ fontSize: 16, color: '#2D2B45', marginBottom: 16, fontStyle: 'italic' }}>
+                    Si fueras a armar esto por tu cuenta, así se ve la cuenta:
+                  </p>
+                  <ul style={{ listStyle: 'none', padding: 0, marginBottom: 20 }}>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Consulta inicial con nutricionista: <strong>$200</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Seguimientos mensuales: <strong>$750/año</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Ajustes de plan y recetas adicionales: <strong>$400/año</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      App de tracking premium: <strong>$300-700/año</strong>
+                    </li>
+                  </ul>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#2D2B45', marginBottom: 16, textAlign: 'center' }}>
+                    Total: cerca de $2,000 al año.
+                  </p>
+                  <p style={{ fontSize: 15, color: '#555', marginBottom: 16, fontStyle: 'italic' }}>
+                    Y aún así, ninguno de esos servicios conoce tu cuerpo, te sigue día a día, ni ajusta tu plan cuando cambia tu vida.
+                  </p>
+                  <p style={{ fontSize: 17, fontWeight: 600, color: '#7B7FC4', textAlign: 'center', marginBottom: 0 }}>
+                    Lucy hace todo eso por $297 al año. Pago único.
+                  </p>
+                </div>
               </div>
 
               {/* Bloque 12 — Placeholder historia personal */}
