@@ -176,7 +176,7 @@ export default function LandingPage() {
                 }}
               >
                 <img
-                  src="/hero-lifestyle.jpg"
+                  src="/hero-lifestyle.png"
                   alt=""
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -209,7 +209,18 @@ export default function LandingPage() {
                 <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <p style={{
+                textAlign: 'center',
+                fontSize: 14,
+                color: '#7B7FC4',
+                fontWeight: 600,
+                marginBottom: 16,
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}>
+                Así se ve tu plan de 7 días dentro de Lucy
+              </p>
               {/* iPhone mockup frame */}
               <div
                 className="iphone-mockup"
@@ -243,17 +254,6 @@ export default function LandingPage() {
                   overflow: 'hidden',
                   background: '#F8F7FC',
                 }}>
-                  <p style={{
-                    textAlign: 'center',
-                    fontSize: 14,
-                    color: '#7B7FC4',
-                    fontWeight: 600,
-                    marginBottom: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
-                  }}>
-                    Así se ve tu plan de 7 días dentro de Lucy
-                  </p>
                   <img
                     src="/lucy-app-screenshot.png"
                     alt="Lucy app — calendario metabólico mostrando plan de comidas del lunes con desayuno y almuerzo"
