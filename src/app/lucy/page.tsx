@@ -286,27 +286,31 @@ export default function LandingPage() {
             </li>
           </ul>
 
-          <p style={{ fontSize: 19 }}>Has probado de todo.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Has probado de todo.</p>
 
-          <p style={{ fontSize: 19 }}>Keto. Ayuno intermitente. Batidos. Dietas con puntos. Apps que te hacen contar cada caloría que entra a tu boca. Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera antes de que la ignores.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Keto. Ayuno intermitente. Batidos. Dietas con puntos.</p>
 
-          <p style={{ fontSize: 19 }}>Al principio funciona. Bajas 5, 10 libras. Te ilusionas. Y después recuperas todo. Y más.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Apps que te hacen contar cada caloría que entra a tu boca. Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera antes de que la ignores.</p>
 
-          <p style={{ fontSize: 19 }}>Y te quedas con la sensación de que el problema eres tú. Que no tienes fuerza de voluntad. Que &ldquo;no puedes con algo tan simple como comer&rdquo;.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Al principio funciona. Bajas 5, 10 libras. Te ilusionas. Y después recuperas todo. Y más.</p>
 
-          <div style={{ background: '#FFF5F0', padding: '20px 24px', borderLeft: '4px solid #E87B5E', margin: '24px 0', fontWeight: 500, fontSize: 20 }}>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Y te quedas con la sensación de que el problema eres tú. Que no tienes fuerza de voluntad. Que &ldquo;no puedes con algo tan simple como comer&rdquo;.</p>
+
+          <div style={{ background: '#FFF5F0', padding: '20px 24px', borderLeft: '4px solid #E87B5E', margin: '32px 0', fontWeight: 500, fontSize: 20 }}>
             No eres tú.
           </div>
 
-          <p style={{ fontSize: 19 }}>El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.</p>
 
-          <p style={{ fontSize: 19 }}>Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.</p>
 
-          <p style={{ fontSize: 19 }}>Lo que necesitas no es otra dieta. Lo que necesitas es que alguien te diga: <strong>&ldquo;come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</strong></p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Lo que necesitas no es otra dieta.</p>
 
-          <p style={{ fontSize: 19 }}>Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+          <p style={{ fontSize: 19, marginBottom: 16 }}>Lo que necesitas es que alguien te diga: <strong>&ldquo;come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</strong></p>
 
-          <p style={{ fontSize: 24, fontWeight: 700, color: '#7B7FC4' }}>Eso es Lucy.</p>
+          <p style={{ fontSize: 19, marginBottom: 32 }}>Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+
+          <p style={{ fontSize: 24, fontWeight: 700, color: '#7B7FC4', marginBottom: 32 }}>Eso es Lucy.</p>
         </div>
       </section>
 
