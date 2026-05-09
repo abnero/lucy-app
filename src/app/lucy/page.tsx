@@ -154,6 +154,35 @@ export default function LandingPage() {
                 Lucy es tu asistente nutricional con IA, diseñada para mujeres profesionales latinas.
               </p>
 
+              <div
+                className="hero-lifestyle-img"
+                style={{
+                  marginTop: 24,
+                  marginBottom: 32,
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  background: 'linear-gradient(135deg, #B8B5E0 0%, #7B7FC4 100%)',
+                  aspectRatio: '16 / 9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  padding: 16
+                }}
+              >
+                <img
+                  src="/hero-lifestyle.jpg"
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              </div>
+
               {/* Bullets verbales */}
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
@@ -180,14 +209,7 @@ export default function LandingPage() {
                 <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div className="hero-lifestyle" style={{ marginBottom: 32, borderRadius: 16, overflow: 'hidden' }}>
-                <img
-                  src="/hero-lifestyle.jpg"
-                  alt="Mujer profesional latina en su cocina mirando su plan de comidas en Lucy"
-                  style={{ width: '100%', height: 'auto', display: 'block' }}
-                />
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               {/* iPhone mockup frame */}
               <div
                 className="iphone-mockup"
