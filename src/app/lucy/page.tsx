@@ -575,10 +575,31 @@ export default function LandingPage() {
             Lo que dicen las beta testers que ya están usando Lucy:
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 30 }} className="landing-testimonial-grid">
-            {[1,2,3].map(i => (
-              <Placeholder key={i} label={`[Screenshot WhatsApp #${i}]`} height={300} />
-            ))}
+          {/* Carrusel mobile / Grid desktop */}
+          <div className="testimonios-wrapper">
+            <div className="testimonios-track">
+              {[
+                { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' },
+                { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
+                { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+                { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
+                { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+                { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' }
+              ].map((t) => (
+                <div key={t.id} className="testimonio-card">
+                  <img
+                    src={t.img}
+                    alt={t.alt}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      display: 'block',
+                      borderRadius: 12
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div style={{ marginTop: 50 }}>
@@ -948,7 +969,6 @@ export default function LandingPage() {
           .landing-section { padding: 60px 0 !important; }
           .landing-hero-grid,
           .landing-origin-grid,
-          .landing-testimonial-grid,
           .landing-mechanism-grid,
           .landing-bullet-grid,
           .landing-bonus-card,
@@ -958,6 +978,54 @@ export default function LandingPage() {
           }
           .guarantee-badge { width: 160px !important; height: 160px !important; margin: 0 auto; }
           .guarantee-badge svg { width: 160px !important; height: 160px !important; }
+        }
+
+        /* Mobile: carrusel horizontal con peek */
+        .testimonios-wrapper {
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          scroll-snap-type: x mandatory;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          padding-bottom: 8px;
+        }
+
+        .testimonios-wrapper::-webkit-scrollbar {
+          display: none;
+        }
+
+        .testimonios-track {
+          display: flex;
+          gap: 16px;
+          padding: 0 16px;
+        }
+
+        .testimonio-card {
+          flex: 0 0 85%;
+          scroll-snap-align: center;
+          background: transparent;
+        }
+
+        /* Desktop: grid 3 columnas, 2 filas */
+        @media (min-width: 768px) {
+          .testimonios-wrapper {
+            overflow: visible;
+            padding-bottom: 0;
+          }
+
+          .testimonios-track {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            padding: 0;
+          }
+
+          .testimonio-card {
+            flex: none;
+            width: 100%;
+          }
         }
       `}</style>
     </div>
