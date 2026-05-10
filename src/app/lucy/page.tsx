@@ -221,82 +221,64 @@ export default function LandingPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* iPhone mockup frame */}
-              <div
-                className="iphone-mockup"
-                style={{
-                  position: 'relative',
-                  width: 300,
-                  height: 620,
-                  background: '#1a1a1a',
-                  borderRadius: 52,
-                  padding: 12,
-                  boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
-                }}
-              >
-                {/* Dynamic Island */}
-                <div style={{
-                  position: 'absolute',
-                  top: 16,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 100,
-                  height: 28,
-                  background: '#000',
-                  borderRadius: 20,
-                  zIndex: 2,
-                }} />
-                {/* Screen */}
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 40,
-                  overflow: 'hidden',
-                  background: '#F8F7FC',
-                }}>
-                  <div
-                    className="iphone-carousel-track"
-                    onScroll={(e) => {
-                      const target = e.currentTarget
-                      const slideWidth = target.clientWidth
-                      const newSlide = Math.round(target.scrollLeft / slideWidth)
-                      if (newSlide !== activeSlide) setActiveSlide(newSlide)
-                    }}
-                    style={{
-                      display: 'flex',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      scrollSnapType: 'x mandatory',
-                      WebkitOverflowScrolling: 'touch',
-                      width: '100%',
-                      height: '100%',
-                      scrollbarWidth: 'none',
-                      msOverflowStyle: 'none' as const
-                    }}
-                  >
-                    {screenshots.map((s) => (
+              <div className="iphone-carousel-wrapper">
+                <div
+                  className="iphone-carousel-track"
+                  onScroll={(e) => {
+                    const target = e.currentTarget
+                    const slideWidth = target.clientWidth * 0.85
+                    const newSlide = Math.round(target.scrollLeft / slideWidth)
+                    if (newSlide !== activeSlide) setActiveSlide(Math.min(newSlide, screenshots.length - 1))
+                  }}
+                >
+                  {screenshots.map((s) => (
+                    <div key={s.id} className="iphone-carousel-slide">
                       <div
-                        key={s.id}
+                        className="iphone-mockup"
                         style={{
-                          flex: '0 0 100%',
-                          scrollSnapAlign: 'center',
-                          height: '100%',
-                          overflow: 'hidden'
+                          position: 'relative',
+                          width: 300,
+                          height: 620,
+                          background: '#1a1a1a',
+                          borderRadius: 52,
+                          padding: 12,
+                          boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
                         }}
                       >
-                        <img
-                          src={s.src}
-                          alt={s.alt}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block'
-                          }}
-                        />
+                        {/* Dynamic Island */}
+                        <div style={{
+                          position: 'absolute',
+                          top: 16,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 100,
+                          height: 28,
+                          background: '#000',
+                          borderRadius: 20,
+                          zIndex: 2,
+                        }} />
+                        {/* Screen */}
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 40,
+                          overflow: 'hidden',
+                          background: '#F8F7FC',
+                        }}>
+                          <img
+                            src={s.src}
+                            alt={s.alt}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1088,6 +1070,7 @@ export default function LandingPage() {
           .landing-logo { font-size: 44px !important; }
           .landing-nav-btn { padding: 8px 16px !important; font-size: 13px !important; }
           .iphone-mockup { width: 240px !important; height: 496px !important; border-radius: 44px !important; padding: 10px !important; }
+          .iphone-carousel-slide { flex: 0 0 85% !important; }
           .landing-h1 { font-size: 36px !important; }
           .landing-h2 { font-size: 28px !important; }
           .hero-intro { font-size: 18px !important; }
@@ -1173,7 +1156,58 @@ export default function LandingPage() {
           }
         }
 
-        .iphone-carousel-track::-webkit-scrollbar { display: none; }
+        .iphone-carousel-wrapper {
+          width: 100%;
+          position: relative;
+        }
+
+        .iphone-carousel-track {
+          display: flex;
+          overflow-x: auto;
+          overflow-y: hidden;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          gap: 12px;
+          padding: 0 7.5%;
+          scroll-padding: 0 7.5%;
+        }
+
+        .iphone-carousel-track::-webkit-scrollbar {
+          display: none;
+        }
+
+        .iphone-carousel-slide {
+          flex: 0 0 85%;
+          scroll-snap-align: center;
+          display: flex;
+          justify-content: center;
+        }
+
+        /* Desktop: peek más sutil */
+        @media (min-width: 768px) {
+          .iphone-carousel-track {
+            padding: 0 20%;
+            scroll-padding: 0 20%;
+            gap: 24px;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 60%;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .iphone-carousel-track {
+            padding: 0 25%;
+            scroll-padding: 0 25%;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 50%;
+          }
+        }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }
