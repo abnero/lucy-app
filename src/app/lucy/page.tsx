@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 /* ─── CTA Button ─── */
 
@@ -103,6 +103,31 @@ const container = { maxWidth: 1200, margin: '0 auto', padding: '0 20px' } as con
 const narrow = { maxWidth: 900, margin: '0 auto', padding: '0 20px' } as const
 
 export default function LandingPage() {
+  const [activeSlide, setActiveSlide] = useState(0)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+
+  const screenshots = [
+    { id: 'calendario-dia', src: '/screenshots/calendario-dia.PNG', alt: 'Calendario diario de Lucy mostrando comidas del lunes', caption: 'Tu plan del día, siempre organizado' },
+    { id: 'cambio-alimento', src: '/screenshots/chat-cambio-alimento.PNG', alt: 'Lucy cambia papa por arroz integral en el almuerzo', caption: 'Cambia cualquier alimento en segundos' },
+    { id: 'receta', src: '/screenshots/chat-receta.PNG', alt: 'Lucy genera receta de sopa de tomate mexicana', caption: 'Pídele recetas según tus alimentos' },
+    { id: 'snack', src: '/screenshots/chat-snack.PNG', alt: 'Lucy sugiere opciones de snack según calorías disponibles', caption: 'Lucy sabe cuándo tienes hambre y qué comer' },
+    { id: 'lista-compras', src: '/screenshots/lista-compras.PNG', alt: 'Lista de compras automática agrupada por categoría', caption: 'Tu lista de compras, generada automáticamente' }
+  ]
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsCalendarOpen(false)
+    }
+    if (isCalendarOpen) {
+      document.addEventListener('keydown', handleEsc)
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEsc)
+      document.body.style.overflow = ''
+    }
+  }, [isCalendarOpen])
+
   return (
     <div style={{ color: '#2D2B45', lineHeight: 1.6, fontSize: 18 }}>
 
@@ -196,64 +221,151 @@ export default function LandingPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <p style={{
-                textAlign: 'center',
-                fontSize: 14,
-                color: '#7B7FC4',
-                fontWeight: 600,
-                marginBottom: 16,
-                textTransform: 'uppercase',
-                letterSpacing: 1
-              }}>
-                Así se ve tu plan de 7 días dentro de Lucy
-              </p>
-              {/* iPhone mockup frame */}
-              <div
-                className="iphone-mockup"
+              <div className="iphone-carousel-wrapper">
+                <div
+                  className="iphone-carousel-track"
+                  onScroll={(e) => {
+                    const target = e.currentTarget
+                    const slideWidth = target.scrollWidth / screenshots.length
+                    const newSlide = Math.round(target.scrollLeft / slideWidth)
+                    if (newSlide !== activeSlide) setActiveSlide(Math.min(newSlide, screenshots.length - 1))
+                  }}
+                >
+                  {screenshots.map((s) => (
+                    <div key={s.id} className="iphone-carousel-slide">
+                      <div
+                        className="iphone-mockup"
+                        style={{
+                          position: 'relative',
+                          width: 300,
+                          height: 620,
+                          background: '#1a1a1a',
+                          borderRadius: 52,
+                          padding: 12,
+                          boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {/* Dynamic Island */}
+                        <div style={{
+                          position: 'absolute',
+                          top: 16,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 100,
+                          height: 28,
+                          background: '#000',
+                          borderRadius: 20,
+                          zIndex: 2,
+                        }} />
+                        {/* Screen */}
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 40,
+                          overflow: 'hidden',
+                          background: '#F8F7FC',
+                        }}>
+                          <img
+                            src={s.src}
+                            alt={s.alt}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic caption */}
+              <p
+                key={activeSlide}
                 style={{
-                  position: 'relative',
-                  width: 300,
-                  height: 620,
-                  background: '#1a1a1a',
-                  borderRadius: 52,
-                  padding: 12,
-                  boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
+                  textAlign: 'center',
+                  fontSize: 16,
+                  color: '#2D2B45',
+                  fontWeight: 500,
+                  marginTop: 20,
+                  marginBottom: 0,
+                  minHeight: 24,
+                  transition: 'opacity 0.3s ease',
+                  animation: 'fadeIn 0.4s ease'
                 }}
               >
-                {/* Dynamic Island */}
-                <div style={{
-                  position: 'absolute',
-                  top: 16,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 100,
-                  height: 28,
-                  background: '#000',
-                  borderRadius: 20,
-                  zIndex: 2,
-                }} />
-                {/* Screen */}
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 40,
-                  overflow: 'hidden',
-                  background: '#F8F7FC',
-                }}>
-                  <img
-                    src="/lucy-app-screenshot.png"
-                    alt="Lucy app — calendario metabólico mostrando plan de comidas del lunes con desayuno y almuerzo"
+                {screenshots[activeSlide].caption}
+              </p>
+
+              {/* Dots indicators */}
+              <div
+                className="iphone-dots"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginTop: 16
+                }}
+              >
+                {screenshots.map((_, i) => (
+                  <div
+                    key={i}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'top center',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: activeSlide === i ? '#7B7FC4' : '#B8B5E0',
+                      opacity: activeSlide === i ? 1 : 0.4,
+                      transition: 'all 0.3s ease'
                     }}
                   />
-                </div>
+                ))}
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ═══ CALENDAR PREVIEW ═══ */}
+      <section style={{ background: '#F8F7FC', padding: '80px 0' }} className="landing-section">
+        <div style={container}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <p style={{ fontSize: 14, color: '#7B7FC4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 }}>
+              Así se ve
+            </p>
+            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#2D2B45', marginBottom: 16, lineHeight: 1.2 }} className="landing-h2">
+              Tu plan de la semana, siempre a la mano.
+            </h2>
+            <p style={{ fontSize: 18, color: '#555', maxWidth: 600, margin: '0 auto' }}>
+              Descárgalo en PDF e imprímelo. O úsalo directo desde tu teléfono.
+            </p>
+          </div>
+
+          <div
+            onClick={() => setIsCalendarOpen(true)}
+            style={{
+              cursor: 'zoom-in',
+              borderRadius: 16,
+              overflow: 'hidden',
+              boxShadow: '0 10px 40px rgba(45, 43, 69, 0.12)',
+              maxWidth: 1100,
+              margin: '0 auto'
+            }}
+          >
+            <img
+              src="/calendario-ejemplo.png"
+              alt="Calendario metabólico semanal completo de Lucy"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+          </div>
+
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#7B7FC4', marginTop: 16, fontStyle: 'italic' }}>
+            Toca la imagen para ver los detalles
+          </p>
         </div>
       </section>
 
@@ -756,6 +868,44 @@ export default function LandingPage() {
               <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
             </div>
           </div>
+
+          {/* Bonus 3 */}
+          <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginTop: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/recetario-dulce.png"
+                alt="Recetario Dulce — Postres saludables"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 12,
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
+            <div>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #3 — Recetario Dulce Caribeño Fit Labs</h3>
+              <p>50 de mis recetas favoritas del programa — todas hechas con los alimentos que Lucy usa en tu plan. Todas con macros calculadas.</p>
+              <ul style={{ paddingLeft: 20, marginTop: 12, lineHeight: 1.8 }}>
+                <li>Mangú con huevo (desayuno proteico)</li>
+                <li>Arroz con habichuelas revisado (menos grasa, misma sazón)</li>
+                <li>Pollo al ajillo limpio</li>
+                <li>Pernil en olla lenta sin guindilla</li>
+                <li>Flan proteico (postre que NO te saca del plan)</li>
+                <li>Y 45 recetas más</li>
+              </ul>
+              <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1043,7 +1193,136 @@ export default function LandingPage() {
             width: 100%;
           }
         }
+
+        .iphone-carousel-wrapper {
+          width: 100vw;
+          max-width: 100vw;
+          position: relative;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          overflow-x: hidden;
+          overflow-y: visible;
+        }
+
+        .iphone-carousel-track {
+          display: flex;
+          overflow-x: auto;
+          overflow-y: visible;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          gap: 16px;
+          padding: 20px 7.5%;
+          scroll-padding-left: 7.5%;
+        }
+
+        .iphone-carousel-track::-webkit-scrollbar {
+          display: none;
+        }
+
+        .iphone-carousel-slide {
+          flex: 0 0 85%;
+          scroll-snap-align: start;
+          display: flex;
+          justify-content: center;
+        }
+
+        @media (min-width: 768px) {
+          .iphone-carousel-wrapper {
+            width: 100%;
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+          }
+
+          .iphone-carousel-track {
+            padding: 20px 15%;
+            scroll-padding-left: 15%;
+            gap: 24px;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 70%;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .iphone-carousel-track {
+            padding: 20px 25%;
+            scroll-padding-left: 25%;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 50%;
+          }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
+
+      {isCalendarOpen && (
+        <div
+          onClick={() => setIsCalendarOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            cursor: 'zoom-out',
+            padding: 20
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsCalendarOpen(false)
+            }}
+            aria-label="Cerrar"
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: '#FFFFFF',
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              fontSize: 24,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+          <img
+            src="/calendario-ejemplo.png"
+            alt="Calendario metabólico semanal completo de Lucy"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'contain',
+              cursor: 'default',
+              borderRadius: 8
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
