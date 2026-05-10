@@ -174,34 +174,34 @@ export default function LandingPage() {
 
               {/* X rojas — dolores */}
               <ul className="hero-x-list" style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-x-item">
-                  <span style={{ color: '#DC2626', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>✗</span>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
                   Despídete de dietas genéricas y americanas
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-x-item">
-                  <span style={{ color: '#DC2626', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>✗</span>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
                   No más lechuga con pollo todos los días
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-x-item">
-                  <span style={{ color: '#DC2626', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>✗</span>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
                   Olvídate de estar pensando qué cocinar hoy
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-x-item">
-                  <span style={{ color: '#DC2626', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>✗</span>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
                   Despídete de no ver resultados por no saber qué comer
                 </li>
               </ul>
 
               {/* Bullets verbales */}
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> No te dice qué comer, tú eliges tus alimentos favoritos
+              <ul className="hero-bullets" style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> No te dice qué comer, tú eliges tus alimentos favoritos
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Lucy calcula las porciones exactas para tu cuerpo y tu meta
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> Lucy calcula las porciones exactas para tu cuerpo y tu meta
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Te arma tu menú completo de la semana con tus alimentos favoritos y las porciones exactas. Te quita el estrés de estar pensando &ldquo;qué voy a comer&rdquo;. Es fácil de seguir.
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> Te arma tu menú completo de la semana con tus alimentos favoritos y las porciones exactas. Te quita el estrés de estar pensando &ldquo;qué voy a comer&rdquo;. Es fácil de seguir.
                 </li>
               </ul>
 
