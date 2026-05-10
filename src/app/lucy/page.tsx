@@ -2,35 +2,12 @@
 
 import { useState } from 'react'
 
-/* ─── Placeholder Components ─── */
-
-function Placeholder({ label, height = 300, aspect }: { label: string; height?: number; aspect?: string }) {
-  return (
-    <div
-      style={{
-        background: 'repeating-linear-gradient(45deg, #F5EFFF, #F5EFFF 10px, #EAE2FF 10px, #EAE2FF 20px)',
-        border: '2px dashed #7B7FC4',
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        color: '#7B7FC4',
-        fontWeight: 500,
-        fontSize: 14,
-        padding: 24,
-        height,
-        ...(aspect ? { aspectRatio: aspect, height: 'auto' } : {}),
-      }}
-    >
-      {label}
-    </div>
-  )
-}
-
 /* ─── CTA Button ─── */
 
-function CtaButton({ text, large }: { text: string; large?: boolean }) {
+function CtaButton({ text, large, bg = '#2D2B45', bgHover = '#3D3B5A' }: { text: string; large?: boolean; bg?: string; bgHover?: string }) {
+  const shadow = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.3)' : 'rgba(45, 43, 69, 0.3)'
+  const shadowHover = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.4)' : 'rgba(45, 43, 69, 0.4)'
+
   const handleClick = async () => {
     try {
       const res = await fetch('/api/stripe/create-checkout', {
@@ -51,7 +28,7 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
         onClick={handleClick}
         style={{
           display: 'inline-block',
-          background: '#7B7FC4',
+          background: bg,
           color: '#FFFFFF',
           fontSize: large ? 24 : 20,
           fontWeight: 700,
@@ -61,13 +38,13 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
           cursor: 'pointer',
           textTransform: 'uppercase',
           letterSpacing: '0.02em',
-          boxShadow: '0 6px 20px rgba(123, 127, 196, 0.3)',
-          transition: 'transform 0.2s, box-shadow 0.2s',
+          boxShadow: `0 6px 20px ${shadow}`,
+          transition: 'transform 0.2s, box-shadow 0.2s, background 0.2s',
           width: '100%',
           maxWidth: 600,
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(123, 127, 196, 0.4)' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(123, 127, 196, 0.3)' }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 10px 30px ${shadowHover}`; e.currentTarget.style.background = bgHover }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 6px 20px ${shadow}`; e.currentTarget.style.background = bg }}
       >
         {text}
       </button>
@@ -154,16 +131,54 @@ export default function LandingPage() {
                 Lucy es tu asistente nutricional con IA, diseñada para mujeres profesionales latinas.
               </p>
 
+              <div
+                className="hero-lifestyle-img"
+                style={{
+                  marginTop: 24,
+                  marginBottom: 32,
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  aspectRatio: '16 / 9'
+                }}
+              >
+                <img
+                  src="/hero-lifestyle.png"
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              </div>
+
+              {/* X rojas — dolores */}
+              <ul className="hero-x-list" style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
+                  Despídete de dietas genéricas y americanas
+                </li>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
+                  No más lechuga con pollo todos los días
+                </li>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
+                  Olvídate de estar pensando qué cocinar hoy
+                </li>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-x-item">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#DC2626', flexShrink: 0, lineHeight: 1.5 }}>✗</span>
+                  Despídete de no ver resultados por no saber qué comer
+                </li>
+              </ul>
+
               {/* Bullets verbales */}
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Eliges tus alimentos favoritos
+              <ul className="hero-bullets" style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> No te dice qué comer, tú eliges tus alimentos favoritos
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Lucy calcula las porciones exactas para tu cuerpo
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> Lucy calcula las porciones exactas para tu cuerpo y tu meta
                 </li>
-                <li style={{ fontSize: 18, color: '#2D2B45', display: 'flex', alignItems: 'baseline', gap: 10 }} className="hero-bullet">
-                  <span style={{ color: '#7B7FC4', fontWeight: 700, flexShrink: 0 }}>✓</span> Te arma un plan de 7 días completo en español
+                <li style={{ fontSize: 18, fontWeight: 400, color: '#2D2B45', lineHeight: 1.5, display: 'flex', alignItems: 'baseline', gap: 10, margin: 0 }} className="hero-bullet">
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#7B7FC4', flexShrink: 0, lineHeight: 1.5 }}>✓</span> Te arma tu menú completo de la semana con tus alimentos favoritos y las porciones exactas. Te quita el estrés de estar pensando &ldquo;qué voy a comer&rdquo;. Es fácil de seguir.
                 </li>
               </ul>
 
@@ -177,10 +192,21 @@ export default function LandingPage() {
               </div>
 
               <div style={{ marginTop: 24, fontSize: 15, color: '#555' }}>
-                <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
+                <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Coach Abner en Instagram
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <p style={{
+                textAlign: 'center',
+                fontSize: 14,
+                color: '#7B7FC4',
+                fontWeight: 600,
+                marginBottom: 16,
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}>
+                Así se ve tu plan de 7 días dentro de Lucy
+              </p>
               {/* iPhone mockup frame */}
               <div
                 className="iphone-mockup"
@@ -238,31 +264,50 @@ export default function LandingPage() {
             No es que te falte disciplina. Es que nadie te ha dado un sistema que funcione para tu vida real.
           </h2>
 
-          <p style={{ fontSize: 19 }}>Eres exitosa en tu carrera. Llegaste donde querías llegar. Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás. Manejas 10 cosas a la vez y las manejas bien.</p>
+          <ul className="pain-bullets" style={{ listStyle: 'none', padding: 0, marginBottom: 32 }}>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Eres exitosa en tu carrera. Llegaste donde querías llegar.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Eres mamá, jefa, esposa, amiga, hija que cuida a sus papás.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Manejas 10 cosas a la vez y las manejas bien.
+            </li>
+            <li style={{ marginBottom: 16, paddingLeft: 28, position: 'relative', fontSize: 18, lineHeight: 1.6 }}>
+              <span style={{ position: 'absolute', left: 0, top: 2, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+              Pero hay una cosa que no has podido resolver: <strong>qué comer para bajar de peso sin volverte loca.</strong>
+            </li>
+          </ul>
 
-          <p style={{ fontSize: 19 }}>Pero hay una cosa que no has podido resolver: <strong>qué comer para bajar de peso sin volverte loca.</strong></p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Has probado de todo.</p>
 
-          <p style={{ fontSize: 19 }}>Has probado de todo.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Keto. Ayuno intermitente. Batidos. Dietas con puntos.</p>
 
-          <p style={{ fontSize: 19 }}>Keto. Ayuno intermitente. Batidos. Dietas con puntos. Apps que te hacen contar cada caloría que entra a tu boca. Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera antes de que la ignores.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Apps que te hacen contar cada caloría que entra a tu boca. Nutricionistas que te dan una hoja impresa que dura 2 semanas en la nevera antes de que la ignores.</p>
 
-          <p style={{ fontSize: 19 }}>Al principio funciona. Bajas 5, 10 libras. Te ilusionas. Y después recuperas todo. Y más.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Al principio funciona. Bajas 5, 10 libras. Te ilusionas. Y después recuperas todo. Y más.</p>
 
-          <p style={{ fontSize: 19 }}>Y te quedas con la sensación de que el problema eres tú. Que no tienes fuerza de voluntad. Que &ldquo;no puedes con algo tan simple como comer&rdquo;.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Y te quedas con la sensación de que el problema eres tú. Que no tienes fuerza de voluntad. Que &ldquo;no puedes con algo tan simple como comer&rdquo;.</p>
 
-          <div style={{ background: '#FFF5F0', padding: '20px 24px', borderLeft: '4px solid #E87B5E', margin: '24px 0', fontWeight: 500, fontSize: 20 }}>
+          <div style={{ background: '#FFF5F0', padding: '20px 24px', borderLeft: '4px solid #E87B5E', margin: '32px 0', fontWeight: 500, fontSize: 20 }}>
             No eres tú.
           </div>
 
-          <p style={{ fontSize: 19 }}>El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>El problema es que todas esas dietas te pusieron a TI a hacer el trabajo difícil: decidir qué cocinar, calcular cantidades, medir, pesar, tachar alimentos, sentirte culpable cuando fallas.</p>
 
-          <p style={{ fontSize: 19 }}>Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.</p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Eso no es sostenible cuando tienes 40 horas de trabajo, hijos que criar, pareja que atender, y una semana que empieza el lunes a las 7am con reuniones.</p>
 
-          <p style={{ fontSize: 19 }}>Lo que necesitas no es otra dieta. Lo que necesitas es que alguien te diga: <strong>&ldquo;come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</strong></p>
+          <p style={{ fontSize: 19, marginBottom: 24 }}>Lo que necesitas no es otra dieta.</p>
 
-          <p style={{ fontSize: 19 }}>Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+          <p style={{ fontSize: 19, marginBottom: 16 }}>Lo que necesitas es que alguien te diga: <strong>&ldquo;come esto, en esta cantidad, durante los próximos 7 días.&rdquo;</strong></p>
 
-          <p style={{ fontSize: 24, fontWeight: 700, color: '#7B7FC4' }}>Eso es Lucy.</p>
+          <p style={{ fontSize: 19, marginBottom: 32 }}>Y que ese alguien conozca tu cuerpo, tu cultura, tu ritmo.</p>
+
+          <p style={{ fontSize: 24, fontWeight: 700, color: '#7B7FC4', marginBottom: 32 }}>Eso es Lucy.</p>
         </div>
       </section>
 
@@ -272,19 +317,167 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 32 }} className="landing-h2">
             Cómo nació Lucy — y por qué la construí para ti
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 60, alignItems: 'start' }} className="landing-origin-grid">
-            <Placeholder label="[PLACEHOLDER: Foto profesional de Abner]" height={500} />
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 60, alignItems: 'start' }} className="landing-origin-grid">
+
+            {/* Foto Abner */}
+            <div style={{ position: 'sticky', top: 40 }} className="origin-photo-wrap">
+              <img
+                src="/abner-profesional.png"
+                alt="Coach Abner — CEO de Caribeño Fit Labs"
+                style={{
+                  width: '100%',
+                  borderRadius: 16,
+                  objectFit: 'cover',
+                  boxShadow: '0 12px 40px rgba(45,43,69,0.15)',
+                }}
+              />
+            </div>
+
+            {/* 12 bloques */}
             <div>
-              <p>Soy Abner, CEO de Caribeño Fit Labs.</p>
-              <p>Por años entrené a mujeres profesionales latinas uno-a-uno. Mujeres como tú. Mujeres que llegaban agotadas de probar todo y nada les funcionaba de manera sostenible.</p>
-              <p>Mis clientas bajaban 20, 30, 50 libras — pero nunca fue por fuerza de voluntad. Fue porque mi equipo y yo hacíamos el trabajo pesado por ellas: calculábamos sus macros, les decíamos exactamente qué comer cada día, ajustábamos las cantidades cuando cambiaban de peso o de nivel de actividad.</p>
-              <p>En Caribeño Fit Labs tenemos un sistema de 5 áreas: nutrición, ejercicio, descanso, hidratación y salud mental. Pero el 80% del tiempo de mis coaches se iba en UNA sola área: <strong>nutrición</strong>. Calculando porciones. Armando calendarios. Ajustando cantidades cada semana.</p>
-              <p>Un día me di cuenta de algo: si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de 120.</p>
-              <p>Así nació Lucy.</p>
-              <p>Lucy no es una dieta. No es una app de tracking. Lucy es el cerebro nutricional que mi equipo lleva años usando con mis clientas de alto ticket — ahora disponible para ti directamente en tu teléfono, por $297 al año.</p>
-              <p><strong>Eso es menos de lo que una sola semana de mi coaching privado cuesta.</strong></p>
-              <Placeholder label="[PLACEHOLDER: Historia personal específica — momento o clienta que te marcó]" height={80} />
-              <p style={{ fontStyle: 'italic', fontSize: 18, marginTop: 32, color: '#555' }}>— Abner Cartagena, CEO Caribeño Fit Labs</p>
+
+              {/* Bloque 1 — Identificación */}
+              <h3 style={{ fontSize: 36, fontWeight: 700, color: '#2D2B45', lineHeight: 1.2, marginBottom: 4 }} className="origin-h3">Soy Coach Abner.</h3>
+              <p style={{ fontSize: 18, color: '#555', marginBottom: 24 }}>CEO de Caribeño Fit Labs.</p>
+
+              {/* Bloque 2 — Contexto */}
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 20 }} className="origin-prose">
+                Por años entrené a mujeres profesionales latinas uno-a-uno. Mujeres como tú. Mujeres que llegaban agotadas de probar todo y nada les funcionaba de manera sostenible.
+              </p>
+
+              {/* Bloque 3 — Stat box */}
+              <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, margin: '32px 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' }} className="origin-stat-grid">
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">20-50</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Libras perdidas en promedio</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">1000+</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Mujeres entrenadas en Caribeño Fit Labs</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 48, fontWeight: 700, color: '#7B7FC4', lineHeight: 1 }} className="origin-stat-num">5</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#555', marginTop: 8 }}>Áreas de coaching</div>
+                </div>
+              </div>
+
+              {/* Bloque 4 — Lista actividades coaches */}
+              <h3 style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45', marginBottom: 8 }} className="origin-h3-sm">Mis clientas bajaban 20, 30, 50 libras — pero nunca por fuerza de voluntad.</h3>
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="origin-prose">Era porque mi equipo y yo hacíamos el trabajo pesado por ellas:</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+                {['Calculábamos sus macros', 'Les decíamos exactamente qué comer cada día', 'Ajustábamos las cantidades cuando cambiaban de peso', 'Adaptábamos el plan a su nivel de actividad'].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ color: '#7B7FC4', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>✓</span>
+                    <span style={{ fontSize: 18, color: '#2D2B45' }} className="origin-prose">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bloque 5 — Sistema 5 áreas */}
+              <p style={{ fontSize: 18, color: '#2D2B45', marginBottom: 16 }} className="origin-prose">En Caribeño Fit Labs tenemos un sistema de 5 áreas:</p>
+              <div style={{ background: '#F8F7FC', padding: 24, borderRadius: 12, display: 'flex', justifyContent: 'space-around', marginBottom: 32 }} className="origin-areas">
+                {['Nutrición', 'Ejercicio', 'Descanso', 'Hidratación', 'Salud Mental'].map((area, i) => (
+                  <span key={i} style={{ fontSize: 16, fontWeight: 600, color: '#2D2B45', textAlign: 'center' }} className="origin-area-label">{area}</span>
+                ))}
+              </div>
+
+              {/* Bloque 6 — Frase ancla DRAMATIC */}
+              <p style={{ fontSize: 28, fontWeight: 600, color: '#2D2B45', textAlign: 'center', margin: '32px 0' }} className="origin-dramatic-intro">
+                Pero el 80% del tiempo de mis coaches se iba en una sola área:
+              </p>
+              <p style={{ fontSize: 80, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 48 }} className="origin-nutricion">
+                NUTRICIÓN.
+              </p>
+
+              {/* Bloque 7 — Las 3 actividades */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 32 }}>
+                {['Calculando porciones', 'Armando calendarios', 'Ajustando cantidades cada semana'].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ color: '#7B7FC4', fontWeight: 700, fontSize: 18 }}>—</span>
+                    <span style={{ fontSize: 18, color: '#555' }} className="origin-prose">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bloque 8 — Callout box epifanía */}
+              <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
+                <p style={{ fontSize: 18, color: '#555', marginBottom: 12 }} className="origin-prose">Un día me di cuenta de algo:</p>
+                <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45' }} className="origin-callout-bold">Si podía automatizar ese trabajo — si podía construir una herramienta que hiciera lo que hacen mis coaches en la parte de nutrición — podía ayudar a 10,000 mujeres en lugar de las que mi equipo y yo podíamos atender uno-a-uno.</p>
+              </div>
+
+              {/* Bloque 9 — Frase ancla */}
+              <p style={{ fontSize: 64, fontWeight: 700, color: '#7B7FC4', textAlign: 'center', letterSpacing: '-0.02em', margin: '48px 0', lineHeight: 1.1 }} className="pain-anchor">
+                Así nació Lucy.
+              </p>
+
+              {/* Bloque 10 — Definición de Lucy */}
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 12 }}>Lucy no es una dieta.</p>
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 12 }}>Lucy no es una app de tracking.</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#2D2B45', marginBottom: 24 }} className="origin-callout-bold">
+                Lucy es el cerebro nutricional que mi equipo lleva años usando con mis clientas privadas — ahora disponible para ti directamente en tu teléfono.
+              </p>
+
+              {/* Bloque 11 — Precio anchor */}
+              <div style={{ background: '#F8F7FC', padding: 32, borderRadius: 16, textAlign: 'center', margin: '32px 0' }} className="origin-callout">
+                <p style={{ fontSize: 32, fontWeight: 700, color: '#7B7FC4' }} className="origin-stat-num">Por $297 al año.</p>
+                <div style={{ marginTop: 16, textAlign: 'left' }}>
+                  <p style={{ fontSize: 16, color: '#2D2B45', marginBottom: 16, fontStyle: 'italic' }}>
+                    Si fueras a armar esto por tu cuenta, así se ve la cuenta:
+                  </p>
+                  <ul style={{ listStyle: 'none', padding: 0, marginBottom: 20 }}>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Consulta inicial con nutricionista: <strong>$200</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Seguimientos mensuales: <strong>$750/año</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      Ajustes de plan y recetas adicionales: <strong>$400/año</strong>
+                    </li>
+                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
+                      App de tracking premium: <strong>$300-700/año</strong>
+                    </li>
+                  </ul>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#2D2B45', marginBottom: 16, textAlign: 'center' }}>
+                    Total: cerca de $2,000 al año.
+                  </p>
+                  <p style={{ fontSize: 15, color: '#555', marginBottom: 16, fontStyle: 'italic' }}>
+                    Y aún así, ninguno de esos servicios conoce tu cuerpo, te sigue día a día, ni ajusta tu plan cuando cambia tu vida.
+                  </p>
+                  <p style={{ fontSize: 17, fontWeight: 600, color: '#7B7FC4', textAlign: 'center', marginBottom: 0 }}>
+                    Lucy hace todo eso por $297 al año. Pago único.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                marginTop: 32,
+                marginBottom: 24,
+                padding: '24px 28px',
+                background: '#F8F7FC',
+                borderLeft: '4px solid #7B7FC4',
+                borderRadius: 8
+              }}>
+                <p style={{
+                  fontSize: 18,
+                  color: '#2D2B45',
+                  lineHeight: 1.6,
+                  margin: 0,
+                  fontStyle: 'italic'
+                }}>
+                  Construí Lucy porque mi equipo y yo no podíamos atender a todas las que nos escribían. Esto es lo que les damos a las clientas privadas — ahora directo a tu teléfono.
+                </p>
+              </div>
+
+              {/* Firma */}
+              <p style={{ fontStyle: 'italic', fontSize: 18, color: '#555', marginTop: 32 }} className="origin-firma">
+                — Coach Abner<br />CEO, Caribeño Fit Labs
+              </p>
+
             </div>
           </div>
         </div>
@@ -300,28 +493,110 @@ export default function LandingPage() {
             Estos son resultados reales de mujeres profesionales que siguieron la metodología nutricional que Lucy ahora automatiza.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 30 }} className="landing-testimonial-grid">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} style={{ background: '#FFF', borderRadius: 12, padding: 30, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                <Placeholder label={`[Before/After #${i}]`} height={200} />
-                <p style={{ fontWeight: 700, color: '#7B7FC4', fontSize: 18, marginTop: 16, marginBottom: 8 }}>Nombre P. — bajó XX lbs</p>
-                <p style={{ color: '#555', fontSize: 15 }}>[PLACEHOLDER quote 1-2 líneas]</p>
+          <div style={{
+            background: '#F8F7FC',
+            borderLeft: '3px solid #B8B5E0',
+            padding: '16px 20px',
+            borderRadius: 8,
+            marginBottom: 32,
+            fontSize: 14,
+            color: '#555',
+            fontStyle: 'italic',
+            lineHeight: 1.5
+          }}>
+            Resultados obtenidos con el coaching 1:1 de Caribeño Fit Labs aplicando el mismo método de alimentación —el Calendario Metabólico— que Lucy automatiza directamente en tu teléfono. Los resultados individuales varían.
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+            marginBottom: 32
+          }}>
+            {[
+              { id: 'dalery', nombre: 'Dalery O.', lbs: 30, img: '/transformaciones/transformacion-dalery.jpg' },
+              { id: 'karla', nombre: 'Karla R.', lbs: 100, img: '/transformaciones/transformacion-karla.jpg' },
+              { id: 'minelly', nombre: 'Minelly O.', lbs: 25, img: '/transformaciones/transformacion-minelly.jpg' },
+              { id: 'wanda', nombre: 'Wanda I.', lbs: 40, img: '/transformaciones/transformacion-wanda.jpg' }
+            ].map((t) => (
+              <div key={t.id} style={{
+                background: '#FFFFFF',
+                borderRadius: 16,
+                overflow: 'hidden',
+                boxShadow: '0 4px 12px rgba(45, 43, 69, 0.08)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{
+                  width: '100%',
+                  aspectRatio: '1 / 1',
+                  overflow: 'hidden',
+                  background: '#F8F7FC'
+                }}>
+                  <img
+                    src={t.img}
+                    alt={`Transformación ${t.nombre}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                </div>
+                <div style={{ padding: '20px 24px', textAlign: 'center' }}>
+                  <p style={{
+                    fontSize: 14,
+                    color: '#7B7FC4',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    marginBottom: 4
+                  }}>
+                    {t.nombre}
+                  </p>
+                  <p style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: '#2D2B45',
+                    margin: 0
+                  }}>
+                    Bajó {t.lbs} lbs
+                  </p>
+                </div>
               </div>
             ))}
           </div>
-
-          <p style={{ textAlign: 'center', fontSize: 13, color: '#555', fontStyle: 'italic', marginTop: 32 }}>
-            Los resultados mostrados son de clientas del programa de coaching 1:1 de Caribeño Fit Labs, que usa la misma metodología nutricional que Lucy automatiza. Los resultados individuales varían.
-          </p>
 
           <h3 style={{ textAlign: 'center', marginTop: 60, marginBottom: 24, fontSize: 24, fontWeight: 700 }}>
             Lo que dicen las beta testers que ya están usando Lucy:
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 30 }} className="landing-testimonial-grid">
-            {[1,2,3].map(i => (
-              <Placeholder key={i} label={`[Screenshot WhatsApp #${i}]`} height={300} />
-            ))}
+          {/* Carrusel mobile / Grid desktop */}
+          <div className="testimonios-wrapper">
+            <div className="testimonios-track">
+              {[
+                { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' },
+                { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
+                { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+                { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
+                { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+                { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' }
+              ].map((t) => (
+                <div key={t.id} className="testimonio-card">
+                  <img
+                    src={t.img}
+                    alt={t.alt}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      display: 'block',
+                      borderRadius: 12
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div style={{ marginTop: 50 }}>
@@ -334,7 +609,7 @@ export default function LandingPage() {
       <section style={{ background: '#F8F7FC', padding: '100px 0' }} className="landing-section">
         <div style={container}>
           <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 16 }} className="landing-h2">
-            El Método Lucy: Las 3 Decisiones
+            Las 3 Decisiones
           </h2>
 
           <div style={narrow}>
@@ -411,7 +686,25 @@ export default function LandingPage() {
 
           {/* Bonus 1 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginBottom: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
-            <Placeholder label="[PLACEHOLDER: Mockup 3D del libro Activación Metabólica]" height={280} />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/book-activacion-metabolica.png"
+                alt="Libro Activación Metabólica por Coach Abner"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $47 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #1 — Libro &ldquo;Activación Metabólica&rdquo;</h3>
@@ -428,7 +721,26 @@ export default function LandingPage() {
 
           {/* Bonus 2 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
-            <Placeholder label="[PLACEHOLDER: Mockup 3D del Recipe Book]" height={280} />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/smoothie-recipes.png"
+                alt="Recipe Book — Smoothie Recipes by Coach Abner"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 12,
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #2 — Recipe Book Caribeño Fit Labs</h3>
@@ -525,13 +837,35 @@ export default function LandingPage() {
       <section style={{ background: '#F8F7FC', padding: '100px 0' }} className="landing-section">
         <div style={narrow}>
           <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 40, alignItems: 'center' }} className="landing-guarantee-grid">
-            <div style={{
-              width: 200, height: 200, borderRadius: '50%', background: '#7B7FC4', color: '#FFF',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              fontWeight: 700, fontSize: 20, padding: 20, boxShadow: '0 8px 24px rgba(123, 127, 196, 0.3)',
-              flexShrink: 0,
-            }}>
-              GARANTÍA<br/>7 DÍAS<br/>SIN PREGUNTAS
+            <div role="img" aria-label="Garantía de 7 días sin preguntas" className="guarantee-badge" style={{ width: 200, height: 200, flexShrink: 0 }}>
+              <svg viewBox="0 0 200 200" width="200" height="200" style={{ filter: 'drop-shadow(0 12px 32px rgba(123,127,196,0.25))' }}>
+                {/* Scalloped outer edge */}
+                <path d={(() => {
+                  const cx = 100, cy = 100, r = 96, bumps = 24, depth = 6
+                  let d = ''
+                  for (let i = 0; i < bumps; i++) {
+                    const a1 = (i / bumps) * Math.PI * 2
+                    const a2 = ((i + 0.5) / bumps) * Math.PI * 2
+                    const a3 = ((i + 1) / bumps) * Math.PI * 2
+                    const x1 = cx + (r + depth) * Math.cos(a1)
+                    const y1 = cy + (r + depth) * Math.sin(a1)
+                    const x2 = cx + (r - depth) * Math.cos(a2)
+                    const y2 = cy + (r - depth) * Math.sin(a2)
+                    const x3 = cx + (r + depth) * Math.cos(a3)
+                    const y3 = cy + (r + depth) * Math.sin(a3)
+                    if (i === 0) d += `M ${x1} ${y1} `
+                    d += `Q ${x2} ${y2} ${x3} ${y3} `
+                  }
+                  return d + 'Z'
+                })()} fill="#7B7FC4" />
+                {/* Inner circle */}
+                <circle cx="100" cy="100" r="82" fill="none" stroke="#F8F7FC" strokeWidth="2" opacity="0.5" />
+                <circle cx="100" cy="100" r="76" fill="none" stroke="#F8F7FC" strokeWidth="1" opacity="0.3" />
+                {/* Text */}
+                <text x="100" y="72" textAnchor="middle" fill="#FFFFFF" fontSize="12" fontWeight="600" letterSpacing="0.1em">GARANTÍA</text>
+                <text x="100" y="112" textAnchor="middle" fill="#FFFFFF" fontSize="36" fontWeight="700" letterSpacing="-0.02em">7 DÍAS</text>
+                <text x="100" y="134" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="600" letterSpacing="0.1em">SIN PREGUNTAS</text>
+              </svg>
             </div>
             <div>
               <h2 style={{ fontSize: 42, fontWeight: 700, marginBottom: 16 }} className="landing-h2">La Garantía Caribeña — 7 días, sin preguntas</h2>
@@ -606,7 +940,7 @@ export default function LandingPage() {
           <p style={{ fontStyle: 'italic', marginTop: 32 }}>— Abner<br/>CEO, Caribeño Fit Labs</p>
 
           <div style={{ marginTop: 40 }}>
-            <CtaButton text="Empezar con Lucy — $297" large />
+            <CtaButton text="Empezar con Lucy — $297" large bg="#7B7FC4" bgHover="#B8B5E0" />
           </div>
         </div>
       </section>
@@ -630,16 +964,83 @@ export default function LandingPage() {
           .hero-intro { font-size: 18px !important; }
           .hero-bullet { font-size: 16px !important; }
           .hero-sin { font-size: 14px !important; }
+          .pain-prose { font-size: 16px !important; }
+          .pain-h3 { font-size: 20px !important; }
+          .pain-card { padding: 24px !important; }
+          .pain-card-bold { font-size: 20px !important; }
+          .pain-anchor { font-size: 48px !important; margin: 32px 0 !important; }
+          .origin-h3 { font-size: 28px !important; }
+          .origin-h3-sm { font-size: 18px !important; }
+          .origin-prose { font-size: 16px !important; }
+          .origin-stat-grid { grid-template-columns: 1fr !important; padding: 24px !important; }
+          .origin-stat-num { font-size: 36px !important; }
+          .origin-areas { flex-wrap: wrap !important; gap: 12px !important; justify-content: center !important; }
+          .origin-area-label { font-size: 14px !important; }
+          .origin-dramatic-intro { font-size: 22px !important; }
+          .origin-nutricion { font-size: 56px !important; }
+          .origin-callout { padding: 24px !important; }
+          .origin-callout-bold { font-size: 18px !important; }
+          .origin-photo-wrap { position: static !important; max-width: 400px; margin: 0 auto; }
+          .origin-firma { text-align: center !important; }
           .landing-section { padding: 60px 0 !important; }
           .landing-hero-grid,
           .landing-origin-grid,
-          .landing-testimonial-grid,
           .landing-mechanism-grid,
           .landing-bullet-grid,
           .landing-bonus-card,
           .landing-guarantee-grid {
             grid-template-columns: 1fr !important;
             gap: 30px !important;
+          }
+          .guarantee-badge { width: 160px !important; height: 160px !important; margin: 0 auto; }
+          .guarantee-badge svg { width: 160px !important; height: 160px !important; }
+        }
+
+        /* Mobile: carrusel horizontal con peek */
+        .testimonios-wrapper {
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          scroll-snap-type: x mandatory;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          padding-bottom: 8px;
+        }
+
+        .testimonios-wrapper::-webkit-scrollbar {
+          display: none;
+        }
+
+        .testimonios-track {
+          display: flex;
+          gap: 16px;
+          padding: 0 16px;
+        }
+
+        .testimonio-card {
+          flex: 0 0 85%;
+          scroll-snap-align: center;
+          background: transparent;
+        }
+
+        /* Desktop: grid 3 columnas, 2 filas */
+        @media (min-width: 768px) {
+          .testimonios-wrapper {
+            overflow: visible;
+            padding-bottom: 0;
+          }
+
+          .testimonios-track {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            padding: 0;
+          }
+
+          .testimonio-card {
+            flex: none;
+            width: 100%;
           }
         }
       `}</style>
