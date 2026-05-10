@@ -868,6 +868,44 @@ export default function LandingPage() {
               <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
             </div>
           </div>
+
+          {/* Bonus 3 */}
+          <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginTop: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/recetario-dulce.png"
+                alt="Recetario Dulce — Postres saludables"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 12,
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
+            <div>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #3 — Recetario Dulce Caribeño Fit Labs</h3>
+              <p>50 de mis recetas favoritas del programa — todas hechas con los alimentos que Lucy usa en tu plan. Todas con macros calculadas.</p>
+              <ul style={{ paddingLeft: 20, marginTop: 12, lineHeight: 1.8 }}>
+                <li>Mangú con huevo (desayuno proteico)</li>
+                <li>Arroz con habichuelas revisado (menos grasa, misma sazón)</li>
+                <li>Pollo al ajillo limpio</li>
+                <li>Pernil en olla lenta sin guindilla</li>
+                <li>Flan proteico (postre que NO te saca del plan)</li>
+                <li>Y 45 recetas más</li>
+              </ul>
+              <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
+            </div>
+          </div>
         </div>
       </section>
 
