@@ -2,32 +2,6 @@
 
 import { useState } from 'react'
 
-/* ─── Placeholder Components ─── */
-
-function Placeholder({ label, height = 300, aspect }: { label: string; height?: number; aspect?: string }) {
-  return (
-    <div
-      style={{
-        background: 'repeating-linear-gradient(45deg, #F5EFFF, #F5EFFF 10px, #EAE2FF 10px, #EAE2FF 20px)',
-        border: '2px dashed #7B7FC4',
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        color: '#7B7FC4',
-        fontWeight: 500,
-        fontSize: 14,
-        padding: 24,
-        height,
-        ...(aspect ? { aspectRatio: aspect, height: 'auto' } : {}),
-      }}
-    >
-      {label}
-    </div>
-  )
-}
-
 /* ─── CTA Button ─── */
 
 function CtaButton({ text, large }: { text: string; large?: boolean }) {
@@ -744,7 +718,26 @@ export default function LandingPage() {
 
           {/* Bonus 2 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
-            <Placeholder label="[PLACEHOLDER: Mockup 3D del Recipe Book]" height={280} />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/smoothie-recipes.png"
+                alt="Recipe Book — Smoothie Recipes by Coach Abner"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 12,
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #2 — Recipe Book Caribeño Fit Labs</h3>
