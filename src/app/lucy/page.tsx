@@ -221,82 +221,65 @@ export default function LandingPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* iPhone mockup frame */}
-              <div
-                className="iphone-mockup"
-                style={{
-                  position: 'relative',
-                  width: 300,
-                  height: 620,
-                  background: '#1a1a1a',
-                  borderRadius: 52,
-                  padding: 12,
-                  boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
-                }}
-              >
-                {/* Dynamic Island */}
-                <div style={{
-                  position: 'absolute',
-                  top: 16,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 100,
-                  height: 28,
-                  background: '#000',
-                  borderRadius: 20,
-                  zIndex: 2,
-                }} />
-                {/* Screen */}
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 40,
-                  overflow: 'hidden',
-                  background: '#F8F7FC',
-                }}>
-                  <div
-                    className="iphone-carousel-track"
-                    onScroll={(e) => {
-                      const target = e.currentTarget
-                      const slideWidth = target.clientWidth
-                      const newSlide = Math.round(target.scrollLeft / slideWidth)
-                      if (newSlide !== activeSlide) setActiveSlide(newSlide)
-                    }}
-                    style={{
-                      display: 'flex',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      scrollSnapType: 'x mandatory',
-                      WebkitOverflowScrolling: 'touch',
-                      width: '100%',
-                      height: '100%',
-                      scrollbarWidth: 'none',
-                      msOverflowStyle: 'none' as const
-                    }}
-                  >
-                    {screenshots.map((s) => (
+              <div className="iphone-carousel-wrapper">
+                <div
+                  className="iphone-carousel-track"
+                  onScroll={(e) => {
+                    const target = e.currentTarget
+                    const slideWidth = target.scrollWidth / screenshots.length
+                    const newSlide = Math.round(target.scrollLeft / slideWidth)
+                    if (newSlide !== activeSlide) setActiveSlide(Math.min(newSlide, screenshots.length - 1))
+                  }}
+                >
+                  {screenshots.map((s) => (
+                    <div key={s.id} className="iphone-carousel-slide">
                       <div
-                        key={s.id}
+                        className="iphone-mockup"
                         style={{
-                          flex: '0 0 100%',
-                          scrollSnapAlign: 'center',
-                          height: '100%',
-                          overflow: 'hidden'
+                          position: 'relative',
+                          width: 300,
+                          height: 620,
+                          background: '#1a1a1a',
+                          borderRadius: 52,
+                          padding: 12,
+                          boxShadow: '0 20px 60px rgba(45,43,69,0.2)',
+                          flexShrink: 0,
                         }}
                       >
-                        <img
-                          src={s.src}
-                          alt={s.alt}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block'
-                          }}
-                        />
+                        {/* Dynamic Island */}
+                        <div style={{
+                          position: 'absolute',
+                          top: 16,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 100,
+                          height: 28,
+                          background: '#000',
+                          borderRadius: 20,
+                          zIndex: 2,
+                        }} />
+                        {/* Screen */}
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 40,
+                          overflow: 'hidden',
+                          background: '#F8F7FC',
+                        }}>
+                          <img
+                            src={s.src}
+                            alt={s.alt}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -344,6 +327,45 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ═══ CALENDAR PREVIEW ═══ */}
+      <section style={{ background: '#F8F7FC', padding: '80px 0' }} className="landing-section">
+        <div style={container}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <p style={{ fontSize: 14, color: '#7B7FC4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 }}>
+              Así se ve
+            </p>
+            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#2D2B45', marginBottom: 16, lineHeight: 1.2 }} className="landing-h2">
+              Tu plan de la semana, siempre a la mano.
+            </h2>
+            <p style={{ fontSize: 18, color: '#555', maxWidth: 600, margin: '0 auto' }}>
+              Descárgalo en PDF e imprímelo. O úsalo directo desde tu teléfono.
+            </p>
+          </div>
+
+          <div
+            onClick={() => setIsCalendarOpen(true)}
+            style={{
+              cursor: 'zoom-in',
+              borderRadius: 16,
+              overflow: 'hidden',
+              boxShadow: '0 10px 40px rgba(45, 43, 69, 0.12)',
+              maxWidth: 1100,
+              margin: '0 auto'
+            }}
+          >
+            <img
+              src="/calendario-ejemplo.png"
+              alt="Calendario metabólico semanal completo de Lucy"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+          </div>
+
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#7B7FC4', marginTop: 16, fontStyle: 'italic' }}>
+            Toca la imagen para ver los detalles
+          </p>
         </div>
       </section>
 
@@ -570,45 +592,6 @@ export default function LandingPage() {
 
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ═══ CALENDAR PREVIEW ═══ */}
-      <section style={{ background: '#F8F7FC', padding: '80px 0' }} className="landing-section">
-        <div style={container}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <p style={{ fontSize: 14, color: '#7B7FC4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 }}>
-              Así se ve
-            </p>
-            <h2 style={{ fontSize: 36, fontWeight: 700, color: '#2D2B45', marginBottom: 16, lineHeight: 1.2 }} className="landing-h2">
-              Tu plan de la semana, siempre a la mano.
-            </h2>
-            <p style={{ fontSize: 18, color: '#555', maxWidth: 600, margin: '0 auto' }}>
-              Descárgalo en PDF e imprímelo. O úsalo directo desde tu teléfono.
-            </p>
-          </div>
-
-          <div
-            onClick={() => setIsCalendarOpen(true)}
-            style={{
-              cursor: 'zoom-in',
-              borderRadius: 16,
-              overflow: 'hidden',
-              boxShadow: '0 10px 40px rgba(45, 43, 69, 0.12)',
-              maxWidth: 1100,
-              margin: '0 auto'
-            }}
-          >
-            <img
-              src="/calendario-ejemplo.png"
-              alt="Calendario metabólico semanal completo de Lucy"
-              style={{ width: '100%', height: 'auto', display: 'block' }}
-            />
-          </div>
-
-          <p style={{ textAlign: 'center', fontSize: 13, color: '#7B7FC4', marginTop: 16, fontStyle: 'italic' }}>
-            Toca la imagen para ver los detalles
-          </p>
         </div>
       </section>
 
@@ -1173,7 +1156,69 @@ export default function LandingPage() {
           }
         }
 
-        .iphone-carousel-track::-webkit-scrollbar { display: none; }
+        .iphone-carousel-wrapper {
+          width: 100vw;
+          max-width: 100vw;
+          position: relative;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          overflow-x: hidden;
+          overflow-y: visible;
+        }
+
+        .iphone-carousel-track {
+          display: flex;
+          overflow-x: auto;
+          overflow-y: visible;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          gap: 16px;
+          padding: 20px 7.5%;
+          scroll-padding-left: 7.5%;
+        }
+
+        .iphone-carousel-track::-webkit-scrollbar {
+          display: none;
+        }
+
+        .iphone-carousel-slide {
+          flex: 0 0 85%;
+          scroll-snap-align: start;
+          display: flex;
+          justify-content: center;
+        }
+
+        @media (min-width: 768px) {
+          .iphone-carousel-wrapper {
+            width: 100%;
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+          }
+
+          .iphone-carousel-track {
+            padding: 20px 15%;
+            scroll-padding-left: 15%;
+            gap: 24px;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 70%;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .iphone-carousel-track {
+            padding: 20px 25%;
+            scroll-padding-left: 25%;
+          }
+
+          .iphone-carousel-slide {
+            flex: 0 0 50%;
+          }
+        }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }
