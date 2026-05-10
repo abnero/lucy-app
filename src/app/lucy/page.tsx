@@ -189,7 +189,7 @@ export default function LandingPage() {
               </div>
 
               <div style={{ marginTop: 24, fontSize: 15, color: '#555' }}>
-                <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Caribeño Fit Labs en Instagram
+                <span style={{ color: '#FFB800', fontSize: 18 }}>★★★★★</span> Más de 37,000 mujeres profesionales siguen a Coach Abner en Instagram
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
