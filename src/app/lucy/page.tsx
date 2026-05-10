@@ -4,7 +4,10 @@ import { useState } from 'react'
 
 /* ─── CTA Button ─── */
 
-function CtaButton({ text, large }: { text: string; large?: boolean }) {
+function CtaButton({ text, large, bg = '#2D2B45', bgHover = '#3D3B5A' }: { text: string; large?: boolean; bg?: string; bgHover?: string }) {
+  const shadow = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.3)' : 'rgba(45, 43, 69, 0.3)'
+  const shadowHover = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.4)' : 'rgba(45, 43, 69, 0.4)'
+
   const handleClick = async () => {
     try {
       const res = await fetch('/api/stripe/create-checkout', {
@@ -25,7 +28,7 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
         onClick={handleClick}
         style={{
           display: 'inline-block',
-          background: '#2D2B45',
+          background: bg,
           color: '#FFFFFF',
           fontSize: large ? 24 : 20,
           fontWeight: 700,
@@ -35,13 +38,13 @@ function CtaButton({ text, large }: { text: string; large?: boolean }) {
           cursor: 'pointer',
           textTransform: 'uppercase',
           letterSpacing: '0.02em',
-          boxShadow: '0 6px 20px rgba(45, 43, 69, 0.3)',
+          boxShadow: `0 6px 20px ${shadow}`,
           transition: 'transform 0.2s, box-shadow 0.2s, background 0.2s',
           width: '100%',
           maxWidth: 600,
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(45, 43, 69, 0.4)'; e.currentTarget.style.background = '#3D3B5A' }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(45, 43, 69, 0.3)'; e.currentTarget.style.background = '#2D2B45' }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 10px 30px ${shadowHover}`; e.currentTarget.style.background = bgHover }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 6px 20px ${shadow}`; e.currentTarget.style.background = bg }}
       >
         {text}
       </button>
@@ -937,7 +940,7 @@ export default function LandingPage() {
           <p style={{ fontStyle: 'italic', marginTop: 32 }}>— Abner<br/>CEO, Caribeño Fit Labs</p>
 
           <div style={{ marginTop: 40 }}>
-            <CtaButton text="Empezar con Lucy — $297" large />
+            <CtaButton text="Empezar con Lucy — $297" large bg="#7B7FC4" bgHover="#B8B5E0" />
           </div>
         </div>
       </section>
