@@ -1158,7 +1158,9 @@ export default function LandingPage() {
 
         .iphone-carousel-wrapper {
           width: 100%;
+          max-width: 100%;
           position: relative;
+          overflow: hidden;
         }
 
         .iphone-carousel-track {
