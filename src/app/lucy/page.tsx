@@ -929,17 +929,18 @@ export default function LandingPage() {
             </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
-              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #3 — Recetario Dulce Caribeño Fit Labs</h3>
-              <p>50 de mis recetas favoritas del programa — todas hechas con los alimentos que Lucy usa en tu plan. Todas con macros calculadas.</p>
-              <ul style={{ paddingLeft: 20, marginTop: 12, lineHeight: 1.8 }}>
-                <li>Mangú con huevo (desayuno proteico)</li>
-                <li>Arroz con habichuelas revisado (menos grasa, misma sazón)</li>
-                <li>Pollo al ajillo limpio</li>
-                <li>Pernil en olla lenta sin guindilla</li>
-                <li>Flan proteico (postre que NO te saca del plan)</li>
-                <li>Y 45 recetas más</li>
-              </ul>
-              <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Recetario Dulce</h3>
+              <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
+                <p style={{ marginBottom: 12 }}>
+                  11 recetas de postres y dulces hechos en versión fit con proteína: Brownies, Tiramisú, Flan, Pancakes, Trufas, Torta de Naranja y más.
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  Cada receta usa ingredientes accesibles (yogurt griego, avena, proteína en polvo, chocolate amargo) y se prepara en 5-35 minutos.
+                </p>
+                <p style={{ fontStyle: 'italic', fontSize: 14, opacity: 0.85 }}>
+                  Para los días que Lucy ya cuadró tus macros y todavía te queda espacio dulce.
+                </p>
+              </div>
             </div>
           </div>
         </div>
