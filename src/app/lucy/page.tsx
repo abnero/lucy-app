@@ -536,29 +536,34 @@ export default function LandingPage() {
                   <p style={{ fontSize: 16, color: '#2D2B45', marginBottom: 16, fontStyle: 'italic' }}>
                     Si fueras a armar esto por tu cuenta, así se ve la cuenta:
                   </p>
-                  <ul style={{ listStyle: 'none', padding: 0, marginBottom: 20 }}>
-                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
-                      Consulta inicial con nutricionista: <strong>$200</strong>
-                    </li>
-                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
-                      Seguimientos mensuales: <strong>$750/año</strong>
-                    </li>
-                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
-                      Ajustes de plan y recetas adicionales: <strong>$400/año</strong>
-                    </li>
-                    <li style={{ fontSize: 16, color: '#2D2B45', marginBottom: 8, paddingLeft: 16, position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4' }}>—</span>
-                      App de tracking premium: <strong>$300-700/año</strong>
-                    </li>
-                  </ul>
-                  <p style={{ fontSize: 18, fontWeight: 700, color: '#2D2B45', marginBottom: 16, textAlign: 'center' }}>
-                    Total: cerca de $2,000 al año.
-                  </p>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 12, borderBottom: '1px dotted #B8B5E0', paddingBottom: 8 }}>
+                      <span style={{ flex: 1, color: '#2D2B45', fontSize: 16 }}>Consulta inicial con nutricionista</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 16 }}>$200</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 12, borderBottom: '1px dotted #B8B5E0', paddingBottom: 8 }}>
+                      <span style={{ flex: 1, color: '#2D2B45', fontSize: 16 }}>Seguimientos mensuales</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 16 }}>$750/año</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 12, borderBottom: '1px dotted #B8B5E0', paddingBottom: 8 }}>
+                      <span style={{ flex: 1, color: '#2D2B45', fontSize: 16 }}>Ajustes de plan y recetas adicionales</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 16 }}>$400/año</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 12, borderBottom: '1px dotted #B8B5E0', paddingBottom: 8 }}>
+                      <span style={{ flex: 1, color: '#2D2B45', fontSize: 16 }}>App premium para contar calorías</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 16 }}>$300-700/año</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 12, borderBottom: '1px dotted #B8B5E0', paddingBottom: 8 }}>
+                      <span style={{ flex: 1, color: '#2D2B45', fontSize: 16 }}>Vegetales y &ldquo;comida sana&rdquo; en tu refrigerador que termina en la basura</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 16 }}>$600/año</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginTop: 16, paddingTop: 12, borderTop: '2px solid #7B7FC4' }}>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', fontSize: 18 }}>Total</span>
+                      <span style={{ fontWeight: 700, color: '#2D2B45', whiteSpace: 'nowrap', fontSize: 18 }}>~$2,600/año</span>
+                    </div>
+                  </div>
                   <p style={{ fontSize: 15, color: '#555', marginBottom: 16, fontStyle: 'italic' }}>
-                    Y aún así, ninguno de esos servicios conoce tu cuerpo, te sigue día a día, ni ajusta tu plan cuando cambia tu vida.
+                    Y aún así, sigues sin saber qué comer cada día — ni quién te ajuste el plan cuando cambia tu vida.
                   </p>
                   <p style={{ fontSize: 17, fontWeight: 600, color: '#7B7FC4', textAlign: 'center', marginBottom: 0 }}>
                     Lucy hace todo eso por $297 al año. Pago único.
