@@ -767,6 +767,23 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, marginTop: 50 }}>
             Eso es todo. Tres decisiones. Tú las obedeces. El peso baja solo.
           </p>
+
+          <div style={{
+            background: '#F8F7FC',
+            border: '2px solid #7B7FC4',
+            borderRadius: 16,
+            padding: 24,
+            marginTop: 32,
+            marginBottom: 32,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#2D2B45', marginBottom: 12 }}>
+              🎁 BONUS: Lucy te prepara tu lista de compras
+            </div>
+            <div style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.6 }}>
+              Con los ingredientes que necesitas comprar para la semana y en qué cantidades. Nunca más tendrás que tirar comida que sobró o que no te comiste, y mucho menos preocuparte porque te faltan ingredientes.
+            </div>
+          </div>
         </div>
       </section>
 
