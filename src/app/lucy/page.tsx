@@ -1129,21 +1129,46 @@ export default function LandingPage() {
             Por $297 recibes todo esto:
           </h2>
 
-          <ul style={{ maxWidth: 600, margin: '0 auto 40px', textAlign: 'left', listStyle: 'none', padding: 0 }}>
-            {[
-              'Acceso a Lucy durante 1 año completo',
-              'Plan nutricional personalizado de 7 días, renovable cada semana',
-              'Chat AI 24/7 para ajustes, swaps, recetas, meriendas',
-              'Lista de compras automática',
-              'Libro "Activación Metabólica" (valor $47)',
-              'Recipe Book Caribeño Fit Labs (valor $37)',
-              'Garantía de 7 días sin preguntas',
-            ].map((item, i) => (
-              <li key={i} style={{ padding: '12px 0', fontSize: 19, display: 'flex', gap: 12 }}>
-                <span>✅</span> {item}
-              </li>
-            ))}
-          </ul>
+          <div style={{ maxWidth: 600, margin: '0 auto 40px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Acceso a Lucy durante 1 año completo</span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Chat con Lucy 24/7 — cambia alimentos, pide recetas, dile que tienes hambre</span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Plan nutricional personalizado con tus alimentos favoritos</span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Lista de compras semanal automática</span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Libro: El Nuevo Método de Activación Metabólica <span style={{ opacity: 0.7, fontSize: 14 }}>($37)</span></span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Recetas para smoothies altos en proteína <span style={{ opacity: 0.7, fontSize: 14 }}>($27)</span></span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Recetario Dulce: 11 postres fit <span style={{ opacity: 0.7, fontSize: 14 }}>($17)</span></span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Garantía de 7 días sin preguntas</span>
+            </div>
+          </div>
+
+          <div style={{ maxWidth: 600, margin: '0 auto 32px', padding: '16px 20px', background: '#F8F7FC', borderLeft: '3px solid #7B7FC4', borderRadius: 4, textAlign: 'left' }}>
+            <p style={{ fontSize: 15, color: '#2D2B45', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>
+              Y como te lo recordé arriba: armar esto por tu cuenta costaría ~$2,600 al año.
+            </p>
+          </div>
 
           <CtaButton text="Empezar Ahora — $297" large />
 
@@ -1162,7 +1187,6 @@ export default function LandingPage() {
 
           <FaqItem question="¿Necesito experiencia con apps para usar Lucy?" answer="No. Si sabes usar WhatsApp, sabes usar Lucy. Te hace 6 preguntas en el onboarding y te entrega tu plan. El resto es abrir la app, ver qué toca hoy, comer." />
           <FaqItem question="¿Qué pasa después del año?" answer="Tu plan sigue funcionando en tu dispositivo y puedes renovar si quieres. <strong>No hay cobros automáticos.</strong> Tú decides si renuevas o no. Este es el diferencial más grande vs. otras apps que te meten en suscripción que renueva para siempre." />
-          <FaqItem question="¿Funciona si vivo en Puerto Rico o en Estados Unidos?" answer="Ambos. Los alimentos del catálogo están disponibles en los dos mercados. Si vives en Orlando o en Ponce, encuentras lo mismo." />
           <FaqItem question="¿Y si tengo alergias o restricciones (vegetariana, sin gluten)?" answer="Lucy te deja eliminar cualquier alimento que no quieras. Si eres vegetariana, le quitas las proteínas animales y Lucy usa fuentes vegetales (huevo, queso, legumbres). Si tienes alergia a algo específico, lo sacas del catálogo y no aparece en tu plan." />
           <FaqItem question="¿Lucy reemplaza a mi médico o nutricionista?" answer="No. Lucy no diagnostica, no prescribe, no reemplaza cuidado médico. Es una herramienta de planificación nutricional basada en la fórmula Mifflin-St Jeor — el mismo estándar usado por nutricionistas profesionales. Si tienes condiciones médicas, consulta con tu médico antes de empezar cualquier plan." />
           <FaqItem question="¿Puedo usar Lucy si estoy embarazada?" answer="Todavía no. Lucy no está diseñada para embarazadas. Espera el posparto si estás en esa etapa." />
