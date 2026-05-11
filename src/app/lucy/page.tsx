@@ -154,8 +154,12 @@ export default function LandingPage() {
                 Por fin sabes qué comer — y en qué cantidades.
               </h1>
               {/* Intro corto */}
-              <p style={{ fontSize: 20, color: '#555', marginBottom: 24, lineHeight: 1.5 }} className="hero-intro">
+              <p style={{ fontSize: 20, color: '#555', marginBottom: 12, lineHeight: 1.5 }} className="hero-intro">
                 Lucy es tu asistente nutricional personal en tu teléfono. Le escribes, te responde, ajusta tu plan.
+              </p>
+
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#2D2B45', marginTop: 0, marginBottom: 24, lineHeight: 1.5 }}>
+                Hoy mismo sabes qué comer y en qué cantidades para empezar a bajar de peso.
               </p>
 
               <div
@@ -215,6 +219,9 @@ export default function LandingPage() {
               </p>
 
               <div id="cta-hero">
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#7B7FC4', marginBottom: 10, textAlign: 'center', letterSpacing: '0.3px' }}>
+                  ⏱ En menos de 10 minutos tienes tu plan
+                </div>
                 <CtaButton text="Empieza con Lucy — $297 por 1 año completo" />
               </div>
 
@@ -859,6 +866,10 @@ export default function LandingPage() {
 
           <p style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, marginTop: 50 }}>
             Eso es todo. Tres decisiones. Tú las obedeces. El peso baja solo.
+          </p>
+
+          <p style={{ fontSize: 17, fontWeight: 700, color: '#2D2B45', textAlign: 'center', marginTop: 24, marginBottom: 32, lineHeight: 1.5 }}>
+            Tu primer plan está listo hoy mismo — apenas terminas onboarding.
           </p>
 
           <div style={{
