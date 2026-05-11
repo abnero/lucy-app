@@ -154,7 +154,7 @@ export default function LandingPage() {
               </h1>
               {/* Intro corto */}
               <p style={{ fontSize: 20, color: '#555', marginBottom: 24, lineHeight: 1.5 }} className="hero-intro">
-                Lucy es tu asistente nutricional con IA, diseñada para mujeres profesionales latinas.
+                Lucy es tu asistente nutricional personal en tu teléfono. Le escribes, te responde, ajusta tu plan.
               </p>
 
               <div
@@ -742,12 +742,12 @@ export default function LandingPage() {
           {/* Carrusel mobile / Grid desktop */}
           {(() => {
             const testimonials = [
-              { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' },
               { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
               { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
               { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
               { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
-              { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' }
+              { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' },
+              { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' }
             ]
             return (
               <>
@@ -887,11 +887,11 @@ export default function LandingPage() {
           </h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px 40px' }} className="landing-bullet-grid">
+            <Bullet><strong>Hablas con Lucy como hablas con una amiga querida.</strong> Cambia un alimento, pide una receta, dile que tienes hambre — ella se ajusta. Está disponible 24/7.</Bullet>
             <Bullet><strong>Tu plan de 7 días personalizado en menos de 10 minutos.</strong> Respondes 6 preguntas sobre ti (peso, altura, edad, actividad, meta, preferencias). Lucy te entrega el calendario completo. Sin ejercicios obligatorios. Sin batidos. Sin contar una sola caloría.</Bullet>
             <Bullet><strong>Porciones calculadas específicamente para mujeres profesionales latinas.</strong> La mayoría de apps asumen que eres un hombre americano de 35 años que va al gimnasio 5 veces por semana. Lucy usa una fórmula ajustada a tu realidad: sedentaria la mayor parte del día, culturalmente latina, en tus 30s-50s, con hormonas que no son las de un tipo de 25 años.</Bullet>
             <Bullet><strong>En español natural de Latinoamérica.</strong> Sin traducciones raras. Lucy habla como tú hablas.</Bullet>
             <Bullet><strong>Alimentos que SÍ consigues en PR y/o Estados Unidos.</strong> Arroz, habichuelas o frijoles, pollo, plátano, huevo, queso fresco, aguacate. Si vas a un supermercado americano o un colmado boricua, encuentras todo lo que Lucy te recomienda.</Bullet>
-            <Bullet><strong>Tu asistente nutricional AI disponible 24/7.</strong> ¿Tienes hambre a las 10pm y dudas si comerte algo? Pregúntale a Lucy. Te recomienda una merienda específica que se ajusta a lo que queda de tus macros del día. ¿No te gustó una comida del plan? Lucy te la cambia al instante.</Bullet>
             <Bullet><strong>Lista de compras semanal automática.</strong> Organizada por sección del supermercado (proteínas, vegetales, lácteos, granos). Entras, compras, sales. No piensas.</Bullet>
             <Bullet><strong>Recalculación automática cuando tu cuerpo cambia.</strong> ¿Bajaste 15 libras? Aprietas un botón y Lucy te recalcula las cantidades ajustadas a tu nuevo peso, con los mismos alimentos que ya te gustan. Sin rehacer el plan desde cero.</Bullet>
             <Bullet><strong>Swaps instantáneos cuando quieres variar.</strong> &ldquo;Cambia el pollo de la cena por salmón.&rdquo; Listo. Lucy recalcula la cantidad del salmón para mantener tus macros en target.</Bullet>
