@@ -910,7 +910,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 8 }} className="landing-h2">
             Y cuando te inscribes hoy, también recibes 2 regalos
           </h2>
-          <p style={{ textAlign: 'center', fontSize: 20, color: '#555', marginBottom: 40 }}>Valor total de los bonos: $84 — incluidos gratis con Lucy</p>
+          <p style={{ textAlign: 'center', fontSize: 20, color: '#555', marginBottom: 40 }}>Valor total de los bonos: $81 — incluidos gratis con Lucy</p>
 
           {/* Bonus 1 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginBottom: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
@@ -934,7 +934,7 @@ export default function LandingPage() {
               />
             </div>
             <div>
-              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $47 — Hoy GRATIS</span>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Libro: El Nuevo Método de Activación Metabólica</h3>
               <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: 12 }}>
@@ -981,7 +981,7 @@ export default function LandingPage() {
               />
             </div>
             <div>
-              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $27 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Recetas para smoothies altos en proteína</h3>
               <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: 12 }}>
@@ -1020,7 +1020,7 @@ export default function LandingPage() {
               />
             </div>
             <div>
-              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $17 — Hoy GRATIS</span>
               <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Recetario Dulce</h3>
               <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: 12 }}>
