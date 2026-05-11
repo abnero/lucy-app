@@ -1041,28 +1041,48 @@ export default function LandingPage() {
       {/* ═══ SECTION 9: VALUE STACK ═══ */}
       <section style={{ background: '#FFF', padding: '100px 0' }} className="landing-section">
         <div style={narrow}>
-          <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 32 }} className="landing-h2">
-            Esto es lo que te llevas hoy
-          </h2>
+          <div style={{ background: '#2D2B45', borderRadius: 16, padding: '32px 24px', color: '#FFFFFF', maxWidth: 500, margin: '0 auto' }}>
+            <h3 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, marginBottom: 24, color: '#FFFFFF' }}>
+              Esto es lo que te llevas hoy
+            </h3>
 
-          <div style={{ background: '#2D2B45', color: '#FFF', padding: 48, borderRadius: 16, fontFamily: "'SF Mono', Monaco, monospace", fontSize: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-              <span>Lucy — 1 año completo</span><span>$297</span>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>Lucy — Acceso anual completo</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', color: '#B8B5E0' }}>$2,600 valor anual</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Libro: El Nuevo Método de Activación Metabólica</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>$37</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Recetas para smoothies altos en proteína</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>$27</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Recetario Dulce: 11 postres fit</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>$17</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12 }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Lista de compras semanal automática</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', color: '#7B7FC4' }}>GRATIS</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-              <span>Libro &ldquo;Activación Metabólica&rdquo;</span><span>$47</span>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingTop: 14, borderTop: '2px solid rgba(255,255,255,0.3)', marginBottom: 24 }}>
+              <span style={{ fontSize: 17, fontWeight: 700 }}>Valor total:</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: '#B8B5E0' }}>$2,681</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-              <span>Recipe Book Caribeño Fit Labs</span><span>$37</span>
+
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6, opacity: 0.9 }}>Tu precio hoy:</div>
+              <div style={{ fontSize: 48, fontWeight: 800, color: '#7B7FC4', lineHeight: 1 }}>$297</div>
+              <div style={{ fontSize: 14, fontStyle: 'italic', marginTop: 8, opacity: 0.85 }}>Equivalente a $25 al mes — un solo pago, sin renovaciones.</div>
             </div>
-            <div style={{ borderTop: '1px dashed #888', margin: '12px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 24, fontWeight: 700, color: '#7B7FC4' }}>
-              <span>Valor Total:</span><span>$381</span>
+
+            <div style={{ background: 'rgba(123, 127, 196, 0.15)', border: '1px solid rgba(184, 181, 224, 0.4)', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>Ahorras $2,384 este año</div>
             </div>
-            <div style={{ fontSize: 36, fontWeight: 700, textAlign: 'center', marginTop: 24 }}>
-              Tu precio hoy: <span style={{ color: '#7B7FC4' }}>$297</span>
-            </div>
-            <p style={{ textAlign: 'center', marginTop: 16, color: '#CCC' }}>Un solo pago. Sin mensualidades.</p>
           </div>
 
           <h3 style={{ textAlign: 'center', marginTop: 60, fontSize: 24, fontWeight: 700, marginBottom: 16 }}>
