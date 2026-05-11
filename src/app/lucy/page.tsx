@@ -824,15 +824,26 @@ export default function LandingPage() {
             </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $47 — Hoy GRATIS</span>
-              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #1 — Libro &ldquo;Activación Metabólica&rdquo;</h3>
-              <p>El libro que condensa la filosofía nutricional completa que uso con mis clientas de coaching 1:1.</p>
-              <ul style={{ paddingLeft: 20, marginTop: 12, lineHeight: 1.8 }}>
-                <li>Por qué las dietas extremas te hacen <strong>ganar más peso a largo plazo</strong></li>
-                <li>Qué es el &ldquo;Interruptor Metabólico&rdquo; y cómo reactivarlo después de años de yo-yo dieting</li>
-                <li>Los 5 errores que cometes sin saberlo todos los días</li>
-                <li>Por qué el ejercicio no es lo que te hace bajar (y qué SÍ funciona)</li>
-              </ul>
-              <p style={{ marginTop: 16 }}><em>Te lo envío en PDF inmediatamente después de tu compra.</em></p>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Libro: El Nuevo Método de Activación Metabólica</h3>
+              <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
+                <p style={{ marginBottom: 12 }}>
+                  El libro condensa la filosofía de fitness completa que uso con mis clientas de coaching 1:1.
+                </p>
+                <p style={{ marginBottom: 16 }}>
+                  Por qué las mujeres mayores de 35 no bajan de peso como antes y los 3 secretos que descubrí para activar tu Interruptor Metabólico y poner tu cuerpo en &ldquo;Modo Bajar de Peso&rdquo;:
+                </p>
+                <div>
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>1. Activación Inicial:</strong> qué puedes hacer para no matarte tanto y evitar el efecto rebote.
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>2. Calendario Metabólico:</strong> qué alimentos te hacen activar tu Interruptor Metabólico.
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>3. Ritmo de Recuperación Metabólica:</strong> cómo recuperar tu cuerpo y poner el &ldquo;Modo Bajar de Peso&rdquo; en automático.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
