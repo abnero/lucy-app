@@ -1085,47 +1085,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <h3 style={{ textAlign: 'center', marginTop: 60, fontSize: 24, fontWeight: 700, marginBottom: 16 }}>
-            ¿Por qué $297 una sola vez y no $29/mes?
-          </h3>
-          <p style={{ textAlign: 'center', marginBottom: 30 }}>Porque odio los cobros recurrentes tanto como tú. Mira lo que pagarías con las otras opciones del mercado:</p>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16 }}>
-              <thead>
-                <tr style={{ background: '#F8F7FC' }}>
-                  {['Servicio', 'Costo anual', 'IA personalizada', 'Español latino'].map(h => (
-                    <th key={h} style={{ padding: 16, textAlign: 'left', fontWeight: 700, borderBottom: '1px solid #EEE' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['LadyBoss Lifestyle', '$324/año recurrente', 'No', 'No'],
-                  ['Noom', '~$720/año recurrente', 'Parcial', 'No'],
-                  ['2B Mindset (BODi)', '$60/año (solo videos)', 'No', 'No'],
-                ].map(([s, c, ai, es], i) => (
-                  <tr key={i}>
-                    <td style={{ padding: 16, borderBottom: '1px solid #EEE' }}>{s}</td>
-                    <td style={{ padding: 16, borderBottom: '1px solid #EEE' }}>{c}</td>
-                    <td style={{ padding: 16, borderBottom: '1px solid #EEE' }}>{ai}</td>
-                    <td style={{ padding: 16, borderBottom: '1px solid #EEE' }}>{es}</td>
-                  </tr>
-                ))}
-                <tr style={{ background: '#F8F7FC', fontWeight: 700 }}>
-                  <td style={{ padding: 16 }}>Lucy</td>
-                  <td style={{ padding: 16 }}>$297 UNA vez</td>
-                  <td style={{ padding: 16 }}>Sí</td>
-                  <td style={{ padding: 16 }}>Sí</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p style={{ textAlign: 'center', fontSize: 19, marginTop: 20 }}>
-            Lucy es el único producto en este mercado que te da un plan personalizado con IA en español latino, te cobra una sola vez por un año completo, y no te mete en una suscripción que renueva para siempre.
-          </p>
-
           <div style={{ marginTop: 40 }}>
             <CtaButton text="Empezar con Lucy — $297 por 1 año" large />
           </div>
