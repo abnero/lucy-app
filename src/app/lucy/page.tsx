@@ -890,17 +890,18 @@ export default function LandingPage() {
             </div>
             <div>
               <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $37 — Hoy GRATIS</span>
-              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Bono #2 — Recipe Book Caribeño Fit Labs</h3>
-              <p>50 de mis recetas favoritas del programa — todas hechas con los alimentos que Lucy usa en tu plan. Todas con macros calculadas.</p>
-              <ul style={{ paddingLeft: 20, marginTop: 12, lineHeight: 1.8 }}>
-                <li>Mangú con huevo (desayuno proteico)</li>
-                <li>Arroz con habichuelas revisado (menos grasa, misma sazón)</li>
-                <li>Pollo al ajillo limpio</li>
-                <li>Pernil en olla lenta sin guindilla</li>
-                <li>Flan proteico (postre que NO te saca del plan)</li>
-                <li>Y 45 recetas más</li>
-              </ul>
-              <p style={{ marginTop: 16 }}><em>PDF disponible inmediatamente en tu cuenta Lucy.</em></p>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Recetas para smoothies altos en proteína</h3>
+              <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
+                <p style={{ marginBottom: 12 }}>
+                  30 recetas de smoothies post-entreno, desayuno o snack. Cada una con macros calculados (calorías, proteína, grasas, carbos) para que sepas exactamente cómo encaja en tu plan con Lucy.
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  Filtra por: alto en proteína, sin lácteos, sin gluten, low carb, vegetariano.
+                </p>
+                <p style={{ fontSize: 13, fontStyle: 'italic', opacity: 0.75 }}>
+                  Libro en inglés con ingredientes fáciles de conseguir.
+                </p>
+              </div>
             </div>
           </div>
 
