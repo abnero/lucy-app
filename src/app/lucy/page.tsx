@@ -104,6 +104,7 @@ const narrow = { maxWidth: 900, margin: '0 auto', padding: '0 20px' } as const
 
 export default function LandingPage() {
   const [activeSlide, setActiveSlide] = useState(0)
+  const [activeTestimonial, setActiveTestimonial] = useState(0)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const screenshots = [
@@ -695,31 +696,78 @@ export default function LandingPage() {
           </h3>
 
           {/* Carrusel mobile / Grid desktop */}
-          <div className="testimonios-wrapper">
-            <div className="testimonios-track">
-              {[
-                { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' },
-                { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
-                { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
-                { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
-                { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
-                { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' }
-              ].map((t) => (
-                <div key={t.id} className="testimonio-card">
-                  <img
-                    src={t.img}
-                    alt={t.alt}
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      display: 'block',
-                      borderRadius: 12
-                    }}
-                  />
+          {(() => {
+            const testimonials = [
+              { id: 'rodsana', img: '/testimonios/testimonio-rodsana.jpg', alt: 'Testimonio de Rodsana sobre Lucy en WhatsApp' },
+              { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
+              { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+              { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
+              { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
+              { id: 'arlene', img: '/testimonios/testimonio-arlene.jpg', alt: 'Testimonio de Arlene sobre Lucy en WhatsApp' }
+            ]
+            return (
+              <>
+                <div
+                  className="testimonios-wrapper"
+                  onScroll={(e) => {
+                    const target = e.currentTarget
+                    const slideWidth = target.scrollWidth / testimonials.length
+                    const newSlide = Math.round(target.scrollLeft / slideWidth)
+                    if (newSlide !== activeTestimonial) setActiveTestimonial(Math.min(newSlide, testimonials.length - 1))
+                  }}
+                >
+                  <div className="testimonios-track">
+                    {testimonials.map((t) => (
+                      <div key={t.id} className="testimonio-card">
+                        <img
+                          src={t.img}
+                          alt={t.alt}
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                            borderRadius: 12
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="testimonios-dots" style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginTop: 16
+                }}>
+                  {testimonials.map((_, i) => (
+                    <button
+                      key={i}
+                      aria-label={`Testimonio ${i + 1}`}
+                      onClick={() => {
+                        const wrapper = document.querySelector('.testimonios-wrapper')
+                        if (wrapper) {
+                          const slideWidth = wrapper.scrollWidth / testimonials.length
+                          wrapper.scrollTo({ left: slideWidth * i, behavior: 'smooth' })
+                        }
+                        setActiveTestimonial(i)
+                      }}
+                      style={{
+                        width: activeTestimonial === i ? 10 : 8,
+                        height: activeTestimonial === i ? 10 : 8,
+                        borderRadius: '50%',
+                        background: activeTestimonial === i ? '#7B7FC4' : '#B8B5E0',
+                        opacity: activeTestimonial === i ? 1 : 0.4,
+                        transition: 'all 0.3s ease',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer'
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )
+          })()}
 
           <div style={{ marginTop: 50 }}>
             <CtaButton text="Quiero Mi Plan Personalizado — $297" />
@@ -1228,6 +1276,10 @@ export default function LandingPage() {
           .testimonio-card {
             flex: none;
             width: 100%;
+          }
+
+          .testimonios-dots {
+            display: none !important;
           }
         }
 
