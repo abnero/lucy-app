@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description: "Nutrición personalizada con IA para mujeres latinas",
   manifest: "/manifest.json",
   icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
     apple: "/icon-192.png",
   },
   appleWebApp: {
