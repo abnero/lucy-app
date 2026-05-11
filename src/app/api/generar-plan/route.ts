@@ -1159,8 +1159,20 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [{ role: 'user', content: userMessage }],
-      system: systemPrompt,
+      system: [{
+        type: 'text' as const,
+        text: systemPrompt,
+        // 5min ephemeral cache. Anthropic redujo default de 1h a 5min en marzo 2026.
+        // Si en el futuro mueven el default otra vez, este código sigue siendo correcto.
+        cache_control: { type: 'ephemeral' as const },
+      }],
     })
+
+    // Token logging for generar-plan
+    if (message.usage) {
+      const u = message.usage as unknown as Record<string, unknown>
+      console.log(`[GenPlan][Tokens] user=${userId} input=${u.input_tokens} output=${u.output_tokens} cache_create=${u.cache_creation_input_tokens || 0} cache_read=${u.cache_read_input_tokens || 0}`)
+    }
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
     const jsonMatch = responseText.match(/\{[\s\S]*\}/)

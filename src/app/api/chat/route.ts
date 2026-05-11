@@ -1815,6 +1815,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
     }
 
     const toolCallsThisTurn: string[] = []
+    let lastUsage: Anthropic.Messages.Usage | null = null
 
     while (iterations < 8) {
       iterations++
@@ -1825,7 +1826,13 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         response = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 1024,
-          system: systemPrompt,
+          system: [{
+            type: 'text' as const,
+            text: systemPrompt,
+            // 5min ephemeral cache. Anthropic redujo default de 1h a 5min en marzo 2026.
+            // Si en el futuro mueven el default otra vez, este código sigue siendo correcto.
+            cache_control: { type: 'ephemeral' as const },
+          }],
           tools,
           tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
@@ -1843,12 +1850,20 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
         response = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 1024,
-          system: systemPrompt,
+          system: [{
+            type: 'text' as const,
+            text: systemPrompt,
+            // 5min ephemeral cache. Anthropic redujo default de 1h a 5min en marzo 2026.
+            // Si en el futuro mueven el default otra vez, este código sigue siendo correcto.
+            cache_control: { type: 'ephemeral' as const },
+          }],
           tools,
           tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
         })
       }
+
+      lastUsage = response.usage
 
       // Collect all tool_use blocks
       const toolUseBlocks = response.content.filter(b => b.type === 'tool_use')
@@ -2032,9 +2047,16 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       const lastResponse = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
-        system: systemPrompt,
+        system: [{
+          type: 'text' as const,
+          text: systemPrompt,
+          // 5min ephemeral cache. Anthropic redujo default de 1h a 5min en marzo 2026.
+          // Si en el futuro mueven el default otra vez, este código sigue siendo correcto.
+          cache_control: { type: 'ephemeral' as const },
+        }],
         messages: loopMessages,
       })
+      lastUsage = lastResponse.usage
       const textBlock = lastResponse.content.find(b => b.type === 'text')
       finalResponse = textBlock?.type === 'text'
         ? textBlock.text
@@ -2102,6 +2124,20 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
           console.warn(`[Chat][Bug31] Suspected lie for user ${userId}. Triggers: ${matched.join(',')}. No tools called.`)
         }
       }
+    }
+
+    // Token logging — capture usage from last API response
+    if (lastUsage) {
+      const tokens = {
+        input: lastUsage.input_tokens,
+        output: lastUsage.output_tokens,
+        cache_creation: (lastUsage as unknown as Record<string, unknown>).cache_creation_input_tokens as number || 0,
+        cache_read: (lastUsage as unknown as Record<string, unknown>).cache_read_input_tokens as number || 0,
+        model: 'claude-sonnet-4-6',
+        timestamp: new Date().toISOString(),
+      }
+      meta = meta ? { ...meta, tokens } : { tokens }
+      console.log(`[Chat][Tokens] user=${userId} input=${tokens.input} output=${tokens.output} cache_create=${tokens.cache_creation} cache_read=${tokens.cache_read}`)
     }
 
     // Save messages to conversaciones
