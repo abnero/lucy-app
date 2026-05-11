@@ -632,9 +632,9 @@ export default function LandingPage() {
           }}>
             {[
               { id: 'dalery', nombre: 'Dalery O.', lbs: 30, img: '/transformaciones/transformacion-dalery.jpg' },
-              { id: 'karla', nombre: 'Karla R.', lbs: 100, img: '/transformaciones/transformacion-karla.jpg' },
+              { id: 'karla', nombre: 'Karla R.', lbs: 100, img: '/transformaciones/transformacion-karla.png' },
               { id: 'minelly', nombre: 'Minelly O.', lbs: 25, img: '/transformaciones/transformacion-minelly.jpg' },
-              { id: 'wanda', nombre: 'Wanda I.', lbs: 40, img: '/transformaciones/transformacion-wanda.jpg' }
+              { id: 'wanda', nombre: 'Wanda I.', lbs: 40, img: '/transformaciones/transformacion-wanda.png' }
             ].map((t) => (
               <div key={t.id} style={{
                 background: '#FFFFFF',
