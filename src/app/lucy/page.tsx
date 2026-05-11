@@ -574,26 +574,47 @@ export default function LandingPage() {
                       Equivalente a $25 al mes — pago único, sin renovaciones automáticas.
                     </div>
                     <div style={{
-                      marginTop: 20,
-                      paddingTop: 16,
-                      borderTop: '1px solid #D4D2E8',
+                      marginTop: 24,
+                      background: '#FFF4E6',
+                      border: '2px solid #F97316',
+                      borderRadius: 12,
+                      padding: '20px 18px',
                       textAlign: 'center'
                     }}>
                       <div style={{
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: '#2D2B45',
-                        marginBottom: 6
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#9A3412',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                        marginBottom: 10
                       }}>
-                        ¿Prefieres dividirlo en plazos?
+                        💳 ¿Prefieres dividirlo en plazos?
                       </div>
                       <div style={{
-                        fontSize: 14,
-                        color: '#2D2B45',
-                        lineHeight: 1.5,
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: '#7C2D12',
+                        marginBottom: 4,
+                        lineHeight: 1.2
+                      }}>
+                        Empieza hoy con $74.25
+                      </div>
+                      <div style={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: '#9A3412',
+                        marginBottom: 12
+                      }}>
+                        4 cuotas · Sin interés
+                      </div>
+                      <div style={{
+                        fontSize: 13,
+                        color: '#7C2D12',
+                        fontStyle: 'italic',
                         opacity: 0.85
                       }}>
-                        Empieza hoy con $74.25 y paga el resto en 3 cuotas — sin interés, con Klarna, Affirm o Afterpay al checkout.
+                        Disponible con Klarna, Affirm o Afterpay al checkout
                       </div>
                     </div>
                   </div>
