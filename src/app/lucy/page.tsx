@@ -573,6 +573,50 @@ export default function LandingPage() {
                     <div style={{ fontSize: 15, fontStyle: 'italic', color: '#2D2B45', opacity: 0.85 }}>
                       Equivalente a $25 al mes — pago único, sin renovaciones automáticas.
                     </div>
+                    <div style={{
+                      marginTop: 24,
+                      background: '#FFF4E6',
+                      border: '2px solid #F97316',
+                      borderRadius: 12,
+                      padding: '20px 18px',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#9A3412',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                        marginBottom: 10
+                      }}>
+                        💳 ¿Prefieres dividirlo en plazos?
+                      </div>
+                      <div style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: '#7C2D12',
+                        marginBottom: 4,
+                        lineHeight: 1.2
+                      }}>
+                        Empieza hoy con $74.25
+                      </div>
+                      <div style={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: '#9A3412',
+                        marginBottom: 12
+                      }}>
+                        4 cuotas · Sin interés
+                      </div>
+                      <div style={{
+                        fontSize: 13,
+                        color: '#7C2D12',
+                        fontStyle: 'italic',
+                        opacity: 0.85
+                      }}>
+                        Disponible con Klarna, Affirm o Afterpay al checkout
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
