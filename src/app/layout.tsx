@@ -13,11 +13,10 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Lucy - Calendario metabólico",
+  title: "Lucy — Calendario Metabólico",
   description: "Nutrición personalizada con IA para mujeres latinas",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
   appleWebApp: {
