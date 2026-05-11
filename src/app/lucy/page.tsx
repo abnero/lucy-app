@@ -887,7 +887,7 @@ export default function LandingPage() {
           </h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px 40px' }} className="landing-bullet-grid">
-            <Bullet><strong>Hablas con Lucy como hablas con una pana.</strong> Cambia un alimento, pide una receta, dile que tienes hambre — ella se ajusta. Está disponible 24/7.</Bullet>
+            <Bullet><strong>Hablas con Lucy como hablas con una amiga querida.</strong> Cambia un alimento, pide una receta, dile que tienes hambre — ella se ajusta. Está disponible 24/7.</Bullet>
             <Bullet><strong>Tu plan de 7 días personalizado en menos de 10 minutos.</strong> Respondes 6 preguntas sobre ti (peso, altura, edad, actividad, meta, preferencias). Lucy te entrega el calendario completo. Sin ejercicios obligatorios. Sin batidos. Sin contar una sola caloría.</Bullet>
             <Bullet><strong>Porciones calculadas específicamente para mujeres profesionales latinas.</strong> La mayoría de apps asumen que eres un hombre americano de 35 años que va al gimnasio 5 veces por semana. Lucy usa una fórmula ajustada a tu realidad: sedentaria la mayor parte del día, culturalmente latina, en tus 30s-50s, con hormonas que no son las de un tipo de 25 años.</Bullet>
             <Bullet><strong>En español natural de Latinoamérica.</strong> Sin traducciones raras. Lucy habla como tú hablas.</Bullet>
