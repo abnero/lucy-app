@@ -573,6 +573,29 @@ export default function LandingPage() {
                     <div style={{ fontSize: 15, fontStyle: 'italic', color: '#2D2B45', opacity: 0.85 }}>
                       Equivalente a $25 al mes — pago único, sin renovaciones automáticas.
                     </div>
+                    <div style={{
+                      marginTop: 20,
+                      paddingTop: 16,
+                      borderTop: '1px solid #D4D2E8',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: '#2D2B45',
+                        marginBottom: 6
+                      }}>
+                        ¿Prefieres dividirlo en plazos?
+                      </div>
+                      <div style={{
+                        fontSize: 14,
+                        color: '#2D2B45',
+                        lineHeight: 1.5,
+                        opacity: 0.85
+                      }}>
+                        Empieza hoy con $74.25 y paga el resto en 3 cuotas — sin interés, con Klarna, Affirm o Afterpay al checkout.
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
