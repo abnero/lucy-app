@@ -565,9 +565,14 @@ export default function LandingPage() {
                   <p style={{ fontSize: 15, color: '#555', marginBottom: 16, fontStyle: 'italic' }}>
                     Y aún así, sigues sin saber qué comer cada día — ni quién te ajuste el plan cuando cambia tu vida.
                   </p>
-                  <p style={{ fontSize: 17, fontWeight: 600, color: '#7B7FC4', textAlign: 'center', marginBottom: 0 }}>
-                    Lucy hace todo eso por $297 al año. Pago único.
-                  </p>
+                  <div style={{ marginTop: 20, textAlign: 'center' }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#7B7FC4', marginBottom: 6 }}>
+                      Lucy hace todo eso por $297 al año.
+                    </div>
+                    <div style={{ fontSize: 15, fontStyle: 'italic', color: '#2D2B45', opacity: 0.85 }}>
+                      Equivalente a $25 al mes — pago único, sin renovaciones automáticas.
+                    </div>
+                  </div>
                 </div>
               </div>
 
