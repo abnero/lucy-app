@@ -73,7 +73,7 @@ export default function EducacionPage() {
       <header className="bg-white border-b border-lucy-border px-4 py-4">
         <div className="max-w-lg mx-auto">
           <h1 className="text-xl font-bold text-lucy-text">Curso de Activación Metabólica</h1>
-          <p className="text-sm text-lucy-muted mt-1">Tu guía paso a paso para transformar tu nutrición</p>
+          <p className="text-sm text-lucy-muted mt-1">Las 5 Áreas Fundamentales del Fitness: Nutrición, Ejercicio, Descanso, Hidratación y Salud Mental</p>
         </div>
       </header>
 
