@@ -1002,6 +1002,33 @@ export default function LandingPage() {
                 <p style={{ marginBottom: 12 }}>
                   Lucy te dice qué comer hoy. El curso te explica cómo todo lo demás afecta tus resultados: Nutrición, Ejercicio, Descanso, Hidratación y Salud Mental — las 5 áreas fundamentales del fitness.
                 </p>
+                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#2D2B45', marginBottom: 10, letterSpacing: '0.3px' }}>
+                    Vas a aprender cosas como:
+                  </p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <li style={{ fontSize: 14, color: '#2D2B45', lineHeight: 1.5, paddingLeft: 20, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                      Por qué tu rutina actual NO te está bajando la barriga (y cómo saberlo)
+                    </li>
+                    <li style={{ fontSize: 14, color: '#2D2B45', lineHeight: 1.5, paddingLeft: 20, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                      Cómo entrenar sin terminar moribunda — la regla que cambia todo
+                    </li>
+                    <li style={{ fontSize: 14, color: '#2D2B45', lineHeight: 1.5, paddingLeft: 20, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                      Cómo dormir para que tu cuerpo queme grasa mientras descansas
+                    </li>
+                    <li style={{ fontSize: 14, color: '#2D2B45', lineHeight: 1.5, paddingLeft: 20, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                      Cómo disfrutar vacaciones y regresar igual o mejor
+                    </li>
+                    <li style={{ fontSize: 14, color: '#2D2B45', lineHeight: 1.5, paddingLeft: 20, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                      Qué pedir en restaurantes sin sabotear tu progreso
+                    </li>
+                  </ul>
+                </div>
                 <div style={{ marginTop: 14, padding: '12px 16px', background: '#F8F7FC', borderLeft: '3px solid #7B7FC4', borderRadius: 4 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#2D2B45', marginBottom: 6 }}>
                     54 módulos en video · 7h 47min de contenido
