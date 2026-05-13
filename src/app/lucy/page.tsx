@@ -922,7 +922,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 8 }} className="landing-h2">
             Y cuando te inscribes hoy, también recibes 2 regalos
           </h2>
-          <p style={{ textAlign: 'center', fontSize: 20, color: '#555', marginBottom: 40 }}>Valor total de los bonos: $81 — incluidos gratis con Lucy</p>
+          <p style={{ textAlign: 'center', fontSize: 20, color: '#555', marginBottom: 40 }}>Valor total de los bonos: $380 — incluidos gratis con Lucy</p>
 
           {/* Bonus 1 */}
           <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginBottom: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
@@ -964,6 +964,50 @@ export default function LandingPage() {
                   </div>
                   <div style={{ marginBottom: 10 }}>
                     <strong>3. Ritmo de Recuperación Metabólica:</strong> cómo recuperar tu cuerpo y poner el &ldquo;Modo Bajar de Peso&rdquo; en automático.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bonus — Curso */}
+          <div style={{ background: '#FFF', borderRadius: 16, padding: 40, marginBottom: 30, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 40, alignItems: 'center' }} className="landing-bonus-card">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '20px 0'
+            }}>
+              <img
+                src="/curso-online-bono.png"
+                alt="Curso de Activación Metabólica por Coach Abner"
+                style={{
+                  maxWidth: '100%',
+                  width: 'auto',
+                  maxHeight: 500,
+                  height: 'auto',
+                  display: 'block',
+                  filter: 'drop-shadow(0 20px 40px rgba(45, 43, 69, 0.25))'
+                }}
+              />
+            </div>
+            <div>
+              <span style={{ display: 'inline-block', background: '#7B7FC4', color: '#FFF', padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Valor: $299 — Hoy GRATIS</span>
+              <h3 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Curso: Activación Metabólica</h3>
+              <p style={{ fontSize: 14, color: '#7B7FC4', fontWeight: 600, marginBottom: 12 }}>Las 5 Áreas Fundamentales del Fitness</p>
+              <div style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.6 }}>
+                <p style={{ marginBottom: 12, fontWeight: 600 }}>
+                  El curso completo que enseño a mis clientas privadas — ahora incluido cuando compras Lucy.
+                </p>
+                <p style={{ marginBottom: 12 }}>
+                  Lucy te dice qué comer hoy. El curso te explica cómo todo lo demás afecta tus resultados: Nutrición, Ejercicio, Descanso, Hidratación y Salud Mental — las 5 áreas fundamentales del fitness.
+                </p>
+                <div style={{ marginTop: 14, padding: '12px 16px', background: '#F8F7FC', borderLeft: '3px solid #7B7FC4', borderRadius: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#2D2B45', marginBottom: 6 }}>
+                    54 módulos en video · 7h 47min de contenido
+                  </div>
+                  <div style={{ fontSize: 13, color: '#2D2B45', opacity: 0.85 }}>
+                    Acceso inmediato post-compra. Velo a tu ritmo cuando estés lista para profundizar.
                   </div>
                 </div>
               </div>
@@ -1064,6 +1108,10 @@ export default function LandingPage() {
                 <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', color: '#B8B5E0' }}>$2,600 valor anual</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
+                <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Curso de Activación Metabólica (54 módulos)</span>
+                <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>$299</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14, paddingBottom: 12, borderBottom: '1px dotted rgba(255,255,255,0.2)' }}>
                 <span style={{ flex: 1, fontSize: 15, lineHeight: 1.4 }}>🎁 Libro: El Nuevo Método de Activación Metabólica</span>
                 <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>$37</span>
               </div>
@@ -1083,7 +1131,7 @@ export default function LandingPage() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingTop: 14, borderTop: '2px solid rgba(255,255,255,0.3)', marginBottom: 24 }}>
               <span style={{ fontSize: 17, fontWeight: 700 }}>Valor total:</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: '#B8B5E0' }}>$2,681</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: '#B8B5E0' }}>$2,980</span>
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -1093,7 +1141,7 @@ export default function LandingPage() {
             </div>
 
             <div style={{ background: 'rgba(123, 127, 196, 0.15)', border: '1px solid rgba(184, 181, 224, 0.4)', borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>Ahorras $2,384 este año</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>Ahorras $2,683 este año</div>
             </div>
           </div>
 
@@ -1163,6 +1211,10 @@ export default function LandingPage() {
             </div>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Curso de Activación Metabólica — 54 módulos en video <span style={{ opacity: 0.7, fontSize: 14 }}>($299)</span></span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
               <span style={{ fontSize: 16, color: '#2D2B45', lineHeight: 1.5 }}>Recetas para smoothies altos en proteína <span style={{ opacity: 0.7, fontSize: 14 }}>($27)</span></span>
             </div>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -1177,7 +1229,7 @@ export default function LandingPage() {
 
           <div style={{ maxWidth: 600, margin: '0 auto 32px', padding: '16px 20px', background: '#F8F7FC', borderLeft: '3px solid #7B7FC4', borderRadius: 4, textAlign: 'left' }}>
             <p style={{ fontSize: 15, color: '#2D2B45', fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>
-              Y como te lo recordé arriba: armar esto por tu cuenta costaría ~$2,600 al año.
+              Y como te lo recordé arriba: armar esto por tu cuenta costaría ~$2,900 al año.
             </p>
           </div>
 
