@@ -562,6 +562,13 @@ export default function MiPerfilPage() {
             </svg>
             <span className="text-[10px] text-lucy-muted">Compras</span>
           </button>
+          <button onClick={() => router.push('/educacion')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 17h14M5 17V9l5-5 5 5v8" stroke="#9896B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <rect x="8" y="12" width="4" height="5" rx="0.5" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Educación</span>
+          </button>
           <button className="flex-1 py-3 flex flex-col items-center gap-0.5">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <circle cx="10" cy="7" r="3.5" stroke="#7B7FC4" strokeWidth="1.5" fill="none" />
