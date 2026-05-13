@@ -1186,30 +1186,15 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
     // Replicates the manual coach process: for each day, adjust quantities
     // iteratively until kcal ±10% AND prot ±10g, or give up after max iterations.
     const dayOverrides = new Map<string, number>() // key: `${dia}-${nombre.toLowerCase()}`
-    const snackRows: { dia: number; food: AlimentoData; cantidad: number }[] = []
-
     // Build food lookup (also used by Paso 4)
     const allFoodsLookup = new Map<string, AlimentoData>()
     for (const foods of Object.values(alimentosPorCategoria)) {
       for (const f of foods) allFoodsLookup.set(f.nombre.toLowerCase(), f)
     }
 
-    // Build snack candidate pool: breakfast-role foods + grasas, sorted by prot/kcal ratio desc
-    const snackCandidates = Array.from(allFoodsLookup.values())
-      .filter(f => {
-        const roles = f.rol_permitido || []
-        return roles.includes('Desayuno_1') || roles.includes('Desayuno_2') || f.categoria_comida === 'grasa'
-      })
-      .sort((a, b) => {
-        const ratioA = protPerUnit(a) / (calPerUnit(a) || 1)
-        const ratioB = protPerUnit(b) / (calPerUnit(b) || 1)
-        return ratioB - ratioA
-      })
-
     const CAL_TOL = calTarget * 0.10
     const PROT_TOL = 10
     const MAX_ITER = 10
-    const MAX_SNACK_KCAL = 250
 
     // Bug #45-E: Read persisted non-gen rows that survive replace_calendario_generado.
     // Bug #74: forceRegenerate=true → RPC borra todo, no leer baseline que no va a sobrevivir.
@@ -1259,15 +1244,11 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
         const fixed = persistedBaseline.get(dia.dia) || { kcal: 0, prot: 0 }
         let kcal = fixed.kcal, prot = fixed.prot
         for (const di of dayItems) { const q = getQty(di); kcal += calPerUnit(di.food) * q; prot += protPerUnit(di.food) * q }
-        // Include snacks added by the loop in this generation
-        for (const s of snackRows) { if (s.dia === dia.dia) { kcal += calPerUnit(s.food) * s.cantidad; prot += protPerUnit(s.food) * s.cantidad } }
         return { kcal, prot }
       }
       // Bug #45-D: bilateral protein check — excess >+10g also fails
       const isOk = (s: { kcal: number; prot: number }) =>
         Math.abs(s.kcal - calTarget) <= CAL_TOL && Math.abs(s.prot - protTarget) <= PROT_TOL
-
-      let snackAdded = false
 
       for (let iter = 1; iter <= MAX_ITER; iter++) {
         const { kcal, prot } = sumDay()
@@ -1426,53 +1407,6 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
           }
         }
 
-        // Step 7: if still out after adjustments and no snack yet → add snack
-        const final = sumDay()
-        if (!isOk(final) && !snackAdded) {
-          const needProt = final.prot < protTarget - PROT_TOL
-          const needCal = final.kcal < calTarget - CAL_TOL
-          const kcalRoom = calTarget + CAL_TOL - final.kcal
-
-          if (kcalRoom > 30) { // only add snack if there's caloric room
-            // Pick best snack candidate
-            let bestSnack: AlimentoData | null = null
-            let bestQty = 0
-            let bestScore = -1
-
-            for (const c of snackCandidates) {
-              const cpu = calPerUnit(c)
-              if (cpu <= 0) continue
-              // Size to fit kcal room, capped at MAX_SNACK_KCAL and porcion_max
-              const maxQtyByCal = Math.min(MAX_SNACK_KCAL, kcalRoom) / cpu
-              const qty = Math.min(Math.max(getMin(c), getMax(c)), Math.max(getMin(c), Math.round(maxQtyByCal)))
-              const snackCal = cpu * qty
-              if (snackCal > kcalRoom || snackCal > MAX_SNACK_KCAL) continue
-              const snackProt = protPerUnit(c) * qty
-
-              // Bug #45-D: reject candidates that would cause bilateral protein excess
-              if (final.prot + snackProt > protTarget + PROT_TOL) continue
-
-              // Score: prioritize what the day needs
-              let score = 0
-              if (needProt) score += snackProt * 3 // weight protein heavily
-              if (needCal) score += snackCal * 0.5
-              if (!needProt && !needCal) score += snackCal * 0.3 + snackProt * 1 // balanced
-
-              if (score > bestScore) {
-                bestScore = score
-                bestSnack = c
-                bestQty = qty
-              }
-            }
-
-            if (bestSnack && bestQty > 0) {
-              snackRows.push({ dia: dia.dia, food: bestSnack, cantidad: bestQty })
-              snackAdded = true
-              console.log(`[loop dia=${dia.dia} iter=${iter}] +snack ${bestSnack.nombre} ${bestQty}${bestSnack.unidad_medida} (+${Math.round(calPerUnit(bestSnack) * bestQty)} kcal, +${Math.round(protPerUnit(bestSnack) * bestQty)}g prot)`)
-            }
-          }
-        }
-
         // Check if converged after this iteration
         const endState = sumDay()
         if (isOk(endState)) {
@@ -1486,43 +1420,9 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       }
     }
 
-    console.log('[loop] overrides:', dayOverrides.size, ', snacks added:', snackRows.length)
+    console.log('[loop] overrides:', dayOverrides.size)
 
-    // ═══ Check for existing personalizations (for first-gen messages) ═══
-    const { data: personalizaciones } = await supabase
-      .from('calendario')
-      .select('cantidad, unidad, dia, comida, alimento_id, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
-      .eq('user_id', userId)
-      .in('origen', ['chat', 'coach', 'sugerencia'])
-
-    const tienePersonalizaciones = personalizaciones && personalizaciones.length > 0
-
-    let extrasCal = 0
-    const alimentosPersonalizados: string[] = []
-    if (tienePersonalizaciones) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const seen = new Map<string, Set<number>>()
-      for (const p of personalizaciones) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const a = (Array.isArray(p.alimento) ? (p.alimento as any)[0] : p.alimento) as any
-        if (!a) continue
-        const ratio = a.unidad_medida === 'unidad' ? p.cantidad : p.cantidad / (a.porcion_base || 100)
-        extrasCal += a.calorias_por_unidad * ratio
-        const nombre = a.nombre
-        if (!seen.has(nombre)) seen.set(nombre, new Set())
-        seen.get(nombre)!.add(p.dia)
-      }
-      const DIA_NOMBRES_LOCAL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-      for (const [nombre, dias] of Array.from(seen.entries())) {
-        if (dias.size >= 7) {
-          alimentosPersonalizados.push(`${nombre} todos los días`)
-        } else {
-          const diasNames = Array.from(dias).sort().map((d: number) => DIA_NOMBRES_LOCAL[d - 1] || `día ${d}`)
-          alimentosPersonalizados.push(`${nombre} en ${diasNames.join(', ')}`)
-        }
-      }
-      console.log(`[plan] Personalizaciones: ${personalizaciones.length} rows, ${alimentosPersonalizados.length} alimentos, +${Math.round(extrasCal)} kcal`)
-    }
+    // Personalizaciones: computed AFTER RPC replace (moved from here to post-save block)
 
     // ═══ Messages: conditional on first generation vs regeneration ═══
     if (esPrimeraVez) {
@@ -1621,26 +1521,6 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       }
     }
 
-    // Add snack rows generated by the iterative loop (Paso 3.5)
-    for (const snack of snackRows) {
-      calendarioRows.push({
-        user_id: userId,
-        dia: snack.dia,
-        comida: 'snack',
-        alimento_id: snack.food.id,
-        cantidad: snack.cantidad,
-        unidad: snack.food.unidad_medida,
-        origen: 'generado',
-      })
-      const key = snack.food.id
-      const existing = comprasTotals.get(key)
-      if (existing) {
-        existing.cantidad += snack.cantidad
-      } else {
-        comprasTotals.set(key, { alimentoId: snack.food.id, cantidad: snack.cantidad, unidad: snack.food.unidad_medida })
-      }
-    }
-
     // Desglose de calorías por comida por día
     for (let diaNum = 1; diaNum <= 7; diaNum++) {
       const diaRows = calendarioRows.filter(r => r.dia === diaNum)
@@ -1697,6 +1577,55 @@ Genera la rotación de 7 días usando estos alimentos con las cantidades indicad
       if (shopErr) {
         return NextResponse.json({ error: 'Error guardando la lista de compras: ' + shopErr.message }, { status: 500 })
       }
+    }
+
+    // ═══ Check for existing personalizations (post-RPC: only counts chat rows that survived AND are visible) ═══
+    // Build set of (dia, comida, alimento_id) from the new plan to detect overwritten chat rows
+    const newPlanSlots = new Set<string>()
+    for (const row of calendarioRows) {
+      newPlanSlots.add(`${row.dia}|${row.comida}|${row.alimento_id}`)
+    }
+
+    const { data: personalizaciones } = await supabase
+      .from('calendario')
+      .select('cantidad, unidad, dia, comida, alimento_id, alimento:alimentos(nombre, calorias_por_unidad, porcion_base, unidad_medida)')
+      .eq('user_id', userId)
+      .in('origen', ['chat', 'coach', 'sugerencia'])
+
+    // Filter: only keep chat rows where the alimento is STILL visible in that (dia, comida) slot
+    // A chat row is "visible" if it exists in the DB and the new plan didn't overwrite that slot
+    // with a DIFFERENT alimento. Check: is this (dia, comida, alimento_id) in the new plan?
+    const visiblePersonalizaciones = (personalizaciones || []).filter(p => {
+      return newPlanSlots.has(`${p.dia}|${p.comida}|${p.alimento_id}`)
+    })
+
+    const tienePersonalizaciones = visiblePersonalizaciones.length > 0
+
+    let extrasCal = 0
+    const alimentosPersonalizados: string[] = []
+    if (tienePersonalizaciones) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const seen = new Map<string, Set<number>>()
+      for (const p of visiblePersonalizaciones) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const a = (Array.isArray(p.alimento) ? (p.alimento as any)[0] : p.alimento) as any
+        if (!a) continue
+        const ratio = a.unidad_medida === 'unidad' ? p.cantidad : p.cantidad / (a.porcion_base || 100)
+        extrasCal += a.calorias_por_unidad * ratio
+        const nombre = a.nombre
+        if (!seen.has(nombre)) seen.set(nombre, new Set())
+        seen.get(nombre)!.add(p.dia)
+      }
+      const DIA_NOMBRES_LOCAL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+      for (const [nombre, dias] of Array.from(seen.entries())) {
+        if (dias.size >= 7) {
+          alimentosPersonalizados.push(`${nombre} todos los días`)
+        } else {
+          const diasNames = Array.from(dias).sort().map((d: number) => DIA_NOMBRES_LOCAL[d - 1] || `día ${d}`)
+          alimentosPersonalizados.push(`${nombre} en ${diasNames.join(', ')}`)
+        }
+      }
+      console.log(`[plan] Personalizaciones visibles: ${visiblePersonalizaciones.length} rows, ${alimentosPersonalizados.length} alimentos, +${Math.round(extrasCal)} kcal`)
     }
 
     // ═══ PASO 5: Smart deficit messages with snack suggestions ═══
