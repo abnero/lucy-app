@@ -752,7 +752,7 @@ export default function LandingPage() {
             const testimonials = [
               { id: 'karla', img: '/testimonios/testimonio-karla.jpg', alt: 'Testimonio de Karla sobre Lucy en WhatsApp' },
               { id: 'zuleima-2', img: '/testimonios/testimonio-zuleima-2.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
-              { id: 'zuleima-3', img: '/testimonios/testimonio-zuleima-3.png', alt: 'Testimonio de Zuleima — como una amiga, 10/10' },
+              { id: 'zuleima-3', img: '/testimonios/testimonio-zuleima-3.jpg', alt: 'Testimonio de Zuleima — como una amiga, 10/10' },
               { id: 'myri', img: '/testimonios/testimonio-myri.jpg', alt: 'Testimonio de Myri — el app está perfecta' },
               { id: 'neyssa', img: '/testimonios/testimonio-neyssa.jpg', alt: 'Testimonio de Neyssa sobre Lucy en WhatsApp' },
               { id: 'zuleima-1', img: '/testimonios/testimonio-zuleima-1.jpg', alt: 'Testimonio de Zuleima sobre Lucy en WhatsApp' },
