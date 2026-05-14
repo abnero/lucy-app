@@ -466,6 +466,40 @@ export default function LandingPage() {
                 Por años entrené a mujeres profesionales latinas uno-a-uno. Mujeres como tú. Mujeres que llegaban agotadas de probar todo y nada les funcionaba de manera sostenible.
               </p>
 
+              {/* Credenciales */}
+              <div style={{ marginTop: 24, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.5 }}>
+                    <strong>Ingeniero Químico</strong> que trabajó en la Industria Farmacéutica y Corporativa — por eso entiende cómo ayudar a mujeres profesionales que viven entre la oficina y la casa.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.5 }}>
+                    <strong>Certified Nutrition Coach</strong> por NASM (National Academy of Sports Medicine).
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.5 }}>
+                    <strong>12 años de experiencia</strong> en el área del fitness, con un equipo de profesionales altamente preparados en Caribeño Fit Labs.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.5 }}>
+                    Autor del <strong>Podcast &ldquo;Vida Activa&rdquo;</strong>, que ha impactado positivamente la vida de cientos de mujeres.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, color: '#7B7FC4', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: '#2D2B45', lineHeight: 1.5 }}>
+                    Autor del libro <strong>&ldquo;El Nuevo Método de Activación Metabólica&rdquo;</strong> — el mismo que recibes incluido cuando compras Lucy.
+                  </span>
+                </div>
+              </div>
+
               {/* Bloque 3 — Stat box */}
               <div style={{ background: '#FFF', border: '2px solid #7B7FC4', padding: 32, borderRadius: 16, margin: '32px 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, textAlign: 'center' }} className="origin-stat-grid">
                 <div>
