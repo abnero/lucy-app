@@ -354,8 +354,7 @@ export default function MacrosPage() {
         </div>
 
         <footer className="mc-footer">
-          Esta calculadora ofrece estimaciones generales y no sustituye consejo médico<br />
-          o nutricional profesional.
+          Esta calculadora ofrece estimaciones generales y no sustituye consejo médico o nutricional profesional.
           <div className="mc-powered">
             <span>Powered by</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
