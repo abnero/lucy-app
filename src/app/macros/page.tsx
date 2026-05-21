@@ -354,15 +354,20 @@ export default function MacrosPage() {
         </div>
 
         <footer className="mc-footer">
-          Esta calculadora ofrece estimaciones generales y no sustituye consejo médico<br />
-          o nutricional profesional. © Caribeño Fit Labs
+          Esta calculadora ofrece estimaciones generales y no sustituye consejo médico o nutricional profesional.
+          <div className="mc-powered">
+            <span>Powered by</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/caribeno-fit-labs.png" alt="Caribeño Fit Labs" className="mc-powered-logo" />
+            <span>Caribeño Fit Labs</span>
+          </div>
         </footer>
       </div>
 
       <style>{`
         .mc-wrap { max-width: 560px; margin: 0 auto; padding: 32px 20px 80px; }
         .mc-header { text-align: center; margin-bottom: 36px; }
-        .mc-logo { font-family: Georgia, 'Times New Roman', serif; color: #2D2B45; font-size: 26px; letter-spacing: -0.01em; display: inline-block; margin-bottom: 28px; }
+        .mc-logo { font-family: Georgia, 'Times New Roman', serif; color: #2D2B45; font-size: 40px; letter-spacing: -0.01em; display: inline-block; margin-bottom: 28px; }
         .mc-h1 { font-size: 33px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; margin-bottom: 12px; color: #2D2B45; }
         .mc-em { color: #7B7FC4; }
         .mc-sub { font-size: 16px; color: #6B6982; max-width: 420px; margin: 0 auto; }
@@ -433,6 +438,9 @@ export default function MacrosPage() {
         .mc-restart button { background: none; border: none; font-family: inherit; font-size: 14px; color: #8C8AA3; cursor: pointer; text-decoration: underline; }
         .mc-restart button:hover { color: #7B7FC4; }
         .mc-footer { text-align: center; font-size: 12px; color: #9C9AB0; margin-top: 32px; line-height: 1.7; }
+        .mc-powered { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; }
+        .mc-powered span { font-size: 11px; color: #9C9AB0; }
+        .mc-powered-logo { height: 24px; }
         @media (max-width: 480px) {
           .mc-h1 { font-size: 27px; }
           .mc-card { padding: 24px 18px; }
