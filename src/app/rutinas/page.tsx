@@ -101,7 +101,7 @@ export default function RutinasPage() {
       <style>{`
         .rt-wrap { max-width: 480px; margin: 0 auto; padding: 48px 20px 80px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .rt-header { text-align: center; margin-bottom: 32px; }
-        .rt-logo { font-family: Georgia, 'Times New Roman', serif; color: #2D2B45; font-size: 26px; letter-spacing: -0.01em; }
+        .rt-logo { font-family: Georgia, 'Times New Roman', serif; color: #2D2B45; font-size: 36px; letter-spacing: -0.01em; }
         .rt-card { background: #FFF; border-radius: 20px; box-shadow: 0 4px 24px rgba(45,43,69,0.07); padding: 32px 24px; width: 100%; }
         .rt-h1 { font-size: 27px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; color: #2D2B45; text-align: center; margin-bottom: 12px; }
         .rt-sub { font-size: 15px; color: #6B6982; text-align: center; line-height: 1.6; margin-bottom: 24px; }
