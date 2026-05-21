@@ -88,8 +88,13 @@ export default function RutinasPage() {
         </div>
 
         <footer className="rt-footer">
-          Sin spam. Solo lo que de verdad te sirve.<br />
-          © Caribeño Fit Labs
+          Sin spam. Solo lo que de verdad te sirve.
+          <div className="rt-powered">
+            <span>Powered by</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/caribeno-fit-labs.png" alt="Caribeño Fit Labs" className="rt-powered-logo" />
+            <span>Caribeño Fit Labs</span>
+          </div>
         </footer>
       </div>
 
@@ -113,6 +118,9 @@ export default function RutinasPage() {
         .rt-success-title { font-size: 20px; font-weight: 700; color: #2D2B45; margin-bottom: 8px; }
         .rt-success-body { font-size: 14px; color: #6B6982; line-height: 1.6; }
         .rt-footer { text-align: center; font-size: 12px; color: #9C9AB0; margin-top: 24px; line-height: 1.7; }
+        .rt-powered { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; }
+        .rt-powered span { font-size: 11px; color: #9C9AB0; }
+        .rt-powered-logo { height: 24px; }
       `}</style>
     </>
   )
