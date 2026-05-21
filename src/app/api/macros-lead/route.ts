@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const sb = getServiceSupabase()
 
     // INSERT into leads_macros
-    const { error: insertErr } = await sb.from('leads_macros').insert({
+    const { data: insertedRow, error: insertErr } = await sb.from('leads_macros').insert({
       email,
       peso_lbs: inputs.peso,
       altura_pies: inputs.pies,
@@ -48,12 +48,14 @@ export async function POST(req: NextRequest) {
       carbs: resultado.carbs,
       grasas: resultado.grasas,
       fuente: 'calculadora-macros',
-    })
+    }).select('id').single()
 
-    if (insertErr) {
-      console.error('[macros-lead] Insert error:', insertErr.message)
+    if (insertErr || !insertedRow) {
+      console.error('[macros-lead] Insert error:', insertErr?.message)
       return NextResponse.json({ error: 'Error guardando lead' }, { status: 500 })
     }
+
+    const leadId = insertedRow.id
 
     // POST to GHL webhook
     const ghlUrl = process.env.GHL_MACROS_WEBHOOK_URL
@@ -92,9 +94,9 @@ export async function POST(req: NextRequest) {
         console.error('[macros-lead] GHL webhook error:', ghlErr instanceof Error ? ghlErr.message : ghlErr)
       }
 
-      // Update enviado_a_ghl status
+      // Update enviado_a_ghl status using exact row ID
       if (enviado_a_ghl) {
-        await sb.from('leads_macros').update({ enviado_a_ghl: true }).eq('email', email).order('created_at', { ascending: false }).limit(1)
+        await sb.from('leads_macros').update({ enviado_a_ghl: true }).eq('id', leadId)
       }
     } else {
       console.warn('[macros-lead] GHL_MACROS_WEBHOOK_URL not configured')
