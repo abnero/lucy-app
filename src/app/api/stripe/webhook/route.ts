@@ -96,6 +96,64 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error('[webhook] Approval email failed:', err))
 
     console.log(`[webhook] Access activated for ${emailLower}`)
+
+    // Tag contact in GoHighLevel (non-blocking — never affects account activation)
+    try {
+      const ghlToken = process.env.GHL_API_TOKEN
+      const ghlLocationId = process.env.GHL_LOCATION_ID
+      if (ghlToken && ghlLocationId) {
+        const ghlHeaders = {
+          'Authorization': `Bearer ${ghlToken}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28',
+        }
+        const ghlBase = 'https://services.leadconnectorhq.com'
+
+        // Search for existing contact by email
+        const searchRes = await fetch(
+          `${ghlBase}/contacts/?locationId=${ghlLocationId}&query=${encodeURIComponent(emailLower)}`,
+          { headers: ghlHeaders }
+        )
+        const searchData = await searchRes.json()
+        let contactId: string | null = null
+
+        if (searchData.contacts && searchData.contacts.length > 0) {
+          // Find exact email match (search can return partial matches)
+          const exact = searchData.contacts.find(
+            (c: { email?: string }) => c.email?.toLowerCase() === emailLower
+          )
+          contactId = exact?.id || null
+        }
+
+        if (contactId) {
+          // Contact exists — add tag
+          await fetch(`${ghlBase}/contacts/${contactId}/tags`, {
+            method: 'POST',
+            headers: ghlHeaders,
+            body: JSON.stringify({ tags: ['lucy_comprado'] }),
+          })
+          console.log(`[webhook][GHL] Tag lucy_comprado added to existing contact ${emailLower} (${contactId})`)
+        } else {
+          // Contact doesn't exist — create with tag
+          const createRes = await fetch(`${ghlBase}/contacts/`, {
+            method: 'POST',
+            headers: ghlHeaders,
+            body: JSON.stringify({
+              locationId: ghlLocationId,
+              email: emailLower,
+              tags: ['lucy_comprado'],
+            }),
+          })
+          const createData = await createRes.json()
+          contactId = createData.contact?.id || null
+          console.log(`[webhook][GHL] Created contact ${emailLower} with tag lucy_comprado (${contactId})`)
+        }
+      } else {
+        console.warn('[webhook][GHL] GHL_API_TOKEN or GHL_LOCATION_ID not configured — skipping tag')
+      }
+    } catch (ghlErr) {
+      console.error('[webhook][GHL] Failed to tag contact:', ghlErr instanceof Error ? ghlErr.message : ghlErr)
+    }
   }
 
   if (event.type === 'payment_intent.payment_failed') {
