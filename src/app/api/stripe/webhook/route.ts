@@ -96,6 +96,97 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error('[webhook] Approval email failed:', err))
 
     console.log(`[webhook] Access activated for ${emailLower}`)
+
+    // Tag contact in GoHighLevel (non-blocking — never affects account activation)
+    try {
+      const ghlToken = process.env.GHL_API_TOKEN
+      const ghlLocationId = process.env.GHL_LOCATION_ID
+      if (ghlToken && ghlLocationId) {
+        const ghlHeaders = {
+          'Authorization': `Bearer ${ghlToken}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28',
+        }
+        const ghlBase = 'https://services.leadconnectorhq.com'
+
+        // Search for existing contact by email
+        const searchRes = await fetch(
+          `${ghlBase}/contacts/?locationId=${ghlLocationId}&query=${encodeURIComponent(emailLower)}`,
+          { headers: ghlHeaders }
+        )
+
+        if (!searchRes.ok) {
+          const errBody = await searchRes.text().catch(() => '')
+          console.error(`[webhook][GHL] Search failed: ${searchRes.status} ${errBody}`)
+          throw new Error(`GHL search failed: ${searchRes.status}`)
+        }
+
+        const searchData = await searchRes.json()
+        let contactId: string | null = null
+
+        if (searchData.contacts && searchData.contacts.length > 0) {
+          const exact = searchData.contacts.find(
+            (c: { email?: string }) => c.email?.toLowerCase() === emailLower
+          )
+          contactId = exact?.id || null
+        }
+
+        if (contactId) {
+          // Contact exists — add tag
+          const tagRes = await fetch(`${ghlBase}/contacts/${contactId}/tags`, {
+            method: 'POST',
+            headers: ghlHeaders,
+            body: JSON.stringify({ tags: ['lucy_comprado'] }),
+          })
+          if (!tagRes.ok) {
+            const errBody = await tagRes.text().catch(() => '')
+            console.error(`[webhook][GHL] Add tag failed: ${tagRes.status} ${errBody}`)
+          } else {
+            console.log(`[webhook][GHL] Tag lucy_comprado added to existing contact ${emailLower} (${contactId})`)
+          }
+        } else {
+          // Contact doesn't exist — create with tag
+          const createRes = await fetch(`${ghlBase}/contacts/`, {
+            method: 'POST',
+            headers: ghlHeaders,
+            body: JSON.stringify({
+              locationId: ghlLocationId,
+              email: emailLower,
+              tags: ['lucy_comprado'],
+            }),
+          })
+          if (!createRes.ok) {
+            // Case 3: duplicate contact — extract contactId from error and tag it
+            const errData = await createRes.json().catch(() => null)
+            const duplicateId = errData?.meta?.contactId as string | undefined
+            if (createRes.status === 400 && duplicateId) {
+              console.log(`[webhook][GHL] Contact ${emailLower} already exists (${duplicateId}) — adding tag`)
+              const tagRes2 = await fetch(`${ghlBase}/contacts/${duplicateId}/tags`, {
+                method: 'POST',
+                headers: ghlHeaders,
+                body: JSON.stringify({ tags: ['lucy_comprado'] }),
+              })
+              if (tagRes2.ok) {
+                console.log(`[webhook][GHL] Tag lucy_comprado added to duplicate contact ${emailLower} (${duplicateId})`)
+              } else {
+                const tagErr = await tagRes2.text().catch(() => '')
+                console.error(`[webhook][GHL] Add tag to duplicate failed: ${tagRes2.status} ${tagErr}`)
+              }
+            } else {
+              console.error(`[webhook][GHL] Create contact failed: ${createRes.status} ${JSON.stringify(errData)}`)
+            }
+          } else {
+            const createData = await createRes.json()
+            contactId = createData.contact?.id || null
+            console.log(`[webhook][GHL] Created contact ${emailLower} with tag lucy_comprado (${contactId})`)
+          }
+        }
+      } else {
+        console.warn('[webhook][GHL] GHL_API_TOKEN or GHL_LOCATION_ID not configured — skipping tag')
+      }
+    } catch (ghlErr) {
+      console.error('[webhook][GHL] Failed to tag contact:', ghlErr instanceof Error ? ghlErr.message : ghlErr)
+    }
   }
 
   if (event.type === 'payment_intent.payment_failed') {
