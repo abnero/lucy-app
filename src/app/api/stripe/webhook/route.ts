@@ -156,8 +156,25 @@ export async function POST(req: NextRequest) {
             }),
           })
           if (!createRes.ok) {
-            const errBody = await createRes.text().catch(() => '')
-            console.error(`[webhook][GHL] Create contact failed: ${createRes.status} ${errBody}`)
+            // Case 3: duplicate contact — extract contactId from error and tag it
+            const errData = await createRes.json().catch(() => null)
+            const duplicateId = errData?.meta?.contactId as string | undefined
+            if (createRes.status === 400 && duplicateId) {
+              console.log(`[webhook][GHL] Contact ${emailLower} already exists (${duplicateId}) — adding tag`)
+              const tagRes2 = await fetch(`${ghlBase}/contacts/${duplicateId}/tags`, {
+                method: 'POST',
+                headers: ghlHeaders,
+                body: JSON.stringify({ tags: ['lucy_comprado'] }),
+              })
+              if (tagRes2.ok) {
+                console.log(`[webhook][GHL] Tag lucy_comprado added to duplicate contact ${emailLower} (${duplicateId})`)
+              } else {
+                const tagErr = await tagRes2.text().catch(() => '')
+                console.error(`[webhook][GHL] Add tag to duplicate failed: ${tagRes2.status} ${tagErr}`)
+              }
+            } else {
+              console.error(`[webhook][GHL] Create contact failed: ${createRes.status} ${JSON.stringify(errData)}`)
+            }
           } else {
             const createData = await createRes.json()
             contactId = createData.contact?.id || null
