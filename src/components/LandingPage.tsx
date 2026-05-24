@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import { track } from '@vercel/analytics'
 
 /* ─── CTA Button ─── */
 
-function CtaButton({ text, large, bg = '#2D2B45', bgHover = '#3D3B5A' }: { text: string; large?: boolean; bg?: string; bgHover?: string }) {
+function CtaButton({ text, large, bg = '#2D2B45', bgHover = '#3D3B5A', onCtaClick }: { text: string; large?: boolean; bg?: string; bgHover?: string; onCtaClick?: () => void }) {
   const shadow = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.3)' : 'rgba(45, 43, 69, 0.3)'
   const shadowHover = bg === '#7B7FC4' ? 'rgba(123, 127, 196, 0.4)' : 'rgba(45, 43, 69, 0.4)'
 
   const handleClick = async () => {
+    // Fire analytics event — never blocks navigation
+    try { onCtaClick?.() } catch { /* analytics must never break CTA */ }
+
     try {
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
@@ -107,6 +111,42 @@ export default function LandingPage() {
   const [activeSlide, setActiveSlide] = useState(0)
   const [activeTestimonial, setActiveTestimonial] = useState(0)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const footerRef = useRef<HTMLElement>(null)
+  const scrollTrackedRef = useRef(false)
+
+  // Capture UTM params once on mount
+  const utmRef = useRef<Record<string, string>>({})
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const utms: Record<string, string> = {}
+    for (const key of ['utm_source', 'utm_medium', 'utm_campaign']) {
+      const val = params.get(key)
+      if (val) utms[key] = val
+    }
+    utmRef.current = utms
+  }, [])
+
+  // Track scroll to footer — fires once per session
+  useEffect(() => {
+    const footer = footerRef.current
+    if (!footer) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !scrollTrackedRef.current) {
+          scrollTrackedRef.current = true
+          try { track('scroll_fondo_landing', utmRef.current) } catch { /* never break */ }
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(footer)
+    return () => observer.disconnect()
+  }, [])
+
+  // CTA click tracker — passed to all CtaButton instances
+  const trackCtaClick = useCallback(() => {
+    try { track('click_cta_checkout', utmRef.current) } catch { /* never break */ }
+  }, [])
 
   const screenshots = [
     { id: 'calendario-dia', src: '/screenshots/calendario-dia.PNG', alt: 'Calendario diario de Lucy mostrando comidas del lunes', caption: 'Tu plan del día, siempre organizado' },
@@ -222,7 +262,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#7B7FC4', marginBottom: 10, textAlign: 'center', letterSpacing: '0.3px' }}>
                   ⏱ En menos de 10 minutos tienes tu plan
                 </div>
-                <CtaButton text="Empieza con Lucy — $297 por 1 año completo" />
+                <CtaButton text="Empieza con Lucy — $297 por 1 año completo" onCtaClick={trackCtaClick} />
               </div>
 
               <div style={{ marginTop: 24, fontSize: 15, color: '#555' }}>
@@ -858,7 +898,7 @@ export default function LandingPage() {
           })()}
 
           <div style={{ marginTop: 50 }}>
-            <CtaButton text="Quiero Mi Plan Personalizado — $297" />
+            <CtaButton text="Quiero Mi Plan Personalizado — $297" onCtaClick={trackCtaClick} />
           </div>
         </div>
       </section>
@@ -947,7 +987,7 @@ export default function LandingPage() {
           </div>
 
           <div style={{ marginTop: 50 }}>
-            <CtaButton text="Quiero Empezar — $297 por 1 año" />
+            <CtaButton text="Quiero Empezar — $297 por 1 año" onCtaClick={trackCtaClick} />
           </div>
         </div>
       </section>
@@ -1209,7 +1249,7 @@ export default function LandingPage() {
           </div>
 
           <div style={{ marginTop: 40 }}>
-            <CtaButton text="Empezar con Lucy — $297 por 1 año" large />
+            <CtaButton text="Empezar con Lucy — $297 por 1 año" large onCtaClick={trackCtaClick} />
           </div>
         </div>
       </section>
@@ -1296,7 +1336,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <CtaButton text="Empezar Ahora — $297" large />
+          <CtaButton text="Empezar Ahora — $297" large onCtaClick={trackCtaClick} />
 
           <p style={{ marginTop: 16, fontSize: 14, color: '#555' }}>
             🔒 Pago seguro por Stripe &bull; Tarjeta de crédito o débito
@@ -1333,13 +1373,13 @@ export default function LandingPage() {
           <p style={{ fontStyle: 'italic', marginTop: 32 }}>— Abner<br/>CEO, Caribeño Fit Labs</p>
 
           <div style={{ marginTop: 40 }}>
-            <CtaButton text="Empezar con Lucy — $297" large bg="#7B7FC4" bgHover="#B8B5E0" />
+            <CtaButton text="Empezar con Lucy — $297" large bg="#7B7FC4" bgHover="#B8B5E0" onCtaClick={trackCtaClick} />
           </div>
         </div>
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer style={{ background: '#1a1a2e', color: '#AAA', padding: '40px 0', textAlign: 'center', fontSize: 14 }}>
+      <footer ref={footerRef} style={{ background: '#1a1a2e', color: '#AAA', padding: '40px 0', textAlign: 'center', fontSize: 14 }}>
         <div style={container}>
           <p>© 2026 Caribeño Fit Labs. Todos los derechos reservados.</p>
           <p style={{ marginTop: 8 }}>Lucy es una herramienta de planificación nutricional. No sustituye consejo médico profesional.</p>
