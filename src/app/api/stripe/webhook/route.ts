@@ -114,11 +114,17 @@ export async function POST(req: NextRequest) {
           `${ghlBase}/contacts/?locationId=${ghlLocationId}&query=${encodeURIComponent(emailLower)}`,
           { headers: ghlHeaders }
         )
+
+        if (!searchRes.ok) {
+          const errBody = await searchRes.text().catch(() => '')
+          console.error(`[webhook][GHL] Search failed: ${searchRes.status} ${errBody}`)
+          throw new Error(`GHL search failed: ${searchRes.status}`)
+        }
+
         const searchData = await searchRes.json()
         let contactId: string | null = null
 
         if (searchData.contacts && searchData.contacts.length > 0) {
-          // Find exact email match (search can return partial matches)
           const exact = searchData.contacts.find(
             (c: { email?: string }) => c.email?.toLowerCase() === emailLower
           )
@@ -127,12 +133,17 @@ export async function POST(req: NextRequest) {
 
         if (contactId) {
           // Contact exists — add tag
-          await fetch(`${ghlBase}/contacts/${contactId}/tags`, {
+          const tagRes = await fetch(`${ghlBase}/contacts/${contactId}/tags`, {
             method: 'POST',
             headers: ghlHeaders,
             body: JSON.stringify({ tags: ['lucy_comprado'] }),
           })
-          console.log(`[webhook][GHL] Tag lucy_comprado added to existing contact ${emailLower} (${contactId})`)
+          if (!tagRes.ok) {
+            const errBody = await tagRes.text().catch(() => '')
+            console.error(`[webhook][GHL] Add tag failed: ${tagRes.status} ${errBody}`)
+          } else {
+            console.log(`[webhook][GHL] Tag lucy_comprado added to existing contact ${emailLower} (${contactId})`)
+          }
         } else {
           // Contact doesn't exist — create with tag
           const createRes = await fetch(`${ghlBase}/contacts/`, {
@@ -144,9 +155,14 @@ export async function POST(req: NextRequest) {
               tags: ['lucy_comprado'],
             }),
           })
-          const createData = await createRes.json()
-          contactId = createData.contact?.id || null
-          console.log(`[webhook][GHL] Created contact ${emailLower} with tag lucy_comprado (${contactId})`)
+          if (!createRes.ok) {
+            const errBody = await createRes.text().catch(() => '')
+            console.error(`[webhook][GHL] Create contact failed: ${createRes.status} ${errBody}`)
+          } else {
+            const createData = await createRes.json()
+            contactId = createData.contact?.id || null
+            console.log(`[webhook][GHL] Created contact ${emailLower} with tag lucy_comprado (${contactId})`)
+          }
         }
       } else {
         console.warn('[webhook][GHL] GHL_API_TOKEN or GHL_LOCATION_ID not configured — skipping tag')
