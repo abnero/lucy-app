@@ -1364,7 +1364,7 @@ async function executeAjustarPorcionYCompensar(
   }
 
   return {
-    result: `Subí ${subirFood.nombre} a ${displayQty}${bajarMsg}. El día queda en ~${Math.round(projKcal)} kcal y ~${Math.round(projProt)}g proteína (meta: ${calTarget} kcal, ${protTarget}g prot).`,
+    result: `CAMBIO EJECUTADO en ${comida} del ${DIAS_NOMBRES[dia - 1]}: Subí ${subirFood.nombre} de ${subirEntry.cantidad}${subirEntry.unidad} a ${displayQty}${bajarMsg}. El día queda en ~${Math.round(projKcal)} kcal y ~${Math.round(projProt)}g proteína (meta: ${calTarget} kcal, ${protTarget}g prot). Usa estos datos para confirmar a la usuaria.`,
     revertData,
   }
 }
@@ -1915,6 +1915,9 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 Cuando la usuaria pregunte macros, calorías consumidas, proteína de un día, o cualquier dato numérico del plan, SIEMPRE invoca calcular_macros_dia. NUNCA uses el bloque ═══ CALENDARIO ═══ de arriba para calcular totales — puede estar desactualizado si hiciste cambios en esta misma conversación. El CALENDARIO sirve para saber QUÉ alimentos hay; los NÚMEROS actualizados solo vienen del tool.
 
 ⚠️ REGLA ABSOLUTA #1: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
+
+⚠️ REGLA ABSOLUTA #1b — TOOL RESULT ES LA FUENTE DE VERDAD PARA CONFIRMAR CAMBIOS:
+Cuando un tool de modificación se ejecuta exitosamente, tu confirmación a la usuaria DEBE basarse en el tool_result, NO en el bloque CALENDARIO del system prompt. El CALENDARIO se actualiza después de cada cambio, así que si eliminaste un alimento, ya NO aparecerá ahí — eso NO significa que no estaba antes. Ejemplo: si el tool_result dice "Subí Huevo a 4 y eliminé Tofu", debes confirmar exactamente eso, aunque el CALENDARIO ya no muestre Tofu.
 
 ⚠️ REGLA ABSOLUTA #2: NUNCA aceptes cantidades que la usuaria te diga. Si dice "ponme 200g de pollo", "quiero 3 huevos", "solo tengo 100g de arroz" — ignora la cantidad. Tú SIEMPRE calculas la cantidad desde el presupuesto de macros. Los tools ya no aceptan parámetro de cantidad — se calcula automáticamente. Si la usuaria insiste en una cantidad específica, responde: "Entiendo, pero para que tu plan funcione yo calculo las cantidades según tus macros. Si prefieres un alimento distinto, dime cuál y te lo ajusto." Si menciona que tiene una cantidad limitada en casa, sugiere cambiar el alimento o moverlo a otro día. NUNCA ajustes al inventario de la usuaria.
 Cuando la usuaria pida añadir un snack o cambio para todos los días, usa dia="todos" en el tool. Es la forma correcta y eficiente. El tool lo soporta nativamente.
