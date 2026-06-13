@@ -2170,7 +2170,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             cache_control: { type: 'ephemeral' as const },
           }],
           tools,
-          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
         })
       } catch (apiErr) {
@@ -2194,7 +2194,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             cache_control: { type: 'ephemeral' as const },
           }],
           tools,
-          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
         })
       }
