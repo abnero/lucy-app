@@ -183,6 +183,20 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'ajustar_porcion_y_compensar',
+    description: 'Sube la porción de un alimento que YA ESTÁ en la comida y opcionalmente baja o elimina otro alimento de la misma comida para compensar. Úsalo cuando la usuaria pide "más X" o "X en vez de Y" y X ya está presente. Lucy calcula las cantidades. NO pases cantidad — se calcula internamente.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        dia: { type: 'number', description: 'Día de la semana (1=Lunes, 7=Domingo)' },
+        comida: { type: 'string', enum: ['desayuno', 'almuerzo', 'cena'], description: 'Tipo de comida' },
+        alimento_subir: { type: 'string', description: 'Nombre del alimento cuya porción se debe subir (debe estar en la comida)' },
+        alimento_bajar: { type: 'string', description: 'Nombre del alimento a reducir o eliminar para compensar (opcional)' },
+      },
+      required: ['dia', 'comida', 'alimento_subir'],
+    },
+  },
+  {
     name: 'revertir_cambio',
     description: 'Revierte el último cambio realizado en el calendario. Solo funciona si hay un cambio previo guardado en esta conversación.',
     input_schema: {
@@ -207,7 +221,7 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, porcion_min, porcion_max, unidad_display, factor_conversion, es_personalizado, creado_por'
+const ALIMENTOS_FIELDS = 'id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, unidad_medida, porcion_base, porcion_min, porcion_max, unidad_display, factor_conversion, es_personalizado, creado_por, rol_permitido, fuente'
 
 async function findAlimento(supabase: SupabaseClient, nombre: string, userId?: string) {
   const normalized = removeAccents(nombre.toLowerCase().trim())
@@ -1144,6 +1158,234 @@ async function executeEliminarIngredienteDeComida(
   }
 }
 
+// Bug #3 / #41: Adjust portion of an existing food up, optionally reducing/removing another to compensate
+async function executeAjustarPorcionYCompensar(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { dia: number; comida: string; alimento_subir: string; alimento_bajar?: string }
+): Promise<{ result: string; revertData?: RevertData }> {
+  const { dia, comida, alimento_subir, alimento_bajar } = input
+
+  // Get user objectives
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('calorias_objetivo, proteina_objetivo')
+    .eq('id', userId)
+    .single()
+
+  if (!usuario) return { result: 'No se encontró el perfil de la usuaria.' }
+
+  // Get all items in this meal
+  const { data: mealItems } = await supabase
+    .from('calendario')
+    .select('id, alimento_id, cantidad, unidad, alimento:alimentos(id, nombre, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, porcion_min, porcion_max, unidad_medida, unidad_display, factor_conversion)')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+    .eq('comida', comida)
+
+  if (!mealItems || mealItems.length === 0) {
+    return { result: `No encontré comidas en el ${comida} del ${DIAS_NOMBRES[dia - 1]}.` }
+  }
+
+  // Find the food to increase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subirEntry = mealItems.find((e: any) => {
+    const n = Array.isArray(e.alimento) ? e.alimento[0]?.nombre : e.alimento?.nombre
+    return n?.toLowerCase().includes(alimento_subir.toLowerCase())
+  })
+
+  if (!subirEntry) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const available = mealItems.map((e: any) => {
+      const n = Array.isArray(e.alimento) ? e.alimento[0]?.nombre : e.alimento?.nombre
+      return n
+    }).filter(Boolean).join(', ')
+    return { result: `No encontré "${alimento_subir}" en el ${comida} del ${DIAS_NOMBRES[dia - 1]}. Los alimentos son: ${available}.` }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subirFood = (Array.isArray((subirEntry as any).alimento) ? (subirEntry as any).alimento[0] : (subirEntry as any).alimento) as any
+  if (!subirFood) return { result: `Error: datos del alimento "${alimento_subir}" no disponibles.` }
+
+  // Find the food to decrease (optional)
+  let bajarEntry: typeof mealItems[0] | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let bajarFood: any = null
+  if (alimento_bajar) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bajarEntry = mealItems.find((e: any) => {
+      const n = Array.isArray(e.alimento) ? e.alimento[0]?.nombre : e.alimento?.nombre
+      return n?.toLowerCase().includes(alimento_bajar.toLowerCase())
+    }) || null
+
+    if (!bajarEntry) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const available = mealItems.map((e: any) => {
+        const n = Array.isArray(e.alimento) ? e.alimento[0]?.nombre : e.alimento?.nombre
+        return n
+      }).filter(Boolean).join(', ')
+      return { result: `No encontré "${alimento_bajar}" en el ${comida} del ${DIAS_NOMBRES[dia - 1]}. Los alimentos son: ${available}.` }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bajarFood = Array.isArray((bajarEntry as any).alimento) ? (bajarEntry as any).alimento[0] : (bajarEntry as any).alimento
+  }
+
+  // Save original state for revert
+  const revertData: RevertData = {
+    type: 'cambiar',
+    originalRows: [
+      { rowId: subirEntry.id, alimento_id: subirEntry.alimento_id, cantidad: subirEntry.cantidad, unidad: subirEntry.unidad },
+    ],
+    userId,
+  }
+  if (bajarEntry) {
+    revertData.originalRows!.push({
+      rowId: bajarEntry.id, alimento_id: bajarEntry.alimento_id, cantidad: bajarEntry.cantidad, unidad: bajarEntry.unidad,
+    })
+  }
+
+  // Calculate kcal freed by reducing/removing the bajar food
+  let freedKcal = 0
+  let freedProt = 0
+  if (bajarEntry && bajarFood) {
+    const bajarRatio = bajarFood.unidad_medida === 'unidad'
+      ? bajarEntry.cantidad
+      : bajarEntry.cantidad / (bajarFood.porcion_base || 100)
+    freedKcal = bajarFood.calorias_por_unidad * bajarRatio
+    freedProt = bajarFood.proteina_por_unidad * bajarRatio
+  }
+
+  // Get all items of the day to compute day totals (for bilateral check)
+  const { data: dayItems } = await supabase
+    .from('calendario')
+    .select('id, cantidad, alimento:alimentos(calorias_por_unidad, proteina_por_unidad, porcion_base, unidad_medida)')
+    .eq('user_id', userId)
+    .eq('dia', dia)
+
+  let dayKcal = 0, dayProt = 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const item of (dayItems || []) as any[]) {
+    const a = Array.isArray(item.alimento) ? item.alimento[0] : item.alimento
+    if (!a) continue
+    const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
+    dayKcal += a.calorias_por_unidad * ratio
+    dayProt += a.proteina_por_unidad * ratio
+  }
+
+  // Current kcal of the subir food
+  const subirCpuRatio = subirFood.unidad_medida === 'unidad'
+    ? 1
+    : 1 / (subirFood.porcion_base || 100)
+  const subirCpu = subirFood.calorias_por_unidad * subirCpuRatio
+  const subirPpu = subirFood.proteina_por_unidad * subirCpuRatio
+  const subirCurrentKcal = subirCpu * subirEntry.cantidad
+
+  // New budget for the subir food = current kcal + freed kcal from bajar
+  const newBudget = subirCurrentKcal + freedKcal
+
+  // Calculate new quantity from budget, clamped to porcion_min/max
+  const { cantidad: newCantidad } = calcularCantidadIsoCalorica(subirFood, newBudget)
+
+  // Projected day totals: remove bajar food, adjust subir food
+  const subirNewKcal = subirCpu * newCantidad
+  const subirNewProt = subirPpu * newCantidad
+  const projKcal = dayKcal - (bajarEntry ? freedKcal : 0) - subirCurrentKcal + subirNewKcal
+  const projProt = dayProt - (bajarEntry ? freedProt : 0) - (subirPpu * subirEntry.cantidad) + subirNewProt
+
+  const calTarget = usuario.calorias_objetivo
+  const protTarget = usuario.proteina_objetivo
+  const bilateral = Math.abs(projKcal - calTarget) <= calTarget * 0.10
+    && Math.abs(projProt - protTarget) <= 10
+
+  if (!bilateral) {
+    return {
+      result: `No puedo hacer ese ajuste: el día quedaría en ${Math.round(projKcal)} kcal (meta: ${calTarget}) y ${Math.round(projProt)}g proteína (meta: ${protTarget}g) — fuera del rango bilateral. ¿Quieres que pruebe con otro alimento o que ajuste de otra forma?`,
+    }
+  }
+
+  // Execute: update subir food quantity
+  const { error: subirErr } = await supabase
+    .from('calendario')
+    .update({ cantidad: newCantidad, origen: 'chat' })
+    .eq('id', subirEntry.id)
+
+  if (subirErr) {
+    return { result: `Error actualizando ${subirFood.nombre}: ${subirErr.message}` }
+  }
+
+  // Execute: remove or reduce bajar food
+  let bajarMsg = ''
+  if (bajarEntry && bajarFood) {
+    // Remove completely
+    const { error: delErr } = await supabase
+      .from('calendario')
+      .delete()
+      .eq('id', bajarEntry.id)
+
+    if (delErr) {
+      // Revert subir
+      await supabase.from('calendario').update({ cantidad: subirEntry.cantidad }).eq('id', subirEntry.id)
+      return { result: `Error eliminando ${bajarFood.nombre}: ${delErr.message}. Se revirtió el cambio.` }
+    }
+
+    // Sync preferencias: remove if no longer in any calendar day
+    await syncPreferencia('remove', userId, bajarEntry.alimento_id)
+    bajarMsg = ` y ELIMINÉ ${bajarFood.nombre} (tenía ${bajarEntry.cantidad}${bajarEntry.unidad})`
+  }
+
+  // Verify persistence
+  const { data: verify } = await supabase
+    .from('calendario')
+    .select('cantidad')
+    .eq('id', subirEntry.id)
+    .single()
+
+  if (!verify || verify.cantidad !== newCantidad) {
+    return { result: `El cambio de ${subirFood.nombre} no se guardó correctamente. Intenta de nuevo.` }
+  }
+
+  // Format display quantity
+  const displayUnit = subirFood.unidad_display || subirFood.unidad_medida
+  let displayQty: string
+  if (subirFood.unidad_medida === 'unidad') {
+    displayQty = `${newCantidad} ${displayUnit}(s)`
+  } else {
+    const fc = subirFood.factor_conversion || 1
+    const converted = newCantidad / fc
+    if (displayUnit === 'cup') {
+      displayQty = converted <= 0.3 ? '¼ taza' : converted <= 0.6 ? '½ taza' : converted <= 0.8 ? '¾ taza' : `${Math.round(converted * 2) / 2} taza(s)`
+    } else if (displayUnit === 'oz') {
+      displayQty = `${Math.round(converted * 10) / 10} oz`
+    } else if (displayUnit === 'tbsp') {
+      displayQty = `${Math.round(converted * 10) / 10} cdas`
+    } else {
+      displayQty = `${newCantidad}g`
+    }
+  }
+
+  // Build before/after snapshot so the LLM cannot misinterpret what changed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const beforeItems = mealItems.map((e: any) => {
+    const a = Array.isArray(e.alimento) ? e.alimento[0] : e.alimento
+    return `${a?.nombre} ${e.cantidad}${e.unidad}`
+  }).join(', ')
+
+  const afterItems = mealItems
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((e: any) => !bajarEntry || e.id !== bajarEntry.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((e: any) => {
+      const a = Array.isArray(e.alimento) ? e.alimento[0] : e.alimento
+      const qty = e.id === subirEntry.id ? newCantidad : e.cantidad
+      return `${a?.nombre} ${qty}${e.unidad}`
+    }).join(', ')
+
+  return {
+    result: `CAMBIO EJECUTADO en ${comida} del ${DIAS_NOMBRES[dia - 1]}:\nANTES: ${beforeItems}\nDESPUÉS: ${afterItems}\nSubí ${subirFood.nombre} de ${subirEntry.cantidad}${subirEntry.unidad} a ${displayQty}${bajarMsg}.\nEl día queda en ~${Math.round(projKcal)} kcal y ~${Math.round(projProt)}g proteína (meta: ${calTarget} kcal, ${protTarget}g prot).\nIMPORTANTE: Confirma a la usuaria EXACTAMENTE lo que dice este resultado. El CALENDARIO del system prompt ya se actualizó — no lo uses para deducir qué había antes.`,
+    revertData,
+  }
+}
+
 async function executeBuscarOCrearAlimento(
   supabase: SupabaseClient,
   userId: string,
@@ -1164,6 +1406,104 @@ async function executeBuscarOCrearAlimento(
   const normalizedInput = removeAccents(nombre.toLowerCase().trim())
   const exactMatch = all?.find(a => removeAccents(a.nombre.toLowerCase()) === normalizedInput)
   if (exactMatch) {
+    // Bug #2: Check if caller provided different macros — means they want to correct this food
+    const macrosChanged =
+      Math.abs(exactMatch.calorias_por_unidad - calorias_por_100g) > 0.5 ||
+      Math.abs(exactMatch.proteina_por_unidad - proteina_por_100g) > 0.5 ||
+      Math.abs(exactMatch.carbs_por_unidad - carbohidratos_por_100g) > 0.5 ||
+      Math.abs(exactMatch.grasas_por_unidad - grasa_por_100g) > 0.5
+
+    if (macrosChanged) {
+      // Case A: Already this user's custom food → update in place
+      if (exactMatch.es_personalizado && exactMatch.creado_por === userId) {
+        const { error: updateErr } = await supabase
+          .from('alimentos')
+          .update({
+            calorias_por_unidad: calorias_por_100g,
+            proteina_por_unidad: proteina_por_100g,
+            carbs_por_unidad: carbohidratos_por_100g,
+            grasas_por_unidad: grasa_por_100g,
+            fuente,
+          })
+          .eq('id', exactMatch.id)
+
+        if (updateErr) {
+          return `Error actualizando macros de "${nombre}": ${updateErr.message}`
+        }
+
+        // Verify persistence
+        const { data: verify } = await supabase
+          .from('alimentos')
+          .select('calorias_por_unidad')
+          .eq('id', exactMatch.id)
+          .single()
+
+        if (!verify || Math.abs(verify.calorias_por_unidad - calorias_por_100g) > 0.5) {
+          return `Error: los macros de "${nombre}" no se guardaron correctamente. Intenta de nuevo.`
+        }
+
+        return `Macros de "${nombre}" actualizados: ${calorias_por_100g} kcal, ${proteina_por_100g}g prot, ${carbohidratos_por_100g}g carbs, ${grasa_por_100g}g grasa (fuente: ${fuente}). Ya está en el catálogo — puedes usarlo con cambiar_alimento o agregar_snack.`
+      }
+
+      // Case B: Shared catalog food → create personal copy + re-point calendario
+      const um = exactMatch.unidad_medida || 'gramos'
+      const { data: personalCopy, error: copyErr } = await supabase
+        .from('alimentos')
+        .insert({
+          nombre: exactMatch.nombre,
+          categoria_comida: exactMatch.categoria_comida,
+          calorias_por_unidad: calorias_por_100g,
+          proteina_por_unidad: proteina_por_100g,
+          carbs_por_unidad: carbohidratos_por_100g,
+          grasas_por_unidad: grasa_por_100g,
+          fibra_por_unidad: 0,
+          unidad_medida: um,
+          porcion_base: exactMatch.porcion_base,
+          porcion_min: exactMatch.porcion_min,
+          porcion_max: exactMatch.porcion_max,
+          rol_permitido: exactMatch.rol_permitido,
+          categoria_supermercado: 'otro',
+          es_personalizado: true,
+          creado_por: userId,
+          fuente,
+          unidad_display: exactMatch.unidad_display,
+          factor_conversion: exactMatch.factor_conversion,
+        })
+        .select('id')
+        .single()
+
+      if (copyErr || !personalCopy) {
+        return `Error creando copia personal de "${nombre}": ${copyErr?.message || 'unknown'}`
+      }
+
+      // Verify the copy was created
+      const { data: verifyCopy } = await supabase
+        .from('alimentos')
+        .select('id, calorias_por_unidad')
+        .eq('id', personalCopy.id)
+        .single()
+
+      if (!verifyCopy || Math.abs(verifyCopy.calorias_por_unidad - calorias_por_100g) > 0.5) {
+        return `Error: la copia personal de "${nombre}" no se guardó correctamente. Intenta de nuevo.`
+      }
+
+      // Re-point all calendario rows for this user that reference the old catalog food
+      const { error: rePointErr, count: rePointCount } = await supabase
+        .from('calendario')
+        .update({ alimento_id: personalCopy.id })
+        .eq('user_id', userId)
+        .eq('alimento_id', exactMatch.id)
+
+      if (rePointErr) {
+        console.error('[buscar_o_crear] Re-point calendario failed:', rePointErr.message)
+        return `Copia personal creada (ID: ${personalCopy.id}) pero no pude actualizar el calendario: ${rePointErr.message}. Reporta este error.`
+      }
+
+      console.log(`[buscar_o_crear] Created personal copy ${personalCopy.id} of catalog food ${exactMatch.id}, re-pointed ${rePointCount ?? '?'} calendario rows`)
+      return `Macros de "${nombre}" corregidos: ${calorias_por_100g} kcal, ${proteina_por_100g}g prot, ${carbohidratos_por_100g}g carbs, ${grasa_por_100g}g grasa (fuente: ${fuente}). Se creó tu versión personal (ID: ${personalCopy.id}) y se actualizó tu calendario. Puedes usarlo con cambiar_alimento o agregar_snack.`
+    }
+
+    // No macro change — just return the existing food
     return `Alimento encontrado: "${exactMatch.nombre}" (ID: ${exactMatch.id}, calorias: ${exactMatch.calorias_por_unidad} kcal, porcion_base: ${exactMatch.porcion_base}${exactMatch.unidad_medida}). Ya está en el catálogo. Puedes usarlo con cambiar_alimento o agregar_snack usando el nombre exacto "${exactMatch.nombre}".`
   }
 
@@ -1524,20 +1864,23 @@ RESPUESTA CORRECTA: "En tu plan, los más altos en proteína son: [lista del blo
 ═══ ALIMENTOS SELECCIONADOS ═══
 ${alimentosTexto || '(Ninguno)'}
 
-═══ HERRAMIENTAS (9) ═══
+═══ HERRAMIENTAS (10) ═══
 1. cambiar_alimento — Reemplazar un alimento por otro en la misma categoría. Lucy calcula la cantidad automáticamente.
    Ejemplos: "cambia pollo por salmón", "en vez de arroz ponme papa"
 2. reemplazar_comida_completa — Reemplazar TODA una comida con ingredientes nuevos. REQUIERE confirmación previa.
 3. agregar_ingrediente_a_comida — Añadir un ingrediente nuevo a una comida existente (compensa reduciendo misma categoría).
 4. eliminar_ingrediente_de_comida — Eliminar un ingrediente de una comida.
-5. calcular_macros_dia — Calcular macros totales del plan para un día (todas las comidas + snacks). SIEMPRE úsalo ANTES de sugerir snacks y cuando pregunten calorías/macros.
-6. agregar_snack — Añadir snack (1 o varios ingredientes con ingredientes[]). Usa dia="todos" para diario.
-7. buscar_macros_usda — Buscar macros de alimentos (uso interno, NUNCA mencionar a la usuaria).
-8. buscar_o_crear_alimento — Registrar alimento nuevo. Pedir confirmación de macros antes de crear.
-9. revertir_cambio — Deshacer el último cambio.
+5. ajustar_porcion_y_compensar — Subir la porción de un alimento que YA ESTÁ en la comida, opcionalmente bajando/eliminando otro para compensar. Úsalo cuando X ya está presente y la usuaria quiere más X (o "X en vez de Y" y X ya existe).
+6. calcular_macros_dia — Calcular macros totales del plan para un día (todas las comidas + snacks). SIEMPRE úsalo ANTES de sugerir snacks y cuando pregunten calorías/macros.
+7. agregar_snack — Añadir snack (1 o varios ingredientes con ingredientes[]). Usa dia="todos" para diario.
+8. buscar_macros_usda — Buscar macros de alimentos (uso interno, NUNCA mencionar a la usuaria).
+9. buscar_o_crear_alimento — Registrar alimento nuevo O corregir macros de uno existente. Si los macros provistos difieren de los del catálogo, crea tu versión personal sin tocar el catálogo compartido.
+10. revertir_cambio — Deshacer el último cambio.
 
 ═══ QUÉ TOOL USAR ═══
-- "cambia X por Y" o "en vez de X ponme Y" → cambiar_alimento
+- "cambia X por Y" o "en vez de X ponme Y" (Y NO está en la comida) → cambiar_alimento
+- "X en vez de Y" o "más X y quita Y" (X YA ESTÁ en la comida) → ajustar_porcion_y_compensar(alimento_subir=X, alimento_bajar=Y)
+- "quiero más X" o "sube el X" (X ya está en la comida) → ajustar_porcion_y_compensar(alimento_subir=X)
 - "ponme menos X" o "reduce X" o "quiero menos X" → Lucy responde: "Las cantidades las calculo yo automáticamente para que cuadren con tus macros. Si quieres un alimento diferente, dime cuál y te lo cambio."
 - "añade X a mi almuerzo" → agregar_ingrediente_a_comida
 - "elimina/quita/remueve/saca X" → eliminar_ingrediente_de_comida
@@ -1545,6 +1888,7 @@ ${alimentosTexto || '(Ninguno)'}
 - "quiero un snack" o "merienda" → protocolo de snacks
 - "reviértelo/deshaz" → revertir_cambio
 - 2+ ingredientes nuevos para una comida → reemplazar_comida_completa
+- "los macros de X están mal" o "X tiene Y calorías" → buscar_o_crear_alimento (con los macros corregidos, crea versión personal)
 
 ═══ PROTOCOLO REEMPLAZAR COMIDA ═══
 1. Sugiere ingredientes: "Para tu [platillo] puedo usar: X, Y, Z. ¿Confirmas?"
@@ -1588,6 +1932,9 @@ Para platillos (sopa, tacos, pasta, curry, bowl, ensalada, revuelto, salteado):
 Cuando la usuaria pregunte macros, calorías consumidas, proteína de un día, o cualquier dato numérico del plan, SIEMPRE invoca calcular_macros_dia. NUNCA uses el bloque ═══ CALENDARIO ═══ de arriba para calcular totales — puede estar desactualizado si hiciste cambios en esta misma conversación. El CALENDARIO sirve para saber QUÉ alimentos hay; los NÚMEROS actualizados solo vienen del tool.
 
 ⚠️ REGLA ABSOLUTA #1: NUNCA confirmes un cambio sin haberlo ejecutado con el tool en ese mismo turno. Si dices "listo" o "añadí", el tool debe haberse ejecutado exitosamente. Si falla, reporta el error exacto. Nunca inventes un mensaje de éxito.
+
+⚠️ REGLA ABSOLUTA #1b — TOOL RESULT ES LA FUENTE DE VERDAD PARA CONFIRMAR CAMBIOS:
+Cuando un tool de modificación se ejecuta exitosamente, tu confirmación a la usuaria DEBE basarse en el tool_result, NO en el bloque CALENDARIO del system prompt. El CALENDARIO se actualiza después de cada cambio, así que si eliminaste un alimento, ya NO aparecerá ahí — eso NO significa que no estaba antes. Ejemplo: si el tool_result dice "Subí Huevo a 4 y eliminé Tofu", debes confirmar exactamente eso, aunque el CALENDARIO ya no muestre Tofu.
 
 ⚠️ REGLA ABSOLUTA #2: NUNCA aceptes cantidades que la usuaria te diga. Si dice "ponme 200g de pollo", "quiero 3 huevos", "solo tengo 100g de arroz" — ignora la cantidad. Tú SIEMPRE calculas la cantidad desde el presupuesto de macros. Los tools ya no aceptan parámetro de cantidad — se calcula automáticamente. Si la usuaria insiste en una cantidad específica, responde: "Entiendo, pero para que tu plan funcione yo calculo las cantidades según tus macros. Si prefieres un alimento distinto, dime cuál y te lo ajusto." Si menciona que tiene una cantidad limitada en casa, sugiere cambiar el alimento o moverlo a otro día. NUNCA ajustes al inventario de la usuaria.
 Cuando la usuaria pida añadir un snack o cambio para todos los días, usa dia="todos" en el tool. Es la forma correcta y eficiente. El tool lo soporta nativamente.
@@ -1764,6 +2111,15 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
           })
           if (revertData) currentRevertData = revertData
           return result
+        } else if (name === 'ajustar_porcion_y_compensar') {
+          const { result, revertData } = await executeAjustarPorcionYCompensar(supabase, userId, {
+            dia: input.dia as number,
+            comida: input.comida as string,
+            alimento_subir: input.alimento_subir as string,
+            alimento_bajar: input.alimento_bajar as string | undefined,
+          })
+          if (revertData) currentRevertData = revertData
+          return result
         } else if (name === 'buscar_o_crear_alimento') {
           return await executeBuscarOCrearAlimento(supabase, userId, {
             nombre: input.nombre as string,
@@ -1802,7 +2158,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
     // Detect if user is requesting a calendar change — force tool use
     const lastUserText = (messages[messages.length - 1]?.content || '').toLowerCase()
     // Force tool use for direct actions (not recipes — those need confirmation first)
-    const forceToolUse = /ponme|pon .+ en mi|cambia .+ (por|a )|reduce |aumenta |añade .+ a mi|elimina |quita |remueve |saca |quiero un snack|rebanada/.test(lastUserText)
+    const forceToolUse = /ponme|pon .+ en mi|cambia .+ (por|a )|reduce |aumenta |más .+ (y |en vez)|sube .+ (el|la|los|las)|añade .+ a mi|elimina |quita |remueve |saca |quiero un snack|rebanada|en vez de/.test(lastUserText)
 
     // Detect brand names — inject instruction to ask for packaging
     const knownBrands = ['halo top', 'special k', 'activia', 'chobani', 'dannon', 'yoplait', 'quest', 'kind bar', 'rxbar', 'larabar', 'clif bar', 'premier protein', 'muscle milk', 'ensure', 'slim fast', 'fairlife', 'oikos', 'fage', 'siggi', 'nature valley', 'fiber one', 'think thin', 'atkins', 'built bar', 'carve']
@@ -1834,7 +2190,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             cache_control: { type: 'ephemeral' as const },
           }],
           tools,
-          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
         })
       } catch (apiErr) {
@@ -1858,7 +2214,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
             cache_control: { type: 'ephemeral' as const },
           }],
           tools,
-          tool_choice: forceToolUse && iterations <= 2 ? { type: 'any' as const } : { type: 'auto' as const },
+          tool_choice: forceToolUse && iterations === 1 ? { type: 'any' as const } : { type: 'auto' as const },
           messages: loopMessages,
         })
       }
@@ -1894,7 +2250,7 @@ Tortillas: 45g/unidad | Pan: 30g/rebanada | Huevo: 1 unidad | Frutas: 120g | Arr
       // ═══ Post-tool tolerance hook (Bug #40) ═══
       // After calendar-mutating tools, check if affected day(s) went out of tolerance.
       // If so, append warning to the last tool result so Claude can inform the user.
-      const MUTATING_TOOLS = new Set(['cambiar_alimento', 'agregar_snack', 'reemplazar_comida_completa', 'agregar_ingrediente_a_comida', 'eliminar_ingrediente_de_comida', 'revertir_cambio'])
+      const MUTATING_TOOLS = new Set(['cambiar_alimento', 'agregar_snack', 'reemplazar_comida_completa', 'agregar_ingrediente_a_comida', 'eliminar_ingrediente_de_comida', 'ajustar_porcion_y_compensar', 'revertir_cambio'])
       const mutatingCalls = toolUseBlocks.filter(b => b.type === 'tool_use' && MUTATING_TOOLS.has(b.name))
 
       if (mutatingCalls.length > 0 && usuario) {
