@@ -1370,8 +1370,8 @@ async function executeAjustarPorcionYCompensar(
     return `${a?.nombre} ${e.cantidad}${e.unidad}`
   }).join(', ')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const afterItems = mealItems
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((e: any) => !bajarEntry || e.id !== bajarEntry.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((e: any) => {
