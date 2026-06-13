@@ -1330,7 +1330,7 @@ async function executeAjustarPorcionYCompensar(
 
     // Sync preferencias: remove if no longer in any calendar day
     await syncPreferencia('remove', userId, bajarEntry.alimento_id)
-    bajarMsg = ` y eliminé ${bajarFood.nombre}`
+    bajarMsg = ` y ELIMINÉ ${bajarFood.nombre} (tenía ${bajarEntry.cantidad}${bajarEntry.unidad})`
   }
 
   // Verify persistence
@@ -1363,8 +1363,25 @@ async function executeAjustarPorcionYCompensar(
     }
   }
 
+  // Build before/after snapshot so the LLM cannot misinterpret what changed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const beforeItems = mealItems.map((e: any) => {
+    const a = Array.isArray(e.alimento) ? e.alimento[0] : e.alimento
+    return `${a?.nombre} ${e.cantidad}${e.unidad}`
+  }).join(', ')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const afterItems = mealItems
+    .filter((e: any) => !bajarEntry || e.id !== bajarEntry.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((e: any) => {
+      const a = Array.isArray(e.alimento) ? e.alimento[0] : e.alimento
+      const qty = e.id === subirEntry.id ? newCantidad : e.cantidad
+      return `${a?.nombre} ${qty}${e.unidad}`
+    }).join(', ')
+
   return {
-    result: `CAMBIO EJECUTADO en ${comida} del ${DIAS_NOMBRES[dia - 1]}: Subí ${subirFood.nombre} de ${subirEntry.cantidad}${subirEntry.unidad} a ${displayQty}${bajarMsg}. El día queda en ~${Math.round(projKcal)} kcal y ~${Math.round(projProt)}g proteína (meta: ${calTarget} kcal, ${protTarget}g prot). Usa estos datos para confirmar a la usuaria.`,
+    result: `CAMBIO EJECUTADO en ${comida} del ${DIAS_NOMBRES[dia - 1]}:\nANTES: ${beforeItems}\nDESPUÉS: ${afterItems}\nSubí ${subirFood.nombre} de ${subirEntry.cantidad}${subirEntry.unidad} a ${displayQty}${bajarMsg}.\nEl día queda en ~${Math.round(projKcal)} kcal y ~${Math.round(projProt)}g proteína (meta: ${calTarget} kcal, ${protTarget}g prot).\nIMPORTANTE: Confirma a la usuaria EXACTAMENTE lo que dice este resultado. El CALENDARIO del system prompt ya se actualizó — no lo uses para deducir qué había antes.`,
     revertData,
   }
 }
