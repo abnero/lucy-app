@@ -31,6 +31,7 @@ interface BannerAnalisisDiaProps {
   diaDato: DiaProblemático;
   onAplicarSugerencia: (sugerencia: Sugerencia, dia: number) => Promise<void>;
   onAgregarSnack?: (opcion: OpcionSnack, dia: number) => Promise<{ compensaciones: Compensacion[] }>;
+  readonly?: boolean;
 }
 
 interface SnackResultado {
@@ -39,7 +40,7 @@ interface SnackResultado {
   compensaciones: Compensacion[];
 }
 
-export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack }: BannerAnalisisDiaProps) {
+export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack, readonly }: BannerAnalisisDiaProps) {
   const trackEvent = useTrackEvent();
   const [abierto, setAbierto] = useState(false);
   const [aplicando, setAplicando] = useState<number | null>(null);
@@ -189,11 +190,14 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                           </div>
                           <button
                             onClick={() => handleAgregarSnack(opcion)}
-                            disabled={!!snackAgregando}
+                            disabled={readonly || !!snackAgregando}
+                            title={readonly ? "Ajusta a mano" : undefined}
                             className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
-                              cargando
-                                ? "bg-gray-100 text-gray-400 cursor-wait"
-                                : "bg-[#7B7FC4] text-white active:scale-95"
+                              readonly
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                : cargando
+                                  ? "bg-gray-100 text-gray-400 cursor-wait"
+                                  : "bg-[#7B7FC4] text-white active:scale-95"
                             }`}
                           >
                             {cargando ? "..." : "Agregar"}
@@ -227,8 +231,9 @@ export function BannerAnalisisDia({ diaDato, onAplicarSugerencia, onAgregarSnack
                   </div>
                   <button
                     onClick={() => handleAplicar(sug, i)}
-                    disabled={aplicando !== null || yaAplicado}
-                    className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
+                    disabled={readonly || aplicando !== null || yaAplicado}
+                    title={readonly ? "Ajusta a mano" : undefined}
+                    className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${readonly ? "bg-gray-100 text-gray-400 cursor-not-allowed" : yaAplicado ? "bg-green-100 text-green-600 cursor-default" : aplicando === i ? "bg-gray-100 text-gray-400 cursor-wait" : "bg-[#7B7FC4] text-white active:scale-95"}`}
                   >
                     {yaAplicado ? "✓" : aplicando === i ? "..." : "Aplicar"}
                   </button>

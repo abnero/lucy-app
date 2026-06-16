@@ -358,6 +358,7 @@ export default function CoachPage() {
                       key={diaDato.dia}
                       diaDato={diaDato}
                       onAplicarSugerencia={async () => {}}
+                      readonly
                     />
                   ) : null
                 })()}
