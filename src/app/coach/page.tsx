@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
-import FoodAvatar from '@/components/FoodAvatar'
-import { toImperial } from '@/lib/units'
+import { CalendarDayView, CalendarWeekView, type CalendarViewItem } from '@/components/CalendarView'
 
 interface Clienta {
   id: string
@@ -15,30 +14,6 @@ interface Clienta {
   carbs_objetivo: number | null
   grasas_objetivo: number | null
   meta: string | null
-}
-
-interface AlimentoData {
-  nombre: string
-  foto_url: string | null
-  categoria_comida: string
-  calorias_por_unidad: number
-  proteina_por_unidad: number
-  carbs_por_unidad: number
-  grasas_por_unidad: number
-  porcion_base: number
-  unidad_medida: string
-  unidad_display: string | null
-  factor_conversion: number | null
-}
-
-interface CalItem {
-  id: string
-  dia: number
-  comida: string
-  cantidad: number
-  unidad: string
-  origen: string
-  alimento: AlimentoData
 }
 
 interface HistorialItem {
@@ -60,172 +35,6 @@ interface HistorialItem {
   nota: string | null
 }
 
-interface MacroTotals {
-  cal: number
-  prot: number
-  carbs: number
-  grasas: number
-}
-
-const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-const COMIDAS = [
-  { key: 'desayuno', label: 'Desayuno' },
-  { key: 'almuerzo', label: 'Almuerzo' },
-  { key: 'cena', label: 'Cena' },
-  { key: 'snack', label: 'Snack' },
-]
-
-function calcItemMacros(cantidad: number, a: AlimentoData): MacroTotals {
-  const ratio = a.unidad_medida === 'unidad' ? cantidad : cantidad / (a.porcion_base || 100)
-  return {
-    cal: Math.round(a.calorias_por_unidad * ratio),
-    prot: Math.round(a.proteina_por_unidad * ratio),
-    carbs: Math.round(a.carbs_por_unidad * ratio),
-    grasas: Math.round(a.grasas_por_unidad * ratio),
-  }
-}
-
-function sumMacros(items: CalItem[]): MacroTotals {
-  const totals = { cal: 0, prot: 0, carbs: 0, grasas: 0 }
-  for (const item of items) {
-    if (!item.alimento) continue
-    const m = calcItemMacros(item.cantidad, item.alimento)
-    totals.cal += m.cal
-    totals.prot += m.prot
-    totals.carbs += m.carbs
-    totals.grasas += m.grasas
-  }
-  return totals
-}
-
-function getDisplayUnit(a: AlimentoData): { label: string; step: number; toDisplay: (db: number) => number; toDb: (display: number) => number; maxDisplay: number } {
-  if (a.unidad_medida === 'unidad') {
-    return { label: 'uds', step: 1, toDisplay: v => v, toDb: v => v, maxDisplay: 50 }
-  }
-
-  const display = a.unidad_display
-  const factor = a.factor_conversion
-  if (!display || !factor || factor <= 0) {
-    return { label: a.unidad_medida === 'ml' ? 'ml' : 'g', step: 10, toDisplay: v => v, toDb: v => v, maxDisplay: 2000 }
-  }
-
-  const toDisplay = (db: number) => Math.round((db / factor) * 100) / 100
-  const toDb = (dv: number) => dv * factor
-  const maxDisplay = Math.round(toDisplay(2000) * 10) / 10
-
-  switch (display) {
-    case 'oz':
-    case 'fl_oz':
-      return { label: display === 'fl_oz' ? 'fl oz' : 'oz', step: 0.5, toDisplay, toDb, maxDisplay }
-    case 'cup':
-      return { label: 'tazas', step: 0.25, toDisplay, toDb, maxDisplay }
-    case 'tbsp':
-      return { label: 'cdas', step: 1, toDisplay, toDb, maxDisplay }
-    case 'scoop':
-      return { label: 'scoops', step: 1, toDisplay, toDb, maxDisplay }
-    case 'tajada':
-      return { label: 'tajadas', step: 1, toDisplay, toDb, maxDisplay }
-    case 'unidad':
-      return { label: 'uds', step: 1, toDisplay, toDb, maxDisplay }
-    default:
-      return { label: 'g', step: 10, toDisplay: v => v, toDb: v => v, maxDisplay: 2000 }
-  }
-}
-
-function EditableQuantityInput({
-  item,
-  mode,
-  onSave,
-}: {
-  item: CalItem
-  mode: 'coach' | 'clienta'
-  onSave: (itemId: string, newCantidadDb: number) => Promise<void>
-}) {
-  const unit = item.alimento ? getDisplayUnit(item.alimento) : null
-  const displayValue = unit ? unit.toDisplay(item.cantidad) : item.cantidad
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(displayValue.toString())
-  const [saving, setSaving] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  // Sync when item.cantidad changes from outside (e.g. after server response)
-  useEffect(() => {
-    if (!editing && unit) setValue(unit.toDisplay(item.cantidad).toString())
-  }, [item.cantidad, editing]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (mode === 'clienta') {
-    return (
-      <p className="text-xs text-lucy-muted">
-        {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
-      </p>
-    )
-  }
-
-  const commitEdit = async () => {
-    if (!unit) return
-    const parsed = parseFloat(value)
-    // Revert if empty, 0, negative, NaN, or unchanged
-    if (!parsed || parsed <= 0 || isNaN(parsed) || parsed === displayValue) {
-      setValue(displayValue.toString())
-      setEditing(false)
-      return
-    }
-    const clamped = Math.min(parsed, unit.maxDisplay)
-    const dbValue = Math.round(unit.toDb(clamped) * 10) / 10
-    setSaving(true)
-    await onSave(item.id, dbValue)
-    setSaving(false)
-    setEditing(false)
-  }
-
-  if (!editing) {
-    return (
-      <button
-        onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.select(), 0) }}
-        className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors text-left"
-        disabled={saving}
-      >
-        {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
-        {saving && <span className="ml-1 text-lucy-accent">...</span>}
-      </button>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-1">
-      <input
-        ref={inputRef}
-        type="number"
-        value={value}
-        onChange={e => setValue(e.target.value)}
-        onBlur={commitEdit}
-        onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setValue(displayValue.toString()); setEditing(false) } }}
-        min={unit?.step || 1}
-        max={unit?.maxDisplay || 2000}
-        step={unit?.step || 1}
-        className="w-16 border border-lucy-accent rounded px-1.5 py-0.5 text-xs text-lucy-text focus:outline-none focus:ring-1 focus:ring-lucy-accent"
-        autoFocus
-      />
-      <span className="text-[10px] text-lucy-muted">{unit?.label || 'g'}</span>
-    </div>
-  )
-}
-
-function MacroBar({ label, totals }: { label: string; totals: MacroTotals }) {
-  return (
-    <div className="flex items-center gap-2 text-[10px] text-lucy-soft">
-      <span className="text-lucy-muted">{label}:</span>
-      <span>{totals.cal} cal</span>
-      <span className="text-lucy-border">|</span>
-      <span>{totals.prot}p</span>
-      <span className="text-lucy-border">|</span>
-      <span>{totals.carbs}c</span>
-      <span className="text-lucy-border">|</span>
-      <span>{totals.grasas}g</span>
-    </div>
-  )
-}
-
 export default function CoachPage() {
   const { user, session, loading } = useAuth()
   const router = useRouter()
@@ -233,7 +42,7 @@ export default function CoachPage() {
   const [isCoach, setIsCoach] = useState<boolean | null>(null)
   const [clientas, setClientas] = useState<Clienta[]>([])
   const [selected, setSelected] = useState<Clienta | null>(null)
-  const [calItems, setCalItems] = useState<CalItem[]>([])
+  const [calItems, setCalItems] = useState<CalendarViewItem[]>([])
   const [historial, setHistorial] = useState<HistorialItem[]>([])
   const [diaActivo, setDiaActivo] = useState(1)
   const [vista, setVista] = useState<'dia' | 'semana'>('dia')
@@ -328,7 +137,6 @@ export default function CoachPage() {
     const data = await res.json()
     if (!data.success) return
 
-    // Update local state: quantity + origen for the edited item
     setCalItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, cantidad: newCantidad, origen: 'coach' } : item
     ))
@@ -383,10 +191,8 @@ export default function CoachPage() {
     if (data.success) {
       setAdjustMsg('Plan actualizado exitosamente')
       setNota('')
-      // Refresh calendar + historial
       setSelected({ ...selected, calorias_objetivo: parseInt(calorias) })
       setClientas(prev => prev.map(c => c.id === selected.id ? { ...c, calorias_objetivo: parseInt(calorias) } : c))
-      // Re-fetch calendario + historial
       if (session?.access_token) {
         fetch('/api/coach/clientas', {
           method: 'POST',
@@ -423,9 +229,6 @@ export default function CoachPage() {
     router.push('/mi-calendario')
     return null
   }
-
-  const itemsDelDia = calItems.filter(i => i.dia === diaActivo)
-  const macrosDia = sumMacros(itemsDelDia)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F8F7FC' }}>
@@ -514,90 +317,19 @@ export default function CoachPage() {
                   ) : calItems.length === 0 ? (
                     <p className="text-lucy-muted text-sm text-center py-8">Esta clienta no tiene calendario generado</p>
                   ) : vista === 'dia' ? (
-                    <>
-                      {/* Day tabs */}
-                      <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-hide">
-                        {DIAS.map((d, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setDiaActivo(i + 1)}
-                            className={`shrink-0 px-3 py-1.5 rounded-btn text-xs transition-colors ${
-                              diaActivo === i + 1 ? 'bg-lucy-accent text-white' : 'bg-gray-50 text-lucy-muted hover:bg-gray-100'
-                            }`}
-                          >
-                            {d.slice(0, 3)}
-                          </button>
-                        ))}
-                      </div>
-                      {/* Meals */}
-                      <div className="space-y-4">
-                        {COMIDAS.map(({ key, label }) => {
-                          const items = itemsDelDia.filter(i => i.comida === key)
-                          if (items.length === 0) return null
-                          const macrosComida = sumMacros(items)
-                          return (
-                            <div key={key}>
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{label}</p>
-                                <MacroBar label="" totals={macrosComida} />
-                              </div>
-                              <div className="space-y-2">
-                                {items.map(item => (
-                                  <div key={item.id} className={`flex items-center gap-2 ${item.origen === 'coach' ? 'pl-1 border-l-2 border-lucy-accent' : ''}`}>
-                                    <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
-                                      <EditableQuantityInput item={item} mode="coach" onSave={handleSaveQuantity} />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      {/* Day totals */}
-                      <div className="mt-4 pt-3 border-t border-lucy-border">
-                        <MacroBar label="Total del día" totals={macrosDia} />
-                      </div>
-                    </>
+                    <CalendarDayView
+                      items={calItems}
+                      diaActivo={diaActivo}
+                      onChangeDia={setDiaActivo}
+                      mode="coach"
+                      onSaveQuantity={handleSaveQuantity}
+                    />
                   ) : (
-                    /* Weekly view — read-only, tap navigates to day */
-                    <div className="overflow-x-auto scrollbar-hide">
-                      <div style={{ minWidth: 'max-content' }}>
-                        <div className="flex border-b border-lucy-border">
-                          <div style={{ width: '70px' }} className="shrink-0" />
-                          {DIAS.map((d, i) => (
-                            <div key={i} style={{ width: '120px' }} className="shrink-0 px-2 py-2 text-center">
-                              <p className="text-[11px] text-lucy-muted uppercase">{d.slice(0, 3)}</p>
-                            </div>
-                          ))}
-                        </div>
-                        {COMIDAS.slice(0, 3).map(({ key, label }) => (
-                          <div key={key} className="flex border-b border-lucy-border/50">
-                            <div style={{ width: '70px' }} className="shrink-0 px-2 py-2 text-[10px] text-lucy-muted uppercase">{label}</div>
-                            {DIAS.map((_, i) => {
-                              const items = calItems.filter(it => it.dia === i + 1 && it.comida === key)
-                              return (
-                                <button
-                                  key={i}
-                                  onClick={() => { setDiaActivo(i + 1); setVista('dia') }}
-                                  style={{ width: '120px' }}
-                                  className="shrink-0 px-2 py-2 border-l border-lucy-border/30 space-y-1 text-left hover:bg-gray-50 transition-colors"
-                                >
-                                  {items.map((item, idx) => (
-                                    <div key={idx}>
-                                      <p className="text-[10px] text-lucy-text leading-tight">{item.alimento?.nombre}</p>
-                                      <p className="text-[9px] text-lucy-muted">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
-                                    </div>
-                                  ))}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <CalendarWeekView
+                      items={calItems}
+                      mode="coach"
+                      onCellClick={(dia) => { setDiaActivo(dia); setVista('dia') }}
+                    />
                   )}
                 </div>
 

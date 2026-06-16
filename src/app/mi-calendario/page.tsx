@@ -10,6 +10,7 @@ import FoodWizard, { WizardAlimento } from '@/components/FoodWizard'
 import { toImperial } from '@/lib/units'
 import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
 import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
+import { CalendarDayView, CalendarWeekView, type CalendarViewItem } from '@/components/CalendarView'
 import { useTrackEvent } from '@/hooks/useTrackEvent'
 import { registrarCambioEnChat } from '@/lib/registrar-cambio-lucy'
 import { nombreDiaCompleto, type AlimentoCalendario, type CandidatoSnack } from '@/lib/analisis-calorico'
@@ -648,37 +649,6 @@ export default function MiCalendarioPage() {
         changeDia(target.dia, target.dia > diaActivo ? 'left' : 'right')
       }} />}
 
-      {/* Day tabs */}
-      <div className="px-4 mb-4">
-        <div className="max-w-lg mx-auto">
-          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-            {DIAS.map((dia, i) => {
-              const diaNum = i + 1
-              const esProblematico = diasProblematicos.has(diaNum)
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (diaNum === diaActivo || animating.current) return
-                    changeDia(diaNum, diaNum > diaActivo ? 'left' : 'right')
-                  }}
-                  className={`relative shrink-0 px-3 py-2 rounded-btn text-xs transition-colors ${
-                    diaActivo === diaNum
-                      ? 'bg-lucy-accent text-white'
-                      : 'bg-lucy-white border border-lucy-border text-lucy-muted hover:border-lucy-soft'
-                  }`}
-                >
-                  {dia.slice(0, 3)}
-                  {esProblematico && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-lucy-bg" aria-label="Día fuera de meta" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
       {/* Day title */}
       <div className="px-4 mb-4">
         <div className="max-w-lg mx-auto">
@@ -754,88 +724,28 @@ export default function MiCalendarioPage() {
         </div>
       )}
 
-      {/* Meals — swipeable */}
+      {/* Calendar day view — shared component, wrapped for swipe */}
       <div
         ref={mealsRef}
         className="px-4 overflow-x-hidden"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div
-          className={`max-w-lg mx-auto space-y-4 transition-all duration-150 ease-in-out ${slideClass}`}
-        >
-          {COMIDAS.map(({ key, label }) => {
-            const comidaItems = itemsDelDia
-              .filter(i => i.comida === key)
-              .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
-            if (comidaItems.length === 0) return null
-            // Calculate macros for this meal
-            const mealMacros = comidaItems.reduce((acc, item) => {
-              const a = item.alimento
-              if (!a) return acc
-              const ratio = a.unidad_medida === 'unidad' ? item.cantidad : item.cantidad / (a.porcion_base || 100)
-              return {
-                cal: acc.cal + a.calorias_por_unidad * ratio,
-                prot: acc.prot + a.proteina_por_unidad * ratio,
-                carbs: acc.carbs + a.carbs_por_unidad * ratio,
-                grasas: acc.grasas + a.grasas_por_unidad * ratio,
-              }
-            }, { cal: 0, prot: 0, carbs: 0, grasas: 0 })
-
-            const popupKey = `${diaActivo}-${key}`
-            const isPopupOpen = macroPopup === popupKey
-
-            return (
-              <div key={key} className="bg-lucy-white rounded-card border border-lucy-border p-4">
-                <button
-                  onClick={() => setMacroPopup(isPopupOpen ? null : popupKey)}
-                  className="text-xs text-lucy-muted mb-3 uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  {label}
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${isPopupOpen ? 'rotate-180' : ''}`}>
-                    <path d="M2 4l3 3 3-3" stroke="#9896B0" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-
-                {/* Macro popup */}
-                {isPopupOpen && (
-                  <div className="mb-3 grid grid-cols-4 gap-1.5 animate-macroIn">
-                    {[
-                      { label: 'Cal', value: Math.round(mealMacros.cal), unit: 'kcal' },
-                      { label: 'Prot', value: Math.round(mealMacros.prot), unit: 'g' },
-                      { label: 'Carbs', value: Math.round(mealMacros.carbs), unit: 'g' },
-                      { label: 'Grasas', value: Math.round(mealMacros.grasas), unit: 'g' },
-                    ].map(m => (
-                      <div key={m.label} className="border border-lucy-border rounded-btn p-2 text-center">
-                        <p className="text-sm font-medium text-lucy-text leading-tight">{m.value}</p>
-                        <p className="text-[9px] text-lucy-muted">{m.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {comidaItems.map((item, idx) => (
-                    <button key={idx} className="flex items-center gap-3 w-full text-left" onClick={() => setSelectedItem(item)}>
-                      <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} />
-                      <div>
-                        <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
-                        <p className="text-xs text-lucy-muted">
-                          {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-
-          {itemsDelDia.length === 0 && (
-            <div className="bg-lucy-white rounded-card border border-lucy-border p-8 text-center">
-              <p className="text-sm text-lucy-muted">No hay comidas programadas para este día</p>
-            </div>
-          )}
+        <div className="max-w-lg mx-auto">
+          <CalendarDayView
+            items={items as CalendarViewItem[]}
+            diaActivo={diaActivo}
+            onChangeDia={(diaNum) => {
+              if (diaNum === diaActivo || animating.current) return
+              changeDia(diaNum, diaNum > diaActivo ? 'left' : 'right')
+            }}
+            mode="clienta"
+            onItemClick={(item) => setSelectedItem(item as CalendarioItem)}
+            macroPopup={macroPopup}
+            onToggleMacroPopup={setMacroPopup}
+            slideClass={slideClass}
+            diasProblematicos={diasProblematicos}
+          />
         </div>
       </div>
 
@@ -894,50 +804,14 @@ export default function MiCalendarioPage() {
       </>)}
 
       {vista === 'semana' && (<>
-      {/* Weekly view */}
+      {/* Weekly view — shared component */}
       <div className="px-4 mb-6">
         <div className="max-w-lg mx-auto overflow-x-auto scrollbar-hide -mx-4 px-6">
-          <div className="bg-lucy-white rounded-card border border-lucy-border" style={{ minWidth: 'max-content' }}>
-            {/* Header row */}
-            <div className="flex border-b border-lucy-border">
-              <div style={{ width: '80px' }} className="shrink-0 px-2 py-2" />
-              {weekDates.map((date, i) => (
-                <div key={i} style={{ width: '130px' }} className="shrink-0 px-2 py-2 text-center border-l border-lucy-border">
-                  <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{DIAS[i].slice(0, 3)}</p>
-                  <p className="text-[10px] text-lucy-soft">{formatShortDate(date)}</p>
-                </div>
-              ))}
-            </div>
-            {/* Meal rows */}
-            {comidasSemana.map(({ key, label }) => (
-              <div key={key} className="flex border-b border-lucy-border last:border-b-0">
-                <div style={{ width: '80px' }} className="shrink-0 px-2 py-3 flex items-start">
-                  <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{label}</p>
-                </div>
-                {weekDates.map((_, i) => {
-                  const dia = i + 1
-                  const cellItems = items
-                    .filter(it => it.dia === dia && it.comida === key)
-                    .sort((a, b) => (ORDEN_CATEGORIA[a.alimento?.categoria_comida] || 6) - (ORDEN_CATEGORIA[b.alimento?.categoria_comida] || 6))
-                  return (
-                    <div key={i} style={{ width: '130px' }} className="shrink-0 px-2 py-2 border-l border-lucy-border space-y-1.5">
-                      {cellItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5">
-                          <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="xs" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] text-lucy-text leading-tight" style={{ whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>{item.alimento?.nombre}</p>
-                            <p className="text-[9px] text-lucy-muted leading-tight">
-                              {item.alimento ? toImperial(item.cantidad, item.alimento) : ''}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
+          <CalendarWeekView
+            items={items as CalendarViewItem[]}
+            mode="clienta"
+            weekDates={weekDates}
+          />
         </div>
         <p className="text-center text-[10px] text-lucy-soft mt-2">Desliza horizontalmente para ver toda la semana →</p>
       </div>
