@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { CalendarDayView, CalendarWeekView, type CalendarViewItem } from '@/components/CalendarView'
+import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
+import type { AlimentoCalendario } from '@/lib/analisis-calorico'
 
 interface Clienta {
   id: string
@@ -120,6 +122,37 @@ export default function CoachPage() {
       })
       .catch(() => setLoadingCal(false))
   }, [selected, session])
+
+  // Analysis: reuse same hook as clienta for caloric analysis
+  const alimentosParaAnalisis: AlimentoCalendario[] = useMemo(() =>
+    calItems
+      .filter(i => i.alimento)
+      .map(i => ({
+        alimento_id: i.id,
+        nombre: i.alimento.nombre,
+        cantidad: i.cantidad,
+        unidad_medida: (i.alimento.unidad_medida as 'gramos' | 'ml' | 'unidad'),
+        porcion_base: i.alimento.porcion_base,
+        porcion_min: 0,
+        porcion_max: Infinity,
+        calorias_por_unidad: i.alimento.calorias_por_unidad,
+        proteina_por_unidad: i.alimento.proteina_por_unidad,
+        comida: i.comida as 'desayuno' | 'almuerzo' | 'cena' | 'snack',
+        dia: i.dia,
+        rol_permitido: [],
+      })),
+    [calItems]
+  )
+
+  const objetivosCal = selected?.calorias_objetivo || 0
+  const objetivosProt = selected?.proteina_objetivo || 0
+
+  const { diasProblematicos, getDiaDato } = useAnalisisCalorico({
+    alimentos: alimentosParaAnalisis,
+    objetivo_calorias: objetivosCal,
+    objetivo_proteina: objetivosProt,
+    onCambiarCantidad: async () => {}, // no-op: coach edits manually
+  })
 
   const handleSaveQuantity = useCallback(async (itemId: string, newCantidad: number) => {
     if (!selected || !session?.access_token) return
@@ -323,6 +356,8 @@ export default function CoachPage() {
                       onChangeDia={setDiaActivo}
                       mode="coach"
                       onSaveQuantity={handleSaveQuantity}
+                      diaDato={getDiaDato(diaActivo)}
+                      diasProblematicos={diasProblematicos}
                     />
                   ) : (
                     <CalendarWeekView
