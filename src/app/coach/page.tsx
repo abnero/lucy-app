@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { CalendarDayView, CalendarWeekView, type CalendarViewItem } from '@/components/CalendarView'
+import { BannerResumen, BannerAnalisisDia } from '@/components/AnalisisCalorico'
 import { useAnalisisCalorico } from '@/hooks/useAnalisisCalorico'
 import type { AlimentoCalendario } from '@/lib/analisis-calorico'
 
@@ -147,7 +148,7 @@ export default function CoachPage() {
   const objetivosCal = selected?.calorias_objetivo || 0
   const objetivosProt = selected?.proteina_objetivo || 0
 
-  const { diasProblematicos, getDiaDato } = useAnalisisCalorico({
+  const { resultado, diasProblematicos, getDiaDato } = useAnalisisCalorico({
     alimentos: alimentosParaAnalisis,
     objetivo_calorias: objetivosCal,
     objetivo_proteina: objetivosProt,
@@ -343,6 +344,24 @@ export default function CoachPage() {
                   </div>
                 </div>
 
+                {/* Analysis banners — same components as clienta, suggestions are no-op */}
+                {vista === 'dia' && resultado && (
+                  <BannerResumen resultado={resultado} onVerDetalle={() => {
+                    const target = resultado.dias_problematicos.find(d => d.dia !== diaActivo) ?? resultado.dias_problematicos[0]
+                    if (target && target.dia !== diaActivo) setDiaActivo(target.dia)
+                  }} />
+                )}
+                {vista === 'dia' && (() => {
+                  const diaDato = getDiaDato(diaActivo)
+                  return diaDato ? (
+                    <BannerAnalisisDia
+                      key={diaDato.dia}
+                      diaDato={diaDato}
+                      onAplicarSugerencia={async () => {}}
+                    />
+                  ) : null
+                })()}
+
                 {/* Calendar */}
                 <div className="bg-white rounded-2xl border border-lucy-border p-4">
                   {loadingCal ? (
@@ -356,7 +375,6 @@ export default function CoachPage() {
                       onChangeDia={setDiaActivo}
                       mode="coach"
                       onSaveQuantity={handleSaveQuantity}
-                      diaDato={getDiaDato(diaActivo)}
                       diasProblematicos={diasProblematicos}
                     />
                   ) : (

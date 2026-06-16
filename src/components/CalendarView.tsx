@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import FoodAvatar from '@/components/FoodAvatar'
 import { toImperial } from '@/lib/units'
-import type { DiaProblemático } from '@/lib/analisis-calorico'
 
 // ── Types ──
 
@@ -210,46 +209,6 @@ function QuantityDisplay({ item }: { item: CalendarViewItem }) {
   )
 }
 
-// ── Coach Analysis Banner (informational, no action buttons) ──
-
-function BannerAnalisisCoach({ diaDato }: { diaDato: DiaProblemático }) {
-  const tieneExcesoCal = diaDato.problemas.includes('exceso_calorias')
-  const tieneDeficitCal = diaDato.problemas.includes('deficit_calorias')
-  const tieneDeficitProt = diaDato.problemas.includes('deficit_proteina')
-  const tieneExcesoProt = diaDato.problemas.includes('exceso_proteina')
-  const kcalDiff = Math.abs(diaDato.diferencia_calorias)
-  const protDiff = Math.abs(Math.round(diaDato.diferencia_proteina))
-
-  const calProblem = tieneExcesoCal || tieneDeficitCal
-  const protProblem = tieneDeficitProt || tieneExcesoProt
-  const protMsg = tieneExcesoProt ? `${protDiff}g prot de más` : `${protDiff}g prot de menos`
-
-  let mensaje: string
-  if (calProblem && protProblem) {
-    const calPart = tieneExcesoCal ? `${kcalDiff} kcal de más` : `${kcalDiff} kcal de menos`
-    mensaje = `${calPart} · ${protMsg}`
-  } else if (tieneExcesoCal) {
-    mensaje = `${kcalDiff} kcal de más`
-  } else if (tieneDeficitCal) {
-    mensaje = `${kcalDiff} kcal de menos`
-  } else {
-    mensaje = protMsg
-  }
-
-  return (
-    <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-      <div className="flex items-center gap-2">
-        <span className="text-red-500 text-sm">⚠️</span>
-        <span className="text-xs font-medium text-red-700">{mensaje}</span>
-      </div>
-      <div className="flex gap-3 mt-1 text-[10px] text-red-600">
-        <span>🔥 {Math.round(diaDato.macros.calorias)} / {diaDato.objetivo_calorias} kcal</span>
-        <span>💪 {Math.round(diaDato.macros.proteina)}g / {Math.round(diaDato.objetivo_proteina)}g prot</span>
-      </div>
-    </div>
-  )
-}
-
 // ── Day View ──
 
 interface CalendarDayViewProps {
@@ -259,7 +218,6 @@ interface CalendarDayViewProps {
   mode: 'coach' | 'clienta'
   // Coach mode
   onSaveQuantity?: (itemId: string, newCantidadDb: number) => Promise<void>
-  diaDato?: DiaProblemático | undefined
   // Clienta mode
   onItemClick?: (item: CalendarViewItem) => void
   macroPopup?: string | null
@@ -275,7 +233,6 @@ export function CalendarDayView({
   onChangeDia,
   mode,
   onSaveQuantity,
-  diaDato,
   onItemClick,
   macroPopup,
   onToggleMacroPopup,
@@ -287,9 +244,6 @@ export function CalendarDayView({
 
   return (
     <>
-      {/* Coach analysis banner — informational, no action buttons */}
-      {mode === 'coach' && diaDato && <BannerAnalisisCoach diaDato={diaDato} />}
-
       {/* Day tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-hide">
         {DIAS.map((d, i) => {
