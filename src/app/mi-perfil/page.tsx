@@ -61,6 +61,7 @@ export default function MiPerfilPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [showRegenConfirm, setShowRegenConfirm] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+  const [showCoachWarning, setShowCoachWarning] = useState<'flujo2' | 'flujo3' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const originalValues = useRef<{ nombre: string; peso: string; pies: string; pulgadas: string; edad: string; genero: Genero; nivel: NivelActividad | null; meta: string } | null>(null)
 
@@ -223,7 +224,19 @@ export default function MiPerfilPage() {
         return
       }
 
-      // generar-plan handles clearing calendario (filtered by origen='generado') and lista_compras
+      // Check for coach-edited rows before recalculating
+      const { count: coachCount } = await supabase
+        .from('calendario')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
+        .eq('origen', 'coach')
+
+      if (coachCount && coachCount > 0) {
+        setSaving(false)
+        setShowCoachWarning('flujo2')
+        return
+      }
+
       router.push('/generando?modo=actualizacion')
     } else {
       // Only name changed — simple update, stay on page
@@ -489,7 +502,19 @@ export default function MiPerfilPage() {
 
           {/* Change foods */}
           <button
-            onClick={() => router.push('/seleccion-alimentos')}
+            onClick={async () => {
+              const { count: coachCount } = await supabase
+                .from('calendario')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', user!.id)
+                .eq('origen', 'coach')
+
+              if (coachCount && coachCount > 0) {
+                setShowCoachWarning('flujo3')
+              } else {
+                router.push('/seleccion-alimentos')
+              }
+            }}
             className="w-full mt-3 border border-lucy-accent text-lucy-accent font-medium rounded-btn py-2.5 px-4 text-sm hover:bg-lucy-accent/5 transition-colors"
           >
             Cambiar mis alimentos
@@ -529,6 +554,43 @@ export default function MiPerfilPage() {
               </button>
               <button
                 onClick={() => setShowRegenConfirm(false)}
+                className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Coach adjustments warning modal */}
+      {showCoachWarning && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-30" onClick={() => setShowCoachWarning(null)} />
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-6 pointer-events-none">
+            <div className="bg-lucy-white rounded-card border border-lucy-border p-6 w-full max-w-xs pointer-events-auto animate-macroIn">
+              <div className="text-center mb-4">
+                <p className="text-sm font-medium text-lucy-text">Tu coach ajustó tu plan</p>
+              </div>
+              <p className="text-xs text-lucy-muted text-center leading-relaxed mb-5">
+                Si recalculas, se pierden esos ajustes. ¿Seguro?
+              </p>
+              <button
+                onClick={() => {
+                  const dest = showCoachWarning
+                  setShowCoachWarning(null)
+                  if (dest === 'flujo2') {
+                    router.push('/generando?modo=actualizacion')
+                  } else {
+                    router.push('/seleccion-alimentos')
+                  }
+                }}
+                className="w-full bg-lucy-accent text-white font-medium rounded-btn py-2.5 px-4 text-sm hover:opacity-90 transition-opacity mb-2"
+              >
+                Sí, recalcular
+              </button>
+              <button
+                onClick={() => setShowCoachWarning(null)}
                 className="w-full text-xs text-lucy-muted hover:text-lucy-accent transition-colors py-1"
               >
                 Cancelar

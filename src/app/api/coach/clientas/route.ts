@@ -62,13 +62,13 @@ export async function POST(req: NextRequest) {
     const [calRes, histRes] = await Promise.all([
       sb
         .from('calendario')
-        .select('dia, comida, cantidad, unidad, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
+        .select('id, dia, comida, cantidad, unidad, origen, alimento:alimentos(nombre, foto_url, categoria_comida, calorias_por_unidad, proteina_por_unidad, carbs_por_unidad, grasas_por_unidad, porcion_base, unidad_medida, unidad_display, factor_conversion)')
         .eq('user_id', clientaId)
         .order('dia')
         .order('comida'),
       sb
         .from('historial_coach')
-        .select('id, created_at, coach_id, calorias_antes, calorias_despues, proteina_antes, proteina_despues, carbs_antes, carbs_despues, grasas_antes, grasas_despues, nota, coach:coaches!coach_id(email)')
+        .select('id, created_at, coach_id, tipo, calorias_antes, calorias_despues, proteina_antes, proteina_despues, carbs_antes, carbs_despues, grasas_antes, grasas_despues, alimento_nombre, cantidad_antes, cantidad_despues, nota, coach:coaches!coach_id(email)')
         .eq('clienta_user_id', clientaId)
         .order('created_at', { ascending: false })
         .limit(10),

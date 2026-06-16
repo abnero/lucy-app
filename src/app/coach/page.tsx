@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import FoodAvatar from '@/components/FoodAvatar'
@@ -17,30 +17,35 @@ interface Clienta {
   meta: string | null
 }
 
+interface AlimentoData {
+  nombre: string
+  foto_url: string | null
+  categoria_comida: string
+  calorias_por_unidad: number
+  proteina_por_unidad: number
+  carbs_por_unidad: number
+  grasas_por_unidad: number
+  porcion_base: number
+  unidad_medida: string
+  unidad_display: string | null
+  factor_conversion: number | null
+}
+
 interface CalItem {
+  id: string
   dia: number
   comida: string
   cantidad: number
   unidad: string
-  alimento: {
-    nombre: string
-    foto_url: string | null
-    categoria_comida: string
-    calorias_por_unidad: number
-    proteina_por_unidad: number
-    carbs_por_unidad: number
-    grasas_por_unidad: number
-    porcion_base: number
-    unidad_medida: string
-    unidad_display: string | null
-    factor_conversion: number | null
-  }
+  origen: string
+  alimento: AlimentoData
 }
 
 interface HistorialItem {
   id: string
   created_at: string
   coach?: { email: string } | null
+  tipo?: string
   calorias_antes: number
   calorias_despues: number
   proteina_antes: number
@@ -49,7 +54,17 @@ interface HistorialItem {
   carbs_despues: number
   grasas_antes: number
   grasas_despues: number
+  alimento_nombre?: string | null
+  cantidad_antes?: number | null
+  cantidad_despues?: number | null
   nota: string | null
+}
+
+interface MacroTotals {
+  cal: number
+  prot: number
+  carbs: number
+  grasas: number
 }
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -59,6 +74,122 @@ const COMIDAS = [
   { key: 'cena', label: 'Cena' },
   { key: 'snack', label: 'Snack' },
 ]
+
+function calcItemMacros(cantidad: number, a: AlimentoData): MacroTotals {
+  const ratio = a.unidad_medida === 'unidad' ? cantidad : cantidad / (a.porcion_base || 100)
+  return {
+    cal: Math.round(a.calorias_por_unidad * ratio),
+    prot: Math.round(a.proteina_por_unidad * ratio),
+    carbs: Math.round(a.carbs_por_unidad * ratio),
+    grasas: Math.round(a.grasas_por_unidad * ratio),
+  }
+}
+
+function sumMacros(items: CalItem[]): MacroTotals {
+  const totals = { cal: 0, prot: 0, carbs: 0, grasas: 0 }
+  for (const item of items) {
+    if (!item.alimento) continue
+    const m = calcItemMacros(item.cantidad, item.alimento)
+    totals.cal += m.cal
+    totals.prot += m.prot
+    totals.carbs += m.carbs
+    totals.grasas += m.grasas
+  }
+  return totals
+}
+
+function EditableQuantityInput({
+  item,
+  mode,
+  onSave,
+}: {
+  item: CalItem
+  mode: 'coach' | 'clienta'
+  onSave: (itemId: string, newCantidad: number) => Promise<void>
+}) {
+  const isUnit = item.alimento?.unidad_medida === 'unidad'
+  const max = isUnit ? 50 : 2000
+  const step = isUnit ? 1 : 10
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(item.cantidad.toString())
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Sync when item.cantidad changes from outside (e.g. after server response)
+  useEffect(() => {
+    if (!editing) setValue(item.cantidad.toString())
+  }, [item.cantidad, editing])
+
+  if (mode === 'clienta') {
+    return (
+      <p className="text-xs text-lucy-muted">
+        {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
+      </p>
+    )
+  }
+
+  const commitEdit = async () => {
+    const parsed = parseFloat(value)
+    // Revert if empty, 0, negative, NaN, or unchanged
+    if (!parsed || parsed <= 0 || isNaN(parsed) || parsed === item.cantidad) {
+      setValue(item.cantidad.toString())
+      setEditing(false)
+      return
+    }
+    const clamped = Math.min(parsed, max)
+    setSaving(true)
+    await onSave(item.id, clamped)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.select(), 0) }}
+        className="text-xs text-lucy-muted hover:text-lucy-accent transition-colors text-left"
+        disabled={saving}
+      >
+        {item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}
+        {saving && <span className="ml-1 text-lucy-accent">...</span>}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        ref={inputRef}
+        type="number"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={commitEdit}
+        onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setValue(item.cantidad.toString()); setEditing(false) } }}
+        min={step}
+        max={max}
+        step={step}
+        className="w-16 border border-lucy-accent rounded px-1.5 py-0.5 text-xs text-lucy-text focus:outline-none focus:ring-1 focus:ring-lucy-accent"
+        autoFocus
+      />
+      <span className="text-[10px] text-lucy-muted">{isUnit ? 'uds' : 'g'}</span>
+    </div>
+  )
+}
+
+function MacroBar({ label, totals }: { label: string; totals: MacroTotals }) {
+  return (
+    <div className="flex items-center gap-2 text-[10px] text-lucy-soft">
+      <span className="text-lucy-muted">{label}:</span>
+      <span>{totals.cal} cal</span>
+      <span className="text-lucy-border">|</span>
+      <span>{totals.prot}p</span>
+      <span className="text-lucy-border">|</span>
+      <span>{totals.carbs}c</span>
+      <span className="text-lucy-border">|</span>
+      <span>{totals.grasas}g</span>
+    </div>
+  )
+}
 
 export default function CoachPage() {
   const { user, session, loading } = useAuth()
@@ -121,7 +252,7 @@ export default function CoachPage() {
     }
   }, [])
 
-  // We need to fetch calendar server-side. Let me create an inline fetch approach
+  // Fetch calendar + historial for selected clienta
   useEffect(() => {
     if (!selected || !session?.access_token) return
     setLoadingCal(true)
@@ -144,6 +275,28 @@ export default function CoachPage() {
         setLoadingCal(false)
       })
       .catch(() => setLoadingCal(false))
+  }, [selected, session])
+
+  const handleSaveQuantity = useCallback(async (itemId: string, newCantidad: number) => {
+    if (!selected || !session?.access_token) return
+
+    const res = await fetch('/api/coach/ajustar-cantidad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({
+        clientaUserId: selected.id,
+        calendarioRowId: itemId,
+        cantidadNueva: newCantidad,
+      }),
+    })
+
+    const data = await res.json()
+    if (!data.success) return
+
+    // Update local state: quantity + origen for the edited item
+    setCalItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, cantidad: newCantidad, origen: 'coach' } : item
+    ))
   }, [selected, session])
 
   const handleSlider = (which: 'prot' | 'carbs' | 'grasas', value: number) => {
@@ -237,6 +390,7 @@ export default function CoachPage() {
   }
 
   const itemsDelDia = calItems.filter(i => i.dia === diaActivo)
+  const macrosDia = sumMacros(itemsDelDia)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F8F7FC' }}>
@@ -341,20 +495,24 @@ export default function CoachPage() {
                         ))}
                       </div>
                       {/* Meals */}
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {COMIDAS.map(({ key, label }) => {
                           const items = itemsDelDia.filter(i => i.comida === key)
                           if (items.length === 0) return null
+                          const macrosComida = sumMacros(items)
                           return (
                             <div key={key}>
-                              <p className="text-[11px] text-lucy-muted uppercase tracking-wider mb-2">{label}</p>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-[11px] text-lucy-muted uppercase tracking-wider">{label}</p>
+                                <MacroBar label="" totals={macrosComida} />
+                              </div>
                               <div className="space-y-2">
-                                {items.map((item, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
+                                {items.map(item => (
+                                  <div key={item.id} className={`flex items-center gap-2 ${item.origen === 'coach' ? 'pl-1 border-l-2 border-lucy-accent' : ''}`}>
                                     <FoodAvatar nombre={item.alimento?.nombre || '?'} foto_url={item.alimento?.foto_url} size="sm" />
-                                    <div>
+                                    <div className="flex-1 min-w-0">
                                       <p className="text-sm text-lucy-text">{item.alimento?.nombre}</p>
-                                      <p className="text-xs text-lucy-muted">{item.alimento ? toImperial(item.cantidad, item.alimento) : `${item.cantidad} ${item.unidad}`}</p>
+                                      <EditableQuantityInput item={item} mode="coach" onSave={handleSaveQuantity} />
                                     </div>
                                   </div>
                                 ))}
@@ -363,9 +521,13 @@ export default function CoachPage() {
                           )
                         })}
                       </div>
+                      {/* Day totals */}
+                      <div className="mt-4 pt-3 border-t border-lucy-border">
+                        <MacroBar label="Total del día" totals={macrosDia} />
+                      </div>
                     </>
                   ) : (
-                    /* Weekly view */
+                    /* Weekly view — read-only, tap navigates to day */
                     <div className="overflow-x-auto scrollbar-hide">
                       <div style={{ minWidth: 'max-content' }}>
                         <div className="flex border-b border-lucy-border">
@@ -382,14 +544,19 @@ export default function CoachPage() {
                             {DIAS.map((_, i) => {
                               const items = calItems.filter(it => it.dia === i + 1 && it.comida === key)
                               return (
-                                <div key={i} style={{ width: '120px' }} className="shrink-0 px-2 py-2 border-l border-lucy-border/30 space-y-1">
+                                <button
+                                  key={i}
+                                  onClick={() => { setDiaActivo(i + 1); setVista('dia') }}
+                                  style={{ width: '120px' }}
+                                  className="shrink-0 px-2 py-2 border-l border-lucy-border/30 space-y-1 text-left hover:bg-gray-50 transition-colors"
+                                >
                                   {items.map((item, idx) => (
                                     <div key={idx}>
                                       <p className="text-[10px] text-lucy-text leading-tight">{item.alimento?.nombre}</p>
                                       <p className="text-[9px] text-lucy-muted">{item.alimento ? toImperial(item.cantidad, item.alimento) : ''}</p>
                                     </div>
                                   ))}
-                                </div>
+                                </button>
                               )
                             })}
                           </div>
@@ -482,9 +649,15 @@ export default function CoachPage() {
                             <span className="text-lucy-muted">{new Date(h.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             <span className="text-lucy-soft">{h.coach?.email}</span>
                           </div>
-                          <p className="text-lucy-text">
-                            Cal: {h.calorias_antes} → {h.calorias_despues} | Prot: {h.proteina_antes}g → {h.proteina_despues}g | Carbs: {h.carbs_antes}g → {h.carbs_despues}g | Grasas: {h.grasas_antes}g → {h.grasas_despues}g
-                          </p>
+                          {h.tipo === 'cantidad' ? (
+                            <p className="text-lucy-text">
+                              {h.alimento_nombre}: {h.cantidad_antes} → {h.cantidad_despues}
+                            </p>
+                          ) : (
+                            <p className="text-lucy-text">
+                              Cal: {h.calorias_antes} → {h.calorias_despues} | Prot: {h.proteina_antes}g → {h.proteina_despues}g | Carbs: {h.carbs_antes}g → {h.carbs_despues}g | Grasas: {h.grasas_antes}g → {h.grasas_despues}g
+                            </p>
+                          )}
                           {h.nota && <p className="text-lucy-soft mt-1 italic">{h.nota}</p>}
                         </div>
                       ))}

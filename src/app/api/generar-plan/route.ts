@@ -392,6 +392,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // 6b. Reset coach-edited rows to 'generado' (their quantities were just recalculated)
+      await supabase.from('calendario').update({ origen: 'generado' }).eq('user_id', userId).eq('origen', 'coach')
+
       // 7. Rebuild shopping list
       await supabase.from('lista_compras').delete().eq('user_id', userId)
 
