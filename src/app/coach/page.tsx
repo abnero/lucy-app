@@ -98,6 +98,40 @@ function sumMacros(items: CalItem[]): MacroTotals {
   return totals
 }
 
+function getDisplayUnit(a: AlimentoData): { label: string; step: number; toDisplay: (db: number) => number; toDb: (display: number) => number; maxDisplay: number } {
+  if (a.unidad_medida === 'unidad') {
+    return { label: 'uds', step: 1, toDisplay: v => v, toDb: v => v, maxDisplay: 50 }
+  }
+
+  const display = a.unidad_display
+  const factor = a.factor_conversion
+  if (!display || !factor || factor <= 0) {
+    return { label: a.unidad_medida === 'ml' ? 'ml' : 'g', step: 10, toDisplay: v => v, toDb: v => v, maxDisplay: 2000 }
+  }
+
+  const toDisplay = (db: number) => Math.round((db / factor) * 100) / 100
+  const toDb = (dv: number) => dv * factor
+  const maxDisplay = Math.round(toDisplay(2000) * 10) / 10
+
+  switch (display) {
+    case 'oz':
+    case 'fl_oz':
+      return { label: display === 'fl_oz' ? 'fl oz' : 'oz', step: 0.5, toDisplay, toDb, maxDisplay }
+    case 'cup':
+      return { label: 'tazas', step: 0.25, toDisplay, toDb, maxDisplay }
+    case 'tbsp':
+      return { label: 'cdas', step: 1, toDisplay, toDb, maxDisplay }
+    case 'scoop':
+      return { label: 'scoops', step: 1, toDisplay, toDb, maxDisplay }
+    case 'tajada':
+      return { label: 'tajadas', step: 1, toDisplay, toDb, maxDisplay }
+    case 'unidad':
+      return { label: 'uds', step: 1, toDisplay, toDb, maxDisplay }
+    default:
+      return { label: 'g', step: 10, toDisplay: v => v, toDb: v => v, maxDisplay: 2000 }
+  }
+}
+
 function EditableQuantityInput({
   item,
   mode,
@@ -105,20 +139,19 @@ function EditableQuantityInput({
 }: {
   item: CalItem
   mode: 'coach' | 'clienta'
-  onSave: (itemId: string, newCantidad: number) => Promise<void>
+  onSave: (itemId: string, newCantidadDb: number) => Promise<void>
 }) {
-  const isUnit = item.alimento?.unidad_medida === 'unidad'
-  const max = isUnit ? 50 : 2000
-  const step = isUnit ? 1 : 10
+  const unit = item.alimento ? getDisplayUnit(item.alimento) : null
+  const displayValue = unit ? unit.toDisplay(item.cantidad) : item.cantidad
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(item.cantidad.toString())
+  const [value, setValue] = useState(displayValue.toString())
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Sync when item.cantidad changes from outside (e.g. after server response)
   useEffect(() => {
-    if (!editing) setValue(item.cantidad.toString())
-  }, [item.cantidad, editing])
+    if (!editing && unit) setValue(unit.toDisplay(item.cantidad).toString())
+  }, [item.cantidad, editing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (mode === 'clienta') {
     return (
@@ -129,16 +162,18 @@ function EditableQuantityInput({
   }
 
   const commitEdit = async () => {
+    if (!unit) return
     const parsed = parseFloat(value)
     // Revert if empty, 0, negative, NaN, or unchanged
-    if (!parsed || parsed <= 0 || isNaN(parsed) || parsed === item.cantidad) {
-      setValue(item.cantidad.toString())
+    if (!parsed || parsed <= 0 || isNaN(parsed) || parsed === displayValue) {
+      setValue(displayValue.toString())
       setEditing(false)
       return
     }
-    const clamped = Math.min(parsed, max)
+    const clamped = Math.min(parsed, unit.maxDisplay)
+    const dbValue = Math.round(unit.toDb(clamped) * 10) / 10
     setSaving(true)
-    await onSave(item.id, clamped)
+    await onSave(item.id, dbValue)
     setSaving(false)
     setEditing(false)
   }
@@ -164,14 +199,14 @@ function EditableQuantityInput({
         value={value}
         onChange={e => setValue(e.target.value)}
         onBlur={commitEdit}
-        onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setValue(item.cantidad.toString()); setEditing(false) } }}
-        min={step}
-        max={max}
-        step={step}
+        onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setValue(displayValue.toString()); setEditing(false) } }}
+        min={unit?.step || 1}
+        max={unit?.maxDisplay || 2000}
+        step={unit?.step || 1}
         className="w-16 border border-lucy-accent rounded px-1.5 py-0.5 text-xs text-lucy-text focus:outline-none focus:ring-1 focus:ring-lucy-accent"
         autoFocus
       />
-      <span className="text-[10px] text-lucy-muted">{isUnit ? 'uds' : 'g'}</span>
+      <span className="text-[10px] text-lucy-muted">{unit?.label || 'g'}</span>
     </div>
   )
 }
