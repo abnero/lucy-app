@@ -1,0 +1,1770 @@
+[
+  {
+    "rutina": "Sin Materiales",
+    "sub": "Sin equipo, donde sea",
+    "niveles": [
+      {
+        "nivel": "Básico",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Chair cat cow",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=PNNws3vi9Kc",
+                "vid": "PNNws3vi9Kc"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Hip mobility",
+                "sets": "2",
+                "reps": "10 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/dMOkrdLiUGw",
+                "vid": "dMOkrdLiUGw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Box squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=VyarbKwmOeE",
+                "vid": "VyarbKwmOeE"
+              },
+              {
+                "bloque": "3",
+                "obj": "Glúteo",
+                "ej": "Glute bridge",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=tqp5XQPpTxY",
+                "vid": "tqp5XQPpTxY"
+              },
+              {
+                "bloque": "4",
+                "obj": "Pantorrillas",
+                "ej": "Calf raises one leg",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=QEILIo9Kzlw",
+                "vid": "QEILIo9Kzlw"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Sumo squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=9ZuXKqRbT9k",
+                "vid": "9ZuXKqRbT9k"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Knee plank",
+                "sets": "3",
+                "reps": "15-20 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=Of0YDiN9p00",
+                "vid": "Of0YDiN9p00"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Crunch",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=0t4t3IpiEao",
+                "vid": "0t4t3IpiEao"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Chair cat cow",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=PNNws3vi9Kc",
+                "vid": "PNNws3vi9Kc"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Hip mobility",
+                "sets": "2",
+                "reps": "10 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/dMOkrdLiUGw",
+                "vid": "dMOkrdLiUGw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Pectoral",
+                "ej": "Wall push ups",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=-KVhapnEtuk",
+                "vid": "-KVhapnEtuk"
+              },
+              {
+                "bloque": "3",
+                "obj": "Tríceps",
+                "ej": "Wall triceps extension",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=IIWa-Yi-mEs",
+                "vid": "IIWa-Yi-mEs"
+              },
+              {
+                "bloque": "4",
+                "obj": "Hombros",
+                "ej": "Cuban press",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/kj0NTKvzeY4",
+                "vid": "kj0NTKvzeY4"
+              },
+              {
+                "bloque": "5",
+                "obj": "Espalda",
+                "ej": "Towel row",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=upS-3_worok",
+                "vid": "upS-3_worok"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Mountain climbers",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=7LmA4zSitc4",
+                "vid": "7LmA4zSitc4"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Bird dog",
+                "sets": "3",
+                "reps": "10",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=cqe97lhKVP4",
+                "vid": "cqe97lhKVP4"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Chair cat cow",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=PNNws3vi9Kc",
+                "vid": "PNNws3vi9Kc"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Hip mobility",
+                "sets": "2",
+                "reps": "10 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/dMOkrdLiUGw",
+                "vid": "dMOkrdLiUGw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Step up",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=mB_QVEAydjg",
+                "vid": "mB_QVEAydjg"
+              },
+              {
+                "bloque": "3",
+                "obj": "Pantorrillas",
+                "ej": "Seated calf raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/cL9EronUo2A",
+                "vid": "cL9EronUo2A"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Glute bridge fet elevated",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=Yqc8rKg_fz0",
+                "vid": "Yqc8rKg_fz0"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Good morning",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/yhjZbajvIDA",
+                "vid": "yhjZbajvIDA"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Incline plank",
+                "sets": "3",
+                "reps": "15-20 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=sLqrQdlWqTc",
+                "vid": "sLqrQdlWqTc"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Twist crunches",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=oiQyECfvkjo",
+                "vid": "oiQyECfvkjo"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "nivel": "Avanzado",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Cat camel",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1cs3SKwQZpM",
+                "vid": "1cs3SKwQZpM"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=o5uQ7-jATZQ",
+                "vid": "o5uQ7-jATZQ"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "90/90",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/55x3hBsqwFA",
+                "vid": "55x3hBsqwFA"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Air squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=hOzIP_sDfU0",
+                "vid": "hOzIP_sDfU0"
+              },
+              {
+                "bloque": "3",
+                "obj": "Glúteo",
+                "ej": "Hip thrust",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=cKQjaPDkdkY",
+                "vid": "cKQjaPDkdkY"
+              },
+              {
+                "bloque": "4",
+                "obj": "Pantorrillas",
+                "ej": "Deficit calf raises",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=nRsrhHOw_OM",
+                "vid": "nRsrhHOw_OM"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Lateral lunge",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=TO_mKtOMGIg",
+                "vid": "TO_mKtOMGIg"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Plank",
+                "sets": "3",
+                "reps": "20-30 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=EPiXN2bkLoQ",
+                "vid": "EPiXN2bkLoQ"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Double crunch",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=sOh7fXPWR_I",
+                "vid": "sOh7fXPWR_I"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Cat camel",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1cs3SKwQZpM",
+                "vid": "1cs3SKwQZpM"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=o5uQ7-jATZQ",
+                "vid": "o5uQ7-jATZQ"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "90/90",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/55x3hBsqwFA",
+                "vid": "55x3hBsqwFA"
+              },
+              {
+                "bloque": "2",
+                "obj": "Pectoral",
+                "ej": "Kneeling push up",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/ICG0thxmNC4",
+                "vid": "ICG0thxmNC4"
+              },
+              {
+                "bloque": "3",
+                "obj": "Tríceps",
+                "ej": "Chair dips",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=HCf97NPYeGY",
+                "vid": "HCf97NPYeGY"
+              },
+              {
+                "bloque": "4",
+                "obj": "Hombros",
+                "ej": "Wall cuban press",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=CvitLtPHqvA",
+                "vid": "CvitLtPHqvA"
+              },
+              {
+                "bloque": "5",
+                "obj": "Espalda",
+                "ej": "Inverted row bent knees",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=vqvxgFgsq_g",
+                "vid": "vqvxgFgsq_g"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Pyramid plank",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=nXuDHiBnOPg",
+                "vid": "nXuDHiBnOPg"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Russian twist",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/4FLHHxlA2x8",
+                "vid": "4FLHHxlA2x8"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Cat camel",
+                "sets": "2",
+                "reps": "5",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1cs3SKwQZpM",
+                "vid": "1cs3SKwQZpM"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=o5uQ7-jATZQ",
+                "vid": "o5uQ7-jATZQ"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "90/90",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/55x3hBsqwFA",
+                "vid": "55x3hBsqwFA"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Reverse lunges",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=xrPteyQLGAo",
+                "vid": "xrPteyQLGAo"
+              },
+              {
+                "bloque": "3",
+                "obj": "Pantorrillas",
+                "ej": "Assisted calf raise",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=6snp9ll2cgQ",
+                "vid": "6snp9ll2cgQ"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Foot elevated single leg glute bridge",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=I7Zwyzr8COk",
+                "vid": "I7Zwyzr8COk"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Single leg, deadlift",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=ep4ia78FTBQ",
+                "vid": "ep4ia78FTBQ"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Side plank",
+                "sets": "3",
+                "reps": "15-20 seg c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=r6VCY4U7JE0",
+                "vid": "r6VCY4U7JE0"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "V ups",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1_TLRl_Qlf4",
+                "vid": "1_TLRl_Qlf4"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "rutina": "Con Dumbbells",
+    "sub": "Mancuernas en casa o gym",
+    "niveles": [
+      {
+        "nivel": "Básico",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Goblet box squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=bfEntuWR9po",
+                "vid": "bfEntuWR9po"
+              },
+              {
+                "bloque": "3",
+                "obj": "Isquiotibiales",
+                "ej": "Assisted romanian deadlift",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/w7rd-6lEl8I",
+                "vid": "w7rd-6lEl8I"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Sumo squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=2SvNjQHHCx8",
+                "vid": "2SvNjQHHCx8"
+              },
+              {
+                "bloque": "5",
+                "obj": "Pantorrillas",
+                "ej": "Calf raises",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=GyWw_Q_aIbE",
+                "vid": "GyWw_Q_aIbE"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Knee plank",
+                "sets": "3",
+                "reps": "15-20 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=Of0YDiN9p00",
+                "vid": "Of0YDiN9p00"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Crunch",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=0t4t3IpiEao",
+                "vid": "0t4t3IpiEao"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Trices - pectoral",
+                "ej": "Floor press",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=lNdi7VEf2Ew",
+                "vid": "lNdi7VEf2Ew"
+              },
+              {
+                "bloque": "3",
+                "obj": "Espalda",
+                "ej": "Single arm DB Row",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=OG5S3x7T8QQ",
+                "vid": "OG5S3x7T8QQ"
+              },
+              {
+                "bloque": "4",
+                "obj": "Hombros",
+                "ej": "Shoulder press",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=AqzDJHxynwo",
+                "vid": "AqzDJHxynwo"
+              },
+              {
+                "bloque": "5",
+                "obj": "Biceps",
+                "ej": "Dumbbells, curl",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/09AYfVFf7pg",
+                "vid": "09AYfVFf7pg"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Mountain climbers",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=7LmA4zSitc4",
+                "vid": "7LmA4zSitc4"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Bird dog",
+                "sets": "3",
+                "reps": "10",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=cqe97lhKVP4",
+                "vid": "cqe97lhKVP4"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Step up",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/OxWZ-G-RdCM",
+                "vid": "OxWZ-G-RdCM"
+              },
+              {
+                "bloque": "3",
+                "obj": "Pantorrillas",
+                "ej": "Seated calf raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/cL9EronUo2A",
+                "vid": "cL9EronUo2A"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Dumbbell, glute bridge",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=cruqsnAyU6A",
+                "vid": "cruqsnAyU6A"
+              },
+              {
+                "bloque": "5",
+                "obj": "Cuadriceps",
+                "ej": "Wall sit",
+                "sets": "3",
+                "reps": "20-30 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=SszDMOZvFuw",
+                "vid": "SszDMOZvFuw"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Incline plank",
+                "sets": "3",
+                "reps": "15-20 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=sLqrQdlWqTc",
+                "vid": "sLqrQdlWqTc"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Twist crunches",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=oiQyECfvkjo",
+                "vid": "oiQyECfvkjo"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "nivel": "Avanzado",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Goblet squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=AgD7XRyH05o",
+                "vid": "AgD7XRyH05o"
+              },
+              {
+                "bloque": "3",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Deadlift",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=plb5jEO4Unw",
+                "vid": "plb5jEO4Unw"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Sumo squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=2SvNjQHHCx8",
+                "vid": "2SvNjQHHCx8"
+              },
+              {
+                "bloque": "5",
+                "obj": "Pantorrillas",
+                "ej": "Deficit calf raise",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1orsTuEvD88",
+                "vid": "1orsTuEvD88"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Plank",
+                "sets": "3",
+                "reps": "20-30 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=EPiXN2bkLoQ",
+                "vid": "EPiXN2bkLoQ"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Double crunch",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=sOh7fXPWR_I",
+                "vid": "sOh7fXPWR_I"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Espalda",
+                "ej": "Single arm DB Row",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=OG5S3x7T8QQ",
+                "vid": "OG5S3x7T8QQ"
+              },
+              {
+                "bloque": "3",
+                "obj": "Tríceps - pectoral",
+                "ej": "Kneeling push ups",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/uXoPgT5XJxA",
+                "vid": "uXoPgT5XJxA"
+              },
+              {
+                "bloque": "4",
+                "obj": "Biceps",
+                "ej": "Dumbbells, curl",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/09AYfVFf7pg",
+                "vid": "09AYfVFf7pg"
+              },
+              {
+                "bloque": "5",
+                "obj": "Hombros",
+                "ej": "Lateral raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=JLMtGSHcbIs",
+                "vid": "JLMtGSHcbIs"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Pyramid plank",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=nXuDHiBnOPg",
+                "vid": "nXuDHiBnOPg"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Russian twist",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/4FLHHxlA2x8",
+                "vid": "4FLHHxlA2x8"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Bulgarian squat",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=2Y6zutSm1AA",
+                "vid": "2Y6zutSm1AA"
+              },
+              {
+                "bloque": "3",
+                "obj": "Pantorrillas",
+                "ej": "Bent knee soleus calf raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/OedRVajm3Hc",
+                "vid": "OedRVajm3Hc"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "DB Hip thrust",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/XkiiUjR_zJ4",
+                "vid": "XkiiUjR_zJ4"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "DB Good morning",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=Gys7gqxvSDQ",
+                "vid": "Gys7gqxvSDQ"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Side plank",
+                "sets": "3",
+                "reps": "15-20 seg c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=r6VCY4U7JE0",
+                "vid": "r6VCY4U7JE0"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "V ups",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1_TLRl_Qlf4",
+                "vid": "1_TLRl_Qlf4"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "rutina": "Gimnasio",
+    "sub": "Máquinas y peso libre",
+    "niveles": [
+      {
+        "nivel": "Básico",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Goblet box squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=bfEntuWR9po",
+                "vid": "bfEntuWR9po"
+              },
+              {
+                "bloque": "3",
+                "obj": "Isquiotibiales",
+                "ej": "Lying leg curl",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=SbSNUXPRkc8",
+                "vid": "SbSNUXPRkc8"
+              },
+              {
+                "bloque": "4",
+                "obj": "Aductores",
+                "ej": "Hip adduction",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=3DaEZ0Er6cU",
+                "vid": "3DaEZ0Er6cU"
+              },
+              {
+                "bloque": "5",
+                "obj": "Pantorrillas",
+                "ej": "Calf raises",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=g_E7_q1z2bo",
+                "vid": "g_E7_q1z2bo"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Press pallof",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=EW1vtRGfcfE",
+                "vid": "EW1vtRGfcfE"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Crunch",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=0t4t3IpiEao",
+                "vid": "0t4t3IpiEao"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Espalda",
+                "ej": "Lat pulldown",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=JGeRYIZdojU",
+                "vid": "JGeRYIZdojU"
+              },
+              {
+                "bloque": "3",
+                "obj": "Hombros",
+                "ej": "Shoulder press",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=GcY6TZxfS0k",
+                "vid": "GcY6TZxfS0k"
+              },
+              {
+                "bloque": "4",
+                "obj": "Triceps",
+                "ej": "Cable triceps extension",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/EAQCQWULXXw",
+                "vid": "EAQCQWULXXw"
+              },
+              {
+                "bloque": "5",
+                "obj": "Biceps",
+                "ej": "DB curl",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/09AYfVFf7pg",
+                "vid": "09AYfVFf7pg"
+              },
+              {
+                "bloque": "6",
+                "obj": "Pectoral",
+                "ej": "DB pullover",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/gEbpSjFBpCk",
+                "vid": "gEbpSjFBpCk"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Mountain climbers",
+                "sets": "3",
+                "reps": "20",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=7LmA4zSitc4",
+                "vid": "7LmA4zSitc4"
+              },
+              {
+                "bloque": "8",
+                "obj": "Zona media",
+                "ej": "Bird dog",
+                "sets": "3",
+                "reps": "10",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=cqe97lhKVP4",
+                "vid": "cqe97lhKVP4"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Ankle dorsiflexion",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=n98Bs5yrkGw",
+                "vid": "n98Bs5yrkGw"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Seated thoracic rotation",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/shorts/1qMC9pv5c-A",
+                "vid": "1qMC9pv5c-A"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Arm swing",
+                "sets": "2",
+                "reps": "10",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=BHmBWVRDbXw",
+                "vid": "BHmBWVRDbXw"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "TRX Reverse Lunge",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/3LESQ9Tp7KI",
+                "vid": "3LESQ9Tp7KI"
+              },
+              {
+                "bloque": "3",
+                "obj": "Glúteo",
+                "ej": "Lateral walking",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/bFNQ2XwIqZs",
+                "vid": "bFNQ2XwIqZs"
+              },
+              {
+                "bloque": "4",
+                "obj": "Pantorrillas",
+                "ej": "Seated calf raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/gpXQwBBzRz0",
+                "vid": "gpXQwBBzRz0"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Sumo squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=2SvNjQHHCx8",
+                "vid": "2SvNjQHHCx8"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Incline plank",
+                "sets": "3",
+                "reps": "15-20 seg",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=sLqrQdlWqTc",
+                "vid": "sLqrQdlWqTc"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Twist crunches",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=oiQyECfvkjo",
+                "vid": "oiQyECfvkjo"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "nivel": "Avanzado",
+        "dias": [
+          {
+            "dia": "Dia 1",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Smith machine back squats",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=ii9Z-6Jxcn0",
+                "vid": "ii9Z-6Jxcn0"
+              },
+              {
+                "bloque": "3",
+                "obj": "Glúteo",
+                "ej": "Hip abduction",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=71JUVA4lZHw",
+                "vid": "71JUVA4lZHw"
+              },
+              {
+                "bloque": "4",
+                "obj": "Pantorrillas",
+                "ej": "Seated calf raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/gpXQwBBzRz0",
+                "vid": "gpXQwBBzRz0"
+              },
+              {
+                "bloque": "5",
+                "obj": "Aductores",
+                "ej": "Hip adduction",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=3DaEZ0Er6cU",
+                "vid": "3DaEZ0Er6cU"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Press pallof with rotation",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=HRiKIeyIByw",
+                "vid": "HRiKIeyIByw"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Stability ball crunches",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/z1iTk1H2Vzw",
+                "vid": "z1iTk1H2Vzw"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 2",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Espalda",
+                "ej": "Lat pulldown",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=JGeRYIZdojU",
+                "vid": "JGeRYIZdojU"
+              },
+              {
+                "bloque": "3",
+                "obj": "Tríceps - pectoral",
+                "ej": "Kneeling push ups",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/uXoPgT5XJxA",
+                "vid": "uXoPgT5XJxA"
+              },
+              {
+                "bloque": "4",
+                "obj": "Biceps",
+                "ej": "Incline curl",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/fi0m65cwqyg",
+                "vid": "fi0m65cwqyg"
+              },
+              {
+                "bloque": "5",
+                "obj": "Hombros",
+                "ej": "Lateral raise",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=JLMtGSHcbIs",
+                "vid": "JLMtGSHcbIs"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Pyramid plank",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=nXuDHiBnOPg",
+                "vid": "nXuDHiBnOPg"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "Russian twist",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/4FLHHxlA2x8",
+                "vid": "4FLHHxlA2x8"
+              }
+            ]
+          },
+          {
+            "dia": "Dia 3",
+            "ej": [
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Thoracic rotation",
+                "sets": "2",
+                "reps": "5 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=YAKZyYm5B1c",
+                "vid": "YAKZyYm5B1c"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Russian baby maker",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=GiKENv5Rgqg",
+                "vid": "GiKENv5Rgqg"
+              },
+              {
+                "bloque": "1",
+                "obj": "Movilidad articular",
+                "ej": "Shoulder mobility",
+                "sets": "2",
+                "reps": "5",
+                "desc": "",
+                "video": "https://www.youtube.com/watch?v=v37tqwFpDi8",
+                "vid": "v37tqwFpDi8"
+              },
+              {
+                "bloque": "2",
+                "obj": "Glúteo - piernas",
+                "ej": "Walking lunges",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/CX1H1ZfcfTA",
+                "vid": "CX1H1ZfcfTA"
+              },
+              {
+                "bloque": "3",
+                "obj": "Pantorrillas",
+                "ej": "DB Hip thrust",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/shorts/XkiiUjR_zJ4",
+                "vid": "XkiiUjR_zJ4"
+              },
+              {
+                "bloque": "4",
+                "obj": "Glúteo - cuadriceps",
+                "ej": "Sumo squat",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=2SvNjQHHCx8",
+                "vid": "2SvNjQHHCx8"
+              },
+              {
+                "bloque": "5",
+                "obj": "Glúteo - isquiotibiales",
+                "ej": "Deadlift",
+                "sets": "3",
+                "reps": "10-15",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=plb5jEO4Unw",
+                "vid": "plb5jEO4Unw"
+              },
+              {
+                "bloque": "6",
+                "obj": "Zona media",
+                "ej": "Side plank",
+                "sets": "3",
+                "reps": "15-20 seg c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=r6VCY4U7JE0",
+                "vid": "r6VCY4U7JE0"
+              },
+              {
+                "bloque": "7",
+                "obj": "Zona media",
+                "ej": "V ups",
+                "sets": "3",
+                "reps": "10-15 c/l",
+                "desc": "1'",
+                "video": "https://www.youtube.com/watch?v=1_TLRl_Qlf4",
+                "vid": "1_TLRl_Qlf4"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
