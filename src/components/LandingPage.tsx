@@ -996,7 +996,7 @@ export default function LandingPage() {
       <section style={{ background: '#F8F7FC', padding: '100px 0' }} className="landing-section">
         <div style={container}>
           <h2 style={{ fontSize: 42, fontWeight: 700, textAlign: 'center', marginBottom: 8 }} className="landing-h2">
-            Y cuando te inscribes hoy, también recibes 3 regalos
+            Y cuando te inscribes hoy, también recibes 6 bonos
           </h2>
           <p style={{ textAlign: 'center', fontSize: 20, color: '#555', marginBottom: 40 }}>Valor total de los bonos: $499 — incluidos gratis con Lucy</p>
 
