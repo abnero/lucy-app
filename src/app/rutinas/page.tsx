@@ -1,358 +1,127 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/context/AuthContext'
-import { supabase } from '@/lib/supabase/client'
-import rutinasData from '@/data/rutinas.json'
+import { useState } from 'react'
 
-const COLORS: Record<string, string> = {
-  'Sin Materiales': '#E0602F',
-  'Con Dumbbells': '#2F73B0',
-  'Gimnasio': '#2FA866',
-}
+export default function RutinasPage() {
+  const [email, setEmail] = useState('')
+  const [honeypot, setHoneypot] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [errMsg, setErrMsg] = useState('')
 
-interface Ejercicio {
-  bloque: string
-  obj: string
-  ej: string
-  sets: string
-  reps: string
-  desc: string
-  video: string
-  vid: string
-}
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setErrMsg('Escribe un correo válido para enviarte las rutinas.')
+      return
+    }
+    setErrMsg('')
+    setStatus('sending')
 
-interface Dia {
-  dia: string
-  ej: Ejercicio[]
-}
-
-interface Nivel {
-  nivel: string
-  dias: Dia[]
-}
-
-interface Rutina {
-  rutina: string
-  sub: string
-  niveles: Nivel[]
-}
-
-const DATA = rutinasData as Rutina[]
-
-function VideoPlayer({ vid }: { vid: string }) {
-  const [playing, setPlaying] = useState(false)
-  const [error, setError] = useState(false)
-
-  if (playing) {
-    return (
-      <div className="rt-videobox">
-        {!error ? (
-          <iframe
-            src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1&modestbranding=1&autoplay=1`}
-            allow="accelerometer;autoplay;encrypted-media;gyroscope;picture-in-picture"
-            allowFullScreen
-            onError={() => setError(true)}
-          />
-        ) : null}
-        {error && (
-          <div className="rt-fallback">
-            <a
-              href={`https://www.youtube.com/watch?v=${vid}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Ábrelo en YouTube
-            </a>
-          </div>
-        )}
-      </div>
-    )
+    try {
+      const res = await fetch('/api/rutinas-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed, empresa: honeypot }),
+      })
+      if (res.ok) {
+        setStatus('success')
+      } else {
+        setStatus('error')
+        setErrMsg('Hubo un error. Intenta de nuevo.')
+      }
+    } catch {
+      setStatus('error')
+      setErrMsg('Hubo un error. Intenta de nuevo.')
+    }
   }
-
-  return (
-    <div className="rt-play" onClick={() => setPlaying(true)}>
-      <div className="rt-ico">▶</div>
-      <div className="rt-txt">Ver demostración en video</div>
-    </div>
-  )
-}
-
-function RutinasContent() {
-  const [envIdx, setEnvIdx] = useState(0)
-  const [lvlIdx, setLvlIdx] = useState(0)
-
-  const r = DATA[envIdx]
-  const color = COLORS[r.rutina]
-  const lv = r.niveles[lvlIdx]
-
-  const handleEnv = useCallback((i: number) => {
-    setEnvIdx(i)
-    setLvlIdx(0)
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [])
-
-  const handleLvl = useCallback((i: number) => {
-    setLvlIdx(i)
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [])
 
   return (
     <>
-      {/* HERO */}
-      <div className="rt-hero">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="rt-hero-logo" src="/caribeno-fit-labs.png" alt="Caribeño Fit Labs" />
-        <div className="rt-kick">CARIBEÑO FIT LABS</div>
-        <h1 className="rt-hero-h1">Sistema de Movimiento</h1>
-        <p className="rt-hero-p">
-          Lucy te dice qué comer. Esto te dice cómo moverte. Toca cualquier ejercicio y mira el video sin salir de la página.
-        </p>
-        <div className="rt-sunbar" />
-        <div className="rt-tags">3 ENTORNOS · 2 NIVELES · VIDEO EN CADA EJERCICIO</div>
-      </div>
-
-      {/* STICKY SELECTOR */}
-      <div className="rt-selector">
-        <div className="rt-selwrap">
-          <div className="rt-sellabel">¿Dónde entrenas?</div>
-          <div className="rt-pills">
-            {DATA.map((ru, i) => (
-              <button
-                key={ru.rutina}
-                className={`rt-pill${i === envIdx ? ' on' : ''}`}
-                style={
-                  i === envIdx
-                    ? { background: COLORS[ru.rutina], borderColor: 'transparent', color: '#fff' }
-                    : {}
-                }
-                onClick={() => handleEnv(i)}
-              >
-                {ru.rutina}
-              </button>
-            ))}
-          </div>
-          <div className="rt-sellabel" style={{ marginTop: 8 }}>Tu nivel</div>
-          <div className="rt-pills rt-lvl">
-            {r.niveles.map((lv, i) => (
-              <button
-                key={lv.nivel}
-                className={`rt-pill rt-pill-lvl${i === lvlIdx ? ' on' : ''}`}
-                onClick={() => handleLvl(i)}
-              >
-                {lv.nivel}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* CONTENT */}
       <div className="rt-wrap">
-        {/* How to use */}
-        <div className="rt-howto">
-          <h3>Cómo usar tu sistema</h3>
-          <div className="rt-steps">
-            <div className="rt-step">
-              <div className="rt-step-n">1</div>
-              <div className="rt-step-q"><b>Elige tu entorno.</b> Casa, mancuernas o gym — arriba.</div>
+        <header className="rt-header">
+          <span className="rt-logo">Lucy</span>
+        </header>
+
+        <div className="rt-card">
+          {status === 'success' ? (
+            <div className="rt-success">
+              <div className="rt-check">✓</div>
+              <p className="rt-success-title">¡Listo!</p>
+              <p className="rt-success-body">
+                Revisa tu correo en los próximos minutos. Si no lo ves, busca en spam o promociones.
+              </p>
             </div>
-            <div className="rt-step">
-              <div className="rt-step-n">2</div>
-              <div className="rt-step-q"><b>Empieza en Básico.</b> Domina la técnica, luego sube a Avanzado.</div>
-            </div>
-            <div className="rt-step">
-              <div className="rt-step-n">3</div>
-              <div className="rt-step-q"><b>3 días/semana</b> con descanso entre medio. Ej: lun, mié, vie.</div>
-            </div>
-          </div>
-          <div className="rt-legend">
-            <span><b>Series</b> = rondas</span>
-            <span><b>Reps</b> = repeticiones (ej. 10-15)</span>
-            <span><b>c/l</b> = cada lado</span>
-            <span><b>seg</b> = sostener segundos</span>
-            <span><b>Desc.</b> = descanso (1&apos; = 1 min)</span>
-          </div>
+          ) : (
+            <>
+              <h1 className="rt-h1">Tus 3 rutinas de ejercicio, gratis</h1>
+              <p className="rt-sub">
+                Pon tu correo y te las envío ahora mismo — con dumbbells, sin materiales y para gimnasio. Cada ejercicio trae sets, reps, descanso y video.
+              </p>
+
+              <form onSubmit={handleSubmit} className="rt-form">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="rt-input"
+                  autoComplete="email"
+                />
+                {/* Honeypot — invisible to humans */}
+                <input
+                  type="text"
+                  name="empresa"
+                  value={honeypot}
+                  onChange={e => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
+                />
+                {errMsg && <div className="rt-err">{errMsg}</div>}
+                <button type="submit" className="rt-btn" disabled={status === 'sending'}>
+                  {status === 'sending' ? 'Enviando...' : 'Enviarme las rutinas'}
+                </button>
+              </form>
+            </>
+          )}
         </div>
 
-        {/* Routine banner */}
-        <div className="rt-rband" style={{ background: color }}>
-          <div className="rt-rk">RUTINA</div>
-          <div className="rt-rn">{r.rutina}</div>
-          <div className="rt-rs">{r.sub} · Nivel {lv.nivel}</div>
-        </div>
-
-        {/* Days */}
-        {lv.dias.map((d) => (
-          <div key={d.dia} className="rt-day">
-            <div className="rt-dayhead" style={{ background: color }}>
-              {d.dia.toUpperCase()}
-            </div>
-            {d.ej.map((e, ei) => (
-              <div key={ei} className="rt-ex">
-                <div className="rt-exrow">
-                  <div className="rt-bq">{e.bloque}</div>
-                  <div className="rt-exmeta">
-                    <div className="rt-exname">{e.ej}</div>
-                    <div className="rt-exzone">{e.obj}</div>
-                  </div>
-                  <div className="rt-exnums">
-                    <b>{e.sets}</b> series<span className="rt-sep">·</span><b>{e.reps}</b>
-                  </div>
-                </div>
-                {e.vid && <VideoPlayer vid={e.vid} key={`${envIdx}-${lvlIdx}-${d.dia}-${ei}`} />}
-              </div>
-            ))}
+        <footer className="rt-footer">
+          Sin spam. Solo lo que de verdad te sirve.
+          <div className="rt-powered">
+            <span>Powered by</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/caribeno-fit-labs.png" alt="Caribeño Fit Labs" className="rt-powered-logo" />
+            <span>Caribeño Fit Labs</span>
           </div>
-        ))}
-
-        <div className="rt-foot">CARIBEÑO FIT LABS · UN REGALO DENTRO DE TU MEMBRESÍA LUCY</div>
+        </footer>
       </div>
-    </>
-  )
-}
 
-export default function RutinasPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-  const [authorized, setAuthorized] = useState(false)
-  const [checking, setChecking] = useState(true)
-
-  useEffect(() => {
-    if (loading) return
-
-    if (!user) {
-      router.push('/login')
-      return
-    }
-
-    supabase
-      .from('usuarios')
-      .select('aprobado, email')
-      .eq('id', user.id)
-      .single()
-      .then(async ({ data }) => {
-        if (data?.aprobado) {
-          setAuthorized(true)
-          setChecking(false)
-          return
-        }
-
-        // Check emails_aprobados allowlist
-        if (data?.email) {
-          const { data: approved } = await supabase
-            .from('emails_aprobados')
-            .select('id')
-            .eq('email', data.email.toLowerCase())
-            .single()
-
-          if (approved) {
-            setAuthorized(true)
-            setChecking(false)
-            return
-          }
-        }
-
-        router.push('/waitlist')
-      })
-  }, [user, loading, router])
-
-  if (loading || checking) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FBF7F0' }}>
-        <p style={{ color: '#9aa0b5', fontSize: 14 }}>Cargando...</p>
-      </div>
-    )
-  }
-
-  if (!authorized) return null
-
-  return (
-    <div className="rt-page">
-      <RutinasContent />
       <style>{`
-        .rt-page{background:var(--cream);min-height:100vh;
-          font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-          color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
-
-        :root {
-          --terra:#C0492B;--coral:#E0602F;--amber:#F0A030;--gold:#F0C020;
-          --navy:#2E3A78;--blue:#2F73B0;--green:#2FA866;--ink:#222a44;--cream:#FBF7F0;
-          --line:#ece6da;--accent:var(--coral);
-        }
-
-        .rt-hero{background:radial-gradient(120% 90% at 50% 0%,#2c3568 0%,#1b2142 60%,#141937 100%);
-          color:#fff;text-align:center;padding:34px 20px 26px}
-        .rt-hero-logo{width:150px;margin:0 auto 14px;display:block}
-        .rt-kick{font-size:11px;letter-spacing:.42em;color:var(--gold);font-weight:700;margin-bottom:8px}
-        .rt-hero-h1{font-size:30px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;font-weight:800;margin:0}
-        .rt-hero-p{color:#cdd3ec;font-size:13.5px;max-width:520px;margin:12px auto 0}
-        .rt-sunbar{height:6px;width:min(280px,70%);margin:16px auto 4px;border-radius:4px;
-          background:linear-gradient(90deg,var(--terra) 0 14%,var(--coral) 14% 28%,var(--amber) 28% 43%,var(--gold) 43% 57%,var(--navy) 57% 71%,var(--blue) 71% 85%,var(--green) 85% 100%)}
-        .rt-tags{font-size:11px;letter-spacing:.16em;color:#aeb4d4;margin-top:8px}
-
-        .rt-selector{position:sticky;top:0;z-index:40;background:rgba(251,247,240,.96);
-          backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 14px}
-        .rt-selwrap{max-width:760px;margin:0 auto}
-        .rt-sellabel{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#9aa0b5;margin:0 2px 6px}
-        .rt-pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-        .rt-pills::-webkit-scrollbar{display:none}
-        .rt-pill{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:#5a6076;
-          font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:.15s;font-family:inherit}
-        .rt-pill.on{color:#fff;border-color:transparent}
-        .rt-pills.rt-lvl{margin-top:8px}
-        .rt-pill-lvl.on{background:var(--navy)}
-
-        .rt-wrap{max-width:760px;margin:0 auto;padding:18px 14px 60px}
-        .rt-rband{color:#fff;border-radius:16px;padding:18px 18px;margin:6px 0 16px}
-        .rt-rk{font-size:11px;letter-spacing:.32em;opacity:.92}
-        .rt-rn{font-size:26px;font-weight:800;text-transform:uppercase;line-height:1.02;margin-top:2px}
-        .rt-rs{font-size:13px;opacity:.92;margin-top:4px}
-
-        .rt-howto{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 18px}
-        .rt-howto h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--navy);margin-bottom:10px}
-        .rt-steps{display:grid;grid-template-columns:1fr;gap:10px}
-        .rt-step{display:flex;gap:10px}
-        .rt-step-n{flex:0 0 26px;font-weight:800;color:var(--coral);font-size:18px}
-        .rt-step-q{font-size:13.5px;color:#5a6076}
-        .rt-step-q b{color:var(--navy)}
-        .rt-legend{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;
-          display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:#5a6076}
-        .rt-legend b{color:var(--terra)}
-
-        .rt-day{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
-        .rt-dayhead{color:#fff;padding:10px 16px;font-weight:800;letter-spacing:.14em;font-size:14px}
-        .rt-ex{border-top:1px solid #f1ece2;padding:12px 14px}
-        .rt-ex:first-of-type{border-top:none}
-        .rt-exrow{display:flex;align-items:center;gap:12px}
-        .rt-bq{flex:0 0 26px;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;
-          font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
-        .rt-exmeta{flex:1;min-width:0}
-        .rt-exname{font-weight:800;font-size:15.5px;color:var(--ink)}
-        .rt-exzone{font-size:12px;color:#8a91a8;margin-top:1px}
-        .rt-exnums{flex:0 0 auto;text-align:right;font-size:12px;color:#6a7188}
-        .rt-exnums b{color:var(--navy);font-size:14px}
-        .rt-sep{opacity:.4;margin:0 4px}
-
-        .rt-play{margin-top:10px;display:flex;align-items:center;gap:10px;cursor:pointer;
-          border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;background:#faf8f3;transition:.15s}
-        .rt-play:hover{border-color:var(--accent)}
-        .rt-ico{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:var(--terra);color:#fff;
-          display:flex;align-items:center;justify-content:center;font-size:13px}
-        .rt-txt{font-weight:700;font-size:13px;color:#444c66}
-        .rt-videobox{margin-top:10px;position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
-        .rt-videobox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-        .rt-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-        .rt-fallback a{color:#fff;font-weight:700;font-size:14px;text-decoration:underline}
-
-        .rt-foot{text-align:center;color:#9aa0b5;font-size:11px;letter-spacing:.14em;padding:26px 0 0}
-
-        @media(min-width:560px){
-          .rt-steps{grid-template-columns:1fr 1fr 1fr}
-          .rt-hero-h1{font-size:38px}
-        }
+        .rt-wrap { max-width: 480px; margin: 0 auto; padding: 48px 20px 80px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .rt-header { text-align: center; margin-bottom: 32px; }
+        .rt-logo { font-family: Georgia, 'Times New Roman', serif; color: #2D2B45; font-size: 36px; letter-spacing: -0.01em; }
+        .rt-card { background: #FFF; border-radius: 20px; box-shadow: 0 4px 24px rgba(45,43,69,0.07); padding: 32px 24px; width: 100%; }
+        .rt-h1 { font-size: 27px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; color: #2D2B45; text-align: center; margin-bottom: 12px; }
+        .rt-sub { font-size: 15px; color: #6B6982; text-align: center; line-height: 1.6; margin-bottom: 24px; }
+        .rt-form { display: flex; flex-direction: column; gap: 12px; position: relative; }
+        .rt-input { width: 100%; font-family: inherit; font-size: 16px; color: #2D2B45; padding: 14px 14px; border: 1.5px solid #E6E4F0; border-radius: 11px; background: #F8F7FC; transition: border-color 0.2s; }
+        .rt-input:focus { outline: none; border-color: #7B7FC4; background: #FFF; }
+        .rt-btn { width: 100%; font-family: inherit; font-size: 16px; font-weight: 600; padding: 15px; border-radius: 12px; border: none; cursor: pointer; background: #7B7FC4; color: #FFF; transition: background 0.18s, transform 0.05s; }
+        .rt-btn:hover { background: #5F63A8; }
+        .rt-btn:active { transform: scale(0.99); }
+        .rt-btn:disabled { background: #B8B5E0; cursor: not-allowed; }
+        .rt-err { font-size: 13px; color: #C4546B; }
+        .rt-success { text-align: center; padding: 16px 0; }
+        .rt-check { width: 48px; height: 48px; border-radius: 50%; background: #E8F5E9; color: #4CAF50; font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+        .rt-success-title { font-size: 20px; font-weight: 700; color: #2D2B45; margin-bottom: 8px; }
+        .rt-success-body { font-size: 14px; color: #6B6982; line-height: 1.6; }
+        .rt-footer { text-align: center; font-size: 12px; color: #9C9AB0; margin-top: 24px; line-height: 1.7; }
+        .rt-powered { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; }
+        .rt-powered span { font-size: 11px; color: #9C9AB0; }
+        .rt-powered-logo { height: 24px; }
       `}</style>
-    </div>
+    </>
   )
 }
