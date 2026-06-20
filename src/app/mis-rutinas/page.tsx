@@ -38,38 +38,43 @@ interface Rutina {
   niveles: Nivel[]
 }
 
-function VideoPlayer({ vid }: { vid: string }) {
-  const [playing, setPlaying] = useState(false)
+function VideoSlot({ vid, isOpen, onToggle }: { vid: string; isOpen: boolean; onToggle: () => void }) {
   const [error, setError] = useState(false)
 
-  if (playing) {
+  if (isOpen) {
     return (
-      <div className="rt-videobox">
-        {!error ? (
-          <iframe
-            src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1&modestbranding=1&autoplay=1`}
-            allow="accelerometer;autoplay;encrypted-media;gyroscope;picture-in-picture"
-            allowFullScreen
-            onError={() => setError(true)}
-          />
-        ) : null}
-        {error && (
-          <div className="rt-fallback">
-            <a
-              href={`https://www.youtube.com/watch?v=${vid}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Ábrelo en YouTube
-            </a>
-          </div>
-        )}
-      </div>
+      <>
+        <div className="rt-play" onClick={onToggle}>
+          <div className="rt-ico">✕</div>
+          <div className="rt-txt">Cerrar video</div>
+        </div>
+        <div className="rt-videobox">
+          {!error ? (
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1&modestbranding=1`}
+              allow="accelerometer;encrypted-media;gyroscope;picture-in-picture"
+              allowFullScreen
+              onError={() => setError(true)}
+            />
+          ) : null}
+          {error && (
+            <div className="rt-fallback">
+              <a
+                href={`https://www.youtube.com/watch?v=${vid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ábrelo en YouTube
+              </a>
+            </div>
+          )}
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="rt-play" onClick={() => setPlaying(true)}>
+    <div className="rt-play" onClick={onToggle}>
       <div className="rt-ico">▶</div>
       <div className="rt-txt">Ver demostración en video</div>
     </div>
@@ -79,6 +84,8 @@ function VideoPlayer({ vid }: { vid: string }) {
 function RutinasContent({ data }: { data: Rutina[] }) {
   const [envIdx, setEnvIdx] = useState(0)
   const [lvlIdx, setLvlIdx] = useState(0)
+  // Key of the single active video: "diaIdx-ejIdx" or null
+  const [activeVideo, setActiveVideo] = useState<string | null>(null)
 
   const r = data[envIdx]
   const color = COLORS[r.rutina]
@@ -87,11 +94,13 @@ function RutinasContent({ data }: { data: Rutina[] }) {
   const handleEnv = useCallback((i: number) => {
     setEnvIdx(i)
     setLvlIdx(0)
+    setActiveVideo(null)
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }, [])
 
   const handleLvl = useCallback((i: number) => {
     setLvlIdx(i)
+    setActiveVideo(null)
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }, [])
 
@@ -181,26 +190,35 @@ function RutinasContent({ data }: { data: Rutina[] }) {
         </div>
 
         {/* Days */}
-        {lv.dias.map((d) => (
+        {lv.dias.map((d, di) => (
           <div key={d.dia} className="rt-day">
             <div className="rt-dayhead" style={{ background: color }}>
               {d.dia.toUpperCase()}
             </div>
-            {d.ej.map((e, ei) => (
-              <div key={ei} className="rt-ex">
-                <div className="rt-exrow">
-                  <div className="rt-bq">{e.bloque}</div>
-                  <div className="rt-exmeta">
-                    <div className="rt-exname">{e.ej}</div>
-                    <div className="rt-exzone">{e.obj}</div>
+            {d.ej.map((e, ei) => {
+              const videoKey = `${di}-${ei}`
+              return (
+                <div key={ei} className="rt-ex">
+                  <div className="rt-exrow">
+                    <div className="rt-bq">{e.bloque}</div>
+                    <div className="rt-exmeta">
+                      <div className="rt-exname">{e.ej}</div>
+                      <div className="rt-exzone">{e.obj}</div>
+                    </div>
+                    <div className="rt-exnums">
+                      <b>{e.sets}</b> series<span className="rt-sep">·</span><b>{e.reps}</b>
+                    </div>
                   </div>
-                  <div className="rt-exnums">
-                    <b>{e.sets}</b> series<span className="rt-sep">·</span><b>{e.reps}</b>
-                  </div>
+                  {e.vid && (
+                    <VideoSlot
+                      vid={e.vid}
+                      isOpen={activeVideo === videoKey}
+                      onToggle={() => setActiveVideo(prev => prev === videoKey ? null : videoKey)}
+                    />
+                  )}
                 </div>
-                {e.vid && <VideoPlayer vid={e.vid} key={`${envIdx}-${lvlIdx}-${d.dia}-${ei}`} />}
-              </div>
-            ))}
+              )
+            })}
           </div>
         ))}
 
