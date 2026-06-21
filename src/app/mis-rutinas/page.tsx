@@ -274,6 +274,53 @@ export default function MisRutinasPage() {
   return (
     <div className="rt-page">
       <RutinasContent data={data} />
+
+      {/* Bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-lucy-white border-t border-lucy-border pb-safe" style={{ zIndex: 50 }}>
+        <div className="max-w-lg mx-auto flex">
+          <button onClick={() => router.push('/mi-calendario')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="3" width="16" height="14" rx="2" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <line x1="2" y1="7" x2="18" y2="7" stroke="#9896B0" strokeWidth="1.5" />
+              <line x1="7" y1="3" x2="7" y2="7" stroke="#9896B0" strokeWidth="1.5" />
+              <line x1="13" y1="3" x2="13" y2="7" stroke="#9896B0" strokeWidth="1.5" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Calendario</span>
+          </button>
+          <button className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="4" y="9" width="12" height="2" rx="1" stroke="#7B7FC4" strokeWidth="1.5" fill="none" />
+              <rect x="2" y="7" width="3" height="6" rx="1" stroke="#7B7FC4" strokeWidth="1.5" fill="none" />
+              <rect x="15" y="7" width="3" height="6" rx="1" stroke="#7B7FC4" strokeWidth="1.5" fill="none" />
+            </svg>
+            <span className="text-[10px] text-lucy-accent font-medium">Rutinas</span>
+          </button>
+          <button onClick={() => router.push('/lista-compras')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M6 4h12l-1.5 9H7.5L6 4z" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <circle cx="8.5" cy="16" r="1.5" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <circle cx="15" cy="16" r="1.5" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <path d="M6 4L5 2H2" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Compras</span>
+          </button>
+          <button onClick={() => router.push('/educacion')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 17h14M5 17V9l5-5 5 5v8" stroke="#9896B0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <rect x="8" y="12" width="4" height="5" rx="0.5" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Educación</span>
+          </button>
+          <button onClick={() => router.push('/mi-perfil')} className="flex-1 py-3 flex flex-col items-center gap-0.5">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="7" r="3.5" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <path d="M3 17.5c0-3 3.13-5.5 7-5.5s7 2.5 7 5.5" stroke="#9896B0" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Perfil</span>
+          </button>
+        </div>
+      </nav>
+
       <style>{`
         .rt-page{background:var(--cream);min-height:100vh;
           font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -349,7 +396,7 @@ export default function MisRutinasPage() {
         .rt-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
         .rt-fallback a{color:#fff;font-weight:700;font-size:14px;text-decoration:underline}
 
-        .rt-foot{text-align:center;color:#9aa0b5;font-size:11px;letter-spacing:.14em;padding:26px 0 0}
+        .rt-foot{text-align:center;color:#9aa0b5;font-size:11px;letter-spacing:.14em;padding:26px 0 64px}
 
         @media(min-width:560px){
           .rt-steps{grid-template-columns:1fr 1fr 1fr}
