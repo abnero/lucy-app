@@ -203,6 +203,17 @@ export default function ListaComprasPage() {
             <span className="text-[10px] text-lucy-muted">Calendario</span>
           </button>
           <button
+            onClick={() => router.push('/mis-rutinas')}
+            className="flex-1 py-3 flex flex-col items-center gap-0.5"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="4" y="9" width="12" height="2" rx="1" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <rect x="2" y="7" width="3" height="6" rx="1" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+              <rect x="15" y="7" width="3" height="6" rx="1" stroke="#9896B0" strokeWidth="1.5" fill="none" />
+            </svg>
+            <span className="text-[10px] text-lucy-muted">Rutinas</span>
+          </button>
+          <button
             className="flex-1 py-3 flex flex-col items-center gap-0.5"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
