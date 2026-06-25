@@ -30,8 +30,66 @@ export async function POST(req: NextRequest) {
 
   console.log(`[webhook] Event: ${event.type}`)
 
+  const LUCY_PRICE_ID = 'price_1TLnvRRykkihHqQUAhdbGCtY'
+
+  // ── Funnel: checkout_iniciado ──
+  if ((event.type as string) === 'checkout.session.created') {
+    const session = event.data.object as Stripe.Checkout.Session
+    // Fetch line items to verify this is a Lucy checkout
+    const lineItems = await getStripe().checkout.sessions.listLineItems(session.id, { limit: 5 })
+    const isLucy = lineItems.data.some((li) => li.price?.id === LUCY_PRICE_ID)
+    if (!isLucy) {
+      console.log(`[webhook][funnel] session ${session.id} is not Lucy product, skipping`)
+    } else {
+      const meta = (session.metadata ?? {}) as Record<string, string>
+      await getServiceSupabase()
+        .from('funnel_eventos')
+        .upsert(
+          {
+            tipo: 'checkout_iniciado',
+            session_id: session.id,
+            email: session.customer_details?.email ?? session.customer_email ?? null,
+            monto: (session.amount_total ?? 0) / 100,
+            utm_source: meta.utm_source ?? null,
+            utm_medium: meta.utm_medium ?? null,
+            utm_campaign: meta.utm_campaign ?? null,
+            metadata: meta,
+            created_at: new Date(session.created * 1000).toISOString(),
+          },
+          { onConflict: 'session_id,tipo', ignoreDuplicates: true }
+        )
+      console.log(`[webhook][funnel] checkout_iniciado recorded for session ${session.id}`)
+    }
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
+
+    // ── Funnel: checkout_completado (only for Lucy product) ──
+    const lineItems = await getStripe().checkout.sessions.listLineItems(session.id, { limit: 5 })
+    const isLucy = lineItems.data.some((li) => li.price?.id === LUCY_PRICE_ID)
+    if (isLucy) {
+      const meta = (session.metadata ?? {}) as Record<string, string>
+      await getServiceSupabase()
+        .from('funnel_eventos')
+        .upsert(
+          {
+            tipo: 'checkout_completado',
+            session_id: session.id,
+            email: session.customer_details?.email ?? session.customer_email ?? null,
+            monto: (session.amount_total ?? 0) / 100,
+            utm_source: meta.utm_source ?? null,
+            utm_medium: meta.utm_medium ?? null,
+            utm_campaign: meta.utm_campaign ?? null,
+            metadata: meta,
+            created_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id,tipo', ignoreDuplicates: true }
+        )
+      console.log(`[webhook][funnel] checkout_completado recorded for session ${session.id}`)
+    } else {
+      console.log(`[webhook][funnel] session ${session.id} is not Lucy product, skipping completado`)
+    }
 
     if (session.payment_status !== 'paid') {
       console.log('[webhook] Session not paid yet, skipping')
