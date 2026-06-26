@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
           metadata: { referer: referer || null, path: path || null },
           created_at: new Date().toISOString(),
         },
-        { onConflict: 'session_id,tipo', ignoreDuplicates: true }
+        { onConflict: 'session_id,tipo' }
       )
   } catch (err) {
     console.error('[track/visita] insert failed:', err instanceof Error ? err.message : err)
