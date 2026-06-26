@@ -18,20 +18,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { utm_source, utm_medium, utm_campaign, referer, path } = body
 
-    await getServiceSupabase()
-      .from('funnel_eventos')
-      .upsert(
-        {
-          tipo: 'visita_landing',
-          session_id: visitId,
-          utm_source: utm_source || null,
-          utm_medium: utm_medium || null,
-          utm_campaign: utm_campaign || null,
-          metadata: { referer: referer || null, path: path || null },
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: 'session_id,tipo' }
-      )
+    await getServiceSupabase().rpc('upsert_visita_landing', {
+      p_session_id: visitId,
+      p_utm_source: utm_source || null,
+      p_utm_medium: utm_medium || null,
+      p_utm_campaign: utm_campaign || null,
+      p_metadata: { referer: referer || null, path: path || null },
+    })
   } catch (err) {
     console.error('[track/visita] insert failed:', err instanceof Error ? err.message : err)
   }
